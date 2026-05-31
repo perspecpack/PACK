@@ -7,6 +7,9 @@ const supabaseAnonKey =
   import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 
   '';
 
+console.log('[Supabase Config] URL Status:', supabaseUrl ? 'LOADED' : 'MISSING');
+console.log('[Supabase Config] Key Status:', supabaseAnonKey ? 'LOADED' : 'MISSING');
+
 // Safe client initialization to prevent boot-time crash if environment variables are missing or misconfigured.
 export const supabase = (supabaseUrl && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
