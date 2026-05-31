@@ -46,7 +46,9 @@ export function MasterLayout() {
       <div className="w-[280px] bg-[#06242c] text-slate-300 flex flex-col shrink-0 px-0 py-8 border-r border-teal-950 shadow-[4px_0_24px_rgba(6,36,44,0.15)] z-20">
         <div className="mb-10 flex items-center gap-3 px-6">
           <img src={logoImage} alt="Perspecpack Logo" className="h-10 w-auto object-contain" />
-          <img src={brandTextImg} alt="PERSPECPACK" className="h-4.5 w-auto object-contain brightness-0 invert" />
+          <span className="font-extrabold text-[20px] tracking-tight text-white select-none">
+            PERSPEC<span className="text-[#00a86b]">PACK</span>
+          </span>
         </div>
 
         <div className="px-4 mb-4">
