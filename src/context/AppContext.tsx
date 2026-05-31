@@ -76,6 +76,7 @@ interface AppContextType {
   // User state
   user: User | null;
   viewingAsUser: boolean;
+  syncError: string | null;
   
   // Auth actions
   login: (email: string, role: 'master' | 'user') => void;
@@ -579,12 +580,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return localStorage.getItem('pp_viewing_as_user') === 'true';
   });
 
+  const [syncError, setSyncError] = useState<string | null>(null);
+
   // Fetch initial data from Supabase DB on load
   useEffect(() => {
     const fetchFromSupabase = async () => {
-      if (!supabase) return;
+      if (!supabase) {
+        setSyncError('Supabase client not initialized. Check your environment variables (NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) in Vercel settings.');
+        return;
+      }
       try {
         console.log('[Supabase Sync] Fetching initial data from database...');
+        setSyncError(null);
         
         // Fetch Organizations
         const { data: orgsData, error: orgsErr } = await supabase
@@ -645,8 +652,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setChecklists(tsChecklists);
 
         console.log('[Supabase Sync] Fetched successfully from Supabase!');
-      } catch (err) {
+      } catch (err: any) {
         console.error('[Supabase Sync] Error during loading:', err);
+        setSyncError(err?.message || String(err));
       }
     };
     fetchFromSupabase();
@@ -1301,6 +1309,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         user,
         viewingAsUser,
+        syncError,
         login,
         logout,
         setViewingAsUser,

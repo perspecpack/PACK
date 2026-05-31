@@ -20,7 +20,7 @@ import { useApp } from '@/src/context/AppContext';
 export function MasterLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, setViewingAsUser, user } = useApp();
+  const { logout, setViewingAsUser, user, syncError } = useApp();
 
   const navigation = [
     { name: 'Organizações', href: '/master/oems', icon: Building2 },
@@ -148,6 +148,15 @@ export function MasterLayout() {
             </div>
           </div>
         </header>
+
+        {syncError && (
+          <div className="bg-red-50 border-b border-red-200 px-10 py-3 text-red-700 text-xs font-bold flex items-center justify-between gap-4 shadow-inner shrink-0">
+            <span className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+              Erro de Sincronização Supabase: {syncError}
+            </span>
+          </div>
+        )}
 
         <main className="flex-1 overflow-auto bg-[#F8FAFC] p-8">
           <Outlet />
