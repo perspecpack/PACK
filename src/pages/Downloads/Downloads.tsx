@@ -336,7 +336,10 @@ export default function Downloads() {
                       ) : (
                         standards.filter(s => s.organizationId === selectedOEM && s.status === 'active').map((std) => (
                           <TableRow key={std.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                            <TableCell className="font-bold text-[13px] text-gray-900">{std.title}</TableCell>
+                            <TableCell className="align-middle">
+                              <div className="font-bold text-[13px] text-gray-900">{std.title}</div>
+                              <div className="text-[10px] text-gray-400 font-bold mt-0.5 uppercase tracking-wide">{std.standardType || 'Norma de Embalagem'}</div>
+                            </TableCell>
                             <TableCell className="text-[13px] text-gray-600 font-bold font-mono">{std.referenceDocument || '-'}</TableCell>
                             <TableCell className="text-[13px] text-gray-600">{std.description || '-'}</TableCell>
                             <TableCell className="text-[13px] text-gray-700 font-semibold font-mono">{std.revision}</TableCell>

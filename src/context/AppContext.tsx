@@ -12,7 +12,8 @@ import {
   User,
   OrganizationType,
   ModuleType,
-  DocumentType
+  DocumentType,
+  StandardType
 } from '../types';
 
 export type {
@@ -27,7 +28,8 @@ export type {
   User,
   OrganizationType,
   ModuleType,
-  DocumentType
+  DocumentType,
+  StandardType
 };
 
 export type OEM = Organization;
@@ -242,6 +244,7 @@ const INITIAL_STANDARDS: StandardEntry[] = [
     organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     title: 'VDI 2300 - Embalagens Metálicas',
     description: 'Norma alemã regulatória para estruturação de embalagens metálicas.',
+    standardType: 'Norma de Embalagem',
     revision: '2024',
     status: 'active',
     referenceDocument: 'VDI 2300',
@@ -254,6 +257,7 @@ const INITIAL_STANDARDS: StandardEntry[] = [
     organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     title: 'Padrão Ergonômico de Levantamento de Carga',
     description: 'Limites de força para manuseio manual de peças no rack.',
+    standardType: 'Norma de Ergonomia',
     revision: 'Rev. B',
     status: 'active',
     referenceDocument: 'ISO 11228-1',
@@ -266,6 +270,7 @@ const INITIAL_STANDARDS: StandardEntry[] = [
     organizationId: '2ea10e42-7cf6-42d7-9cb2-9d3326ebde9e',
     title: 'Padrão de Empilhamento HMC-STD-8',
     description: 'Requisitos de segurança e encaixe de cantoneiras para empilhamento.',
+    standardType: 'Norma de Empilhamento',
     revision: '01',
     status: 'active',
     referenceDocument: 'HMC-STD-8',
@@ -437,6 +442,7 @@ const mapStdFromDb = (db: any): StandardEntry => ({
   organizationId: db.organization_id,
   title: db.title,
   description: db.description || undefined,
+  standardType: db.standard_type as any || 'Norma de Embalagem',
   revision: db.revision,
   status: db.status as 'active' | 'inactive',
   referenceDocument: db.reference_document || undefined,
@@ -452,6 +458,7 @@ const mapStdToDb = (ts: Partial<StandardEntry>) => {
   if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
   if (ts.title !== undefined) db.title = ts.title;
   if (ts.description !== undefined) db.description = ts.description;
+  if (ts.standardType !== undefined) db.standard_type = ts.standardType;
   if (ts.revision !== undefined) db.revision = ts.revision;
   if (ts.status !== undefined) db.status = ts.status;
   if (ts.referenceDocument !== undefined) db.reference_document = ts.referenceDocument;
@@ -647,6 +654,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         organization_id: s.organizationId,
         title: s.title,
         description: s.description || null,
+        standard_type: s.standardType || 'Norma de Embalagem',
         revision: s.revision,
         status: s.status,
         reference_document: s.referenceDocument || null,

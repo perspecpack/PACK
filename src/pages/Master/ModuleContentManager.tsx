@@ -24,7 +24,7 @@ import {
   FileDown,
   Paperclip
 } from 'lucide-react';
-import { ModuleType, DocumentType } from '@/src/types';
+import { ModuleType, DocumentType, StandardType } from '@/src/types';
 
 const DOCUMENT_TYPES: DocumentType[] = [
   'Caderno de Encargos',
@@ -33,6 +33,15 @@ const DOCUMENT_TYPES: DocumentType[] = [
   'Procedimento',
   'Apresentação',
   'Boletim Técnico'
+];
+
+const STANDARD_TYPES: StandardType[] = [
+  'Norma de Embalagem',
+  'Diretriz de AGV',
+  'Norma de Ergonomia',
+  'Padrão de Empilhamento',
+  'Norma de Segurança',
+  'Outros'
 ];
 
 const CHECKLIST_CATEGORIES = [
@@ -89,6 +98,7 @@ export default function ModuleContentManager() {
 
   // Standard Specific States
   const [referenceDocument, setReferenceDocument] = useState('');
+  const [standardType, setStandardType] = useState<StandardType>('Norma de Embalagem');
 
   // Checklist Specific States
   const [checklistItems, setChecklistItems] = useState<{ id?: string; category: string; description: string; required: boolean; reference?: string; sortOrder: number }[]>([]);
@@ -155,6 +165,7 @@ export default function ModuleContentManager() {
     setDwgFileUrl('');
     setImageUrl('');
     setDocumentType('Manual');
+    setStandardType('Norma de Embalagem');
     setFileUrl('');
     setFileName('');
     setFileTypeState('');
@@ -183,6 +194,7 @@ export default function ModuleContentManager() {
     setDwgFileUrl(rec.dwgFileUrl || '');
     setImageUrl(rec.imageUrl || '');
     setDocumentType(rec.documentType || 'Manual');
+    setStandardType(rec.standardType || 'Norma de Embalagem');
     setFileUrl(rec.fileUrl || '');
     setFileName(rec.fileName || '');
     setFileTypeState(rec.fileType || '');
@@ -241,6 +253,7 @@ export default function ModuleContentManager() {
         organizationId: orgId!,
         title: name,
         description: description || undefined,
+        standardType,
         revision,
         status,
         referenceDocument: referenceDocument || undefined,
@@ -386,7 +399,7 @@ export default function ModuleContentManager() {
               )}
               {moduleType === 'standards' && (
                 <>
-                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Título</TableHead>
+                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Título / Tipo</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Doc. de Referência</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[100px]">Revisão</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Anexo</TableHead>
@@ -483,8 +496,9 @@ export default function ModuleContentManager() {
 
                   {moduleType === 'standards' && (
                     <>
-                      <TableCell className="align-middle font-bold text-[13px] text-slate-900">
-                        {rec.title}
+                      <TableCell className="align-middle">
+                        <div className="font-bold text-[13px] text-slate-900">{rec.title}</div>
+                        <div className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase tracking-wide">{rec.standardType || 'Norma de Embalagem'}</div>
                       </TableCell>
                       <TableCell className="align-middle text-[13px] text-slate-600 font-medium">
                         {rec.referenceDocument || <span className="text-slate-400 italic">-</span>}
@@ -763,6 +777,19 @@ export default function ModuleContentManager() {
 
                 {moduleType === 'standards' && (
                   <>
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs font-bold text-slate-700">Tipo de Documentação Técnica</Label>
+                      <select 
+                        value={standardType} 
+                        onChange={(e) => setStandardType(e.target.value as StandardType)}
+                        className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-[14px] focus:ring-teal-500 focus:border-teal-500 text-slate-800"
+                      >
+                        {STANDARD_TYPES.map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="space-y-1.5 col-span-2">
                       <Label className="text-xs font-bold text-slate-700">Documento de Referência</Label>
                       <Input 

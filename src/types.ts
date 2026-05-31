@@ -80,11 +80,22 @@ export interface DocumentEntry {
   updatedAt: string;
 }
 
+export type StandardType =
+  | 'Norma de Ergonomia'
+  | 'Diretriz de AGV'
+  | 'Norma de Empilhamento'
+  | 'Padrão de Empilhamento'
+  | 'Padrão de Dispositivo'
+  | 'Norma de Segurança'
+  | 'Norma de Embalagem'
+  | 'Outros';
+
 export interface StandardEntry {
   id: string;
   organizationId: string;
   title: string;
   description?: string;
+  standardType?: StandardType;
   revision: string;
   status: 'active' | 'inactive';
   referenceDocument?: string;
