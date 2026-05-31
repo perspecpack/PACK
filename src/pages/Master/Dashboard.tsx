@@ -297,17 +297,6 @@ export default function Dashboard() {
     return { label: 'EM DESENVOLVIMENTO', color: 'bg-amber-50 text-amber-700 border-amber-200' };
   };
 
-  // Database rows calculation
-  const totalDbRows = organizations.length 
-    + organizationModules.length 
-    + components.length 
-    + documents.length 
-    + standards.length 
-    + checklists.reduce((sum, c) => sum + 1 + c.sections.length + c.sections.reduce((sSum, s) => sSum + s.criteria.length, 0), 0)
-    + referenceProjects.length
-    + downloadsLog.length
-    + uploadsLog.length
-    + pageAccessLog.length;
 
   return (
     <div className="space-y-8 max-w-[1280px] mx-auto font-sans pb-12">
@@ -761,10 +750,6 @@ export default function Dashboard() {
                 <span className="font-extrabold text-slate-800 font-mono">PostgreSQL (Supabase)</span>
               </div>
 
-              <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2.5">
-                <span className="text-slate-500 font-bold">Quantidade de registros:</span>
-                <span className="font-extrabold text-slate-800 font-mono">{totalDbRows} linhas</span>
-              </div>
 
               <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2.5">
                 <span className="text-slate-500 font-bold">Storage Utilizado:</span>
