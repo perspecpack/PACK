@@ -1342,14 +1342,15 @@ export default function Downloads() {
                         onClick={() => logDownload(selectedItemForModal.data.organizationId, 'Componente (STEP)', selectedItemForModal.data.id, selectedItemForModal.data.stepFileUrl?.split('/').pop() || 'file.step')}
                         target="_blank" 
                         rel="noreferrer"
-                        className="bg-blue-50 hover:bg-blue-100 text-blue-750 border border-blue-200 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center"
+                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center min-h-[50px] w-full"
                       >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Fórmula STEP</span>
+                        <Download className="w-3.5 h-3.5 shrink-0" />
+                        <span>STEP 3D</span>
                       </a>
                     ) : (
-                      <button disabled className="bg-slate-50 border border-slate-200 text-slate-400 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed text-center">
-                        <span>STEP Indisponível</span>
+                      <button disabled className="bg-red-50 text-red-700 border border-red-200 text-xs font-bold py-2 px-3 rounded-xl flex flex-col items-center justify-center cursor-not-allowed text-center min-h-[50px] w-full">
+                        <span>STEP 3D</span>
+                        <span className="text-[9px] text-red-400 font-semibold normal-case mt-0.5">indisponível</span>
                       </button>
                     )}
 
@@ -1359,14 +1360,15 @@ export default function Downloads() {
                         onClick={() => logDownload(selectedItemForModal.data.organizationId, 'Componente (PDF)', selectedItemForModal.data.id, selectedItemForModal.data.pdfFileUrl?.split('/').pop() || 'file.pdf')}
                         target="_blank" 
                         rel="noreferrer"
-                        className="bg-red-50 hover:bg-red-100 text-red-750 border border-red-200 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center"
+                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center min-h-[50px] w-full"
                       >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Ficha PDF</span>
+                        <Download className="w-3.5 h-3.5 shrink-0" />
+                        <span>PDF 2D</span>
                       </a>
                     ) : (
-                      <button disabled className="bg-slate-50 border border-slate-200 text-slate-400 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed text-center">
-                        <span>PDF Indisponível</span>
+                      <button disabled className="bg-red-50 text-red-700 border border-red-200 text-xs font-bold py-2 px-3 rounded-xl flex flex-col items-center justify-center cursor-not-allowed text-center min-h-[50px] w-full">
+                        <span>PDF 2D</span>
+                        <span className="text-[9px] text-red-400 font-semibold normal-case mt-0.5">indisponível</span>
                       </button>
                     )}
 
@@ -1376,14 +1378,15 @@ export default function Downloads() {
                         onClick={() => logDownload(selectedItemForModal.data.organizationId, 'Componente (DWG)', selectedItemForModal.data.id, selectedItemForModal.data.dwgFileUrl?.split('/').pop() || 'file.dwg')}
                         target="_blank" 
                         rel="noreferrer"
-                        className="bg-amber-50 hover:bg-amber-100 text-amber-705 border border-amber-200 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center"
+                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center min-h-[50px] w-full"
                       >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Desenho DWG</span>
+                        <Download className="w-3.5 h-3.5 shrink-0" />
+                        <span>DWG 2D</span>
                       </a>
                     ) : (
-                      <button disabled className="bg-slate-50 border border-slate-200 text-slate-400 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed text-center">
-                        <span>DWG Indisponível</span>
+                      <button disabled className="bg-red-50 text-red-700 border border-red-200 text-xs font-bold py-2 px-3 rounded-xl flex flex-col items-center justify-center cursor-not-allowed text-center min-h-[50px] w-full">
+                        <span>DWG 2D</span>
+                        <span className="text-[9px] text-red-400 font-semibold normal-case mt-0.5">indisponível</span>
                       </button>
                     )}
                   </div>
