@@ -19,8 +19,6 @@ import {
   AlertTriangle,
   HelpCircle,
   Info,
-  LayoutGrid,
-  List,
   Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -144,39 +142,6 @@ const ORG_TYPE_LABELS: Record<string, string> = {
   packaging_manufacturer: 'Fabricante de Embalagens'
 };
 
-const getComponentCategory = (name: string) => {
-  const n = name.toLowerCase();
-  if (n.includes('rodízio') || n.includes('rodizio') || n.includes('roda')) return 'Rodízios';
-  if (n.includes('engate') || n.includes('pino') || n.includes('acoplamento')) return 'Engates';
-  if (n.includes('etiqueta') || n.includes('porta etiqueta') || n.includes('identificação')) return 'Porta Etiquetas';
-  if (n.includes('trava') || n.includes('trinco') || n.includes('fecho')) return 'Travas';
-  if (n.includes('cantoneira') || n.includes('canto')) return 'Cantoneiras';
-  if (n.includes('skid') || n.includes('base') || n.includes('suporte')) return 'Skids';
-  return 'Acessórios';
-};
-
-const getDocumentCategory = (doc: DocumentEntry) => {
-  const type = doc.documentType;
-  if (type === 'Caderno de Encargos') return 'Cadernos de Encargos';
-  if (type === 'Norma') return 'Normas Internas';
-  if (type === 'Procedimento') return 'Procedimentos';
-  if (type === 'Manual') return 'Manuais Técnicos';
-  return 'Padrões Logísticos';
-};
-
-const getStandardCategory = (std: StandardEntry) => {
-  const type = std.standardType;
-  const title = std.title.toLowerCase();
-  if (type === 'Norma de Ergonomia' || title.includes('ergonomia')) return 'Ergonomia';
-  if (type === 'Diretriz de AGV' || title.includes('agv')) return 'AGV';
-  if (type === 'Norma de Empilhamento' || type === 'Padrão de Empilhamento' || title.includes('empilhamento')) return 'Empilhamento';
-  if (type === 'Norma de Segurança' || title.includes('segurança') || title.includes('seguranca')) return 'Segurança';
-  if (type === 'Norma de Embalagem' || type === 'Padrão de Dispositivo' || title.includes('dispositivo')) return 'Estrutura';
-  if (title.includes('movimentação') || title.includes('movimentacao') || title.includes('logística') || title.includes('logistica')) return 'Movimentação';
-  if (title.includes('identificação') || title.includes('identificacao') || title.includes('etiqueta')) return 'Identificação';
-  if (title.includes('rodízio') || title.includes('rodizio') || title.includes('roda')) return 'Rodízios';
-  return 'Estrutura';
-};
 
 export default function Downloads() {
   const { 
@@ -198,7 +163,6 @@ export default function Downloads() {
   // Steps: 'org_selection' | 'module_selection' | 'content_view' | 'checklist_execution'
   const [step, setStep] = useState<'org_selection' | 'module_selection' | 'content_view' | 'checklist_execution'>('org_selection');
   const [selectedOEM, setSelectedOEM] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedItemForModal, setSelectedItemForModal] = useState<{
     type: 'component' | 'document' | 'standard';
     data: any;
@@ -209,13 +173,11 @@ export default function Downloads() {
       setStep('org_selection');
       setSelectedOEM('');
       setSelectedModule('components');
-      setSelectedCategory('');
       setActiveChecklist(null);
       setSelectedItemForModal(null);
     }
   }, [resetTrigger]);
   const [selectedModule, setSelectedModule] = useState<ModuleType>('components');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
   
   // Checklist Execution state
   const [activeChecklist, setActiveChecklist] = useState<ChecklistTemplate | null>(null);
@@ -246,50 +208,7 @@ export default function Downloads() {
     }
   };
 
-  // Set default category when module changes
-  useEffect(() => {
-    if (step === 'content_view') {
-      setSelectedCategory('');
-    }
-  }, [selectedModule, step]);
 
-  const getCategoriesForModule = (module: ModuleType) => {
-    switch (module) {
-      case 'components':
-        return ['Rodízios', 'Engates', 'Porta Etiquetas', 'Travas', 'Cantoneiras', 'Skids', 'Acessórios'];
-      case 'documentation':
-        return ['Cadernos de Encargos', 'Normas Internas', 'Padrões Logísticos', 'Manuais Técnicos', 'Procedimentos'];
-      case 'standards':
-        return ['Estrutura', 'Empilhamento', 'Ergonomia', 'AGV', 'Rodízios', 'Identificação', 'Segurança', 'Movimentação'];
-      default:
-        return [];
-    }
-  };
-
-  const getItemCountForCategory = (cat: string) => {
-    if (selectedModule === 'components') {
-      return components.filter(c => 
-        c.organizationId === selectedOEM && 
-        c.status === 'active' && 
-        (cat === '' || getComponentCategory(c.name) === cat)
-      ).length;
-    }
-    if (selectedModule === 'documentation') {
-      return documents.filter(d => 
-        d.organizationId === selectedOEM && 
-        d.status === 'active' && 
-        (cat === '' || getDocumentCategory(d) === cat)
-      ).length;
-    }
-    if (selectedModule === 'standards') {
-      return standards.filter(s => 
-        s.organizationId === selectedOEM && 
-        s.status === 'active' && 
-        (cat === '' || getStandardCategory(s) === cat)
-      ).length;
-    }
-    return 0;
-  };
 
   // Log page access on component mount
   useEffect(() => {
@@ -794,524 +713,199 @@ export default function Downloads() {
             </div>
           </div>
 
-          {/* TOOLBAR FOR FILTERS AND VIEW MODE */}
-          {selectedModule !== 'checklists' && (
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-slate-50/50 p-4 rounded-2xl border border-slate-200 shadow-sm">
-              {/* Category horizontal filters */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1.5 sm:pb-0 w-full sm:w-auto no-scrollbar scroll-smooth">
-                <button
-                  onClick={() => setSelectedCategory('')}
-                  className={cn(
-                    "px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border shrink-0 flex items-center gap-1.5",
-                    selectedCategory === ''
-                      ? "bg-teal-600 border-teal-600 text-white shadow-sm"
-                      : "bg-white border-slate-200 text-slate-650 hover:bg-slate-50 hover:text-slate-900"
-                  )}
-                >
-                  <span>Todos</span>
-                  <span className={cn(
-                    "text-[10px] font-bold px-1.5 py-0.2 rounded-full",
-                    selectedCategory === '' ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-                  )}>
-                    {getItemCountForCategory('')}
-                  </span>
-                </button>
 
-                {getCategoriesForModule(selectedModule).map(cat => {
-                  const count = getItemCountForCategory(cat);
-                  const isActive = selectedCategory === cat;
-
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={cn(
-                        "px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border shrink-0 flex items-center gap-1.5",
-                        isActive
-                          ? "bg-teal-600 border-teal-600 text-white shadow-sm"
-                          : "bg-white border-slate-200 text-slate-650 hover:bg-slate-50 hover:text-slate-900"
-                      )}
-                    >
-                      <span>{cat}</span>
-                      <span className={cn(
-                        "text-[10px] font-bold px-1.5 py-0.2 rounded-full",
-                        isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-                      )}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Grid / List view toggle */}
-              <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl shrink-0 w-full sm:w-auto justify-end sm:justify-start shadow-inner">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    "p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold",
-                    viewMode === 'grid'
-                      ? "bg-teal-50 text-teal-700 shadow-sm border border-teal-100/50"
-                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-50 border border-transparent"
-                  )}
-                  title="Ver como Miniaturas"
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                  <span className="hidden md:inline">Miniaturas</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    "p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold",
-                    viewMode === 'list'
-                      ? "bg-teal-50 text-teal-700 shadow-sm border border-teal-100/50"
-                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-50 border border-transparent"
-                  )}
-                  title="Ver como Lista Detalhada"
-                >
-                  <List className="w-4 h-4" />
-                  <span className="hidden md:inline">Lista Detalhada</span>
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* MODULE: COMPONENTES HOMOLOGADOS */}
           {selectedModule === 'components' && (
             <div className="w-full">
-              {viewMode === 'grid' ? (
-                (() => {
-                  const filteredList = components.filter(c => 
-                    c.organizationId === selectedOEM && 
-                    c.status === 'active' && 
-                    (selectedCategory === '' || getComponentCategory(c.name) === selectedCategory)
-                  );
+              {(() => {
+                const filteredList = components.filter(c => 
+                  c.organizationId === selectedOEM && 
+                  c.status === 'active'
+                );
 
-                  if (filteredList.length === 0) {
-                    return (
-                      <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
-                        Nenhum componente cadastrado nesta categoria.
-                      </div>
-                    );
-                  }
-
+                if (filteredList.length === 0) {
                   return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-200">
-                      {filteredList.map(comp => (
-                        <div 
-                          key={comp.id}
-                          onClick={() => setSelectedItemForModal({ type: 'component', data: comp })}
-                          className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
-                        >
-                          <div className="space-y-3">
-                            <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                              {comp.imageUrl ? (
-                                <img src={comp.imageUrl} alt={comp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                              ) : (
-                                <Layers className="w-10 h-10 text-slate-300 group-hover:scale-105 transition-transform duration-300" />
-                              )}
-                              <div className="absolute top-2 right-2">
-                                <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded">
-                                  REV {comp.revision}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <span className="text-[9px] font-extrabold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded uppercase">
-                                {getComponentCategory(comp.name)}
-                              </span>
-                              <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-650 transition-colors">
-                                {comp.name}
-                              </h4>
-                              <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                                {comp.application || comp.description || 'Sem descrição adicional.'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-                            <span className="text-slate-400 font-mono text-[10px] font-bold uppercase">
-                              COD: {comp.id.substring(0, 8)}
-                            </span>
-                            <span className="text-teal-600 group-hover:text-teal-750 font-bold flex items-center gap-1 transition-colors">
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>Ver Detalhes</span>
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
+                      Nenhum componente cadastrado para esta organização.
                     </div>
                   );
-                })()
-              ) : (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full animate-in fade-in duration-200">
-                  <Table>
-                    <TableHeader className="bg-slate-50 border-b border-slate-200">
-                      <TableRow>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px]">Imagem</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Nome</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Código/Ref</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px] text-center">Rev.</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Descrição</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[200px]">Arquivos CAD</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(() => {
-                        const filteredList = components.filter(c => 
-                          c.organizationId === selectedOEM && 
-                          c.status === 'active' && 
-                          (selectedCategory === '' || getComponentCategory(c.name) === selectedCategory)
-                        );
+                }
 
-                        if (filteredList.length === 0) {
-                          return (
-                            <TableRow>
-                              <TableCell colSpan={6} className="h-28 text-center text-slate-400 font-medium italic">
-                                Nenhum componente cadastrado nesta categoria.
-                              </TableCell>
-                            </TableRow>
-                          );
-                        }
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-200">
+                    {filteredList.map(comp => (
+                      <div 
+                        key={comp.id}
+                        onClick={() => setSelectedItemForModal({ type: 'component', data: comp })}
+                        className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
+                      >
+                        <div className="space-y-3">
+                          <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
+                            {comp.imageUrl ? (
+                              <img src={comp.imageUrl} alt={comp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            ) : (
+                              <Layers className="w-10 h-10 text-slate-300 group-hover:scale-105 transition-transform duration-300" />
+                            )}
+                            <div className="absolute top-2 right-2">
+                              <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded">
+                                REV {comp.revision}
+                              </span>
+                            </div>
+                          </div>
 
-                        return filteredList.map(comp => (
-                          <TableRow 
-                            key={comp.id} 
-                            onClick={() => setSelectedItemForModal({ type: 'component', data: comp })}
-                            className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
-                          >
-                            <TableCell className="align-middle" onClick={(e) => e.stopPropagation()}>
-                              <div 
-                                onClick={() => setSelectedItemForModal({ type: 'component', data: comp })}
-                                className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer"
-                              >
-                                {comp.imageUrl ? (
-                                  <img src={comp.imageUrl} alt={comp.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <Layers className="w-5 h-5 text-slate-400" />
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="align-middle font-bold text-[13px] text-slate-900">{comp.name}</TableCell>
-                            <TableCell className="align-middle text-[12px] text-slate-500 font-bold font-mono uppercase">{comp.id.substring(0, 8)}</TableCell>
-                            <TableCell className="align-middle text-[12px] text-slate-700 font-bold font-mono text-center">{comp.revision}</TableCell>
-                            <TableCell className="align-middle text-[13px] text-slate-500 leading-normal">{comp.application || comp.description || '-'}</TableCell>
-                            <TableCell className="align-middle" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex gap-1.5">
-                                {comp.stepFileUrl && (
-                                  <a 
-                                    href={comp.stepFileUrl}
-                                    onClick={() => logDownload(comp.organizationId, 'Componente (STEP)', comp.id, comp.stepFileUrl?.split('/').pop() || 'file.step')}
-                                    target="_blank" 
-                                    rel="noreferrer"
-                                    className="bg-blue-50 hover:bg-blue-100 text-blue-750 text-[10px] px-2 py-1 rounded font-bold font-mono border border-blue-100"
-                                  >
-                                    STEP
-                                  </a>
-                                )}
-                                {comp.pdfFileUrl && (
-                                  <a 
-                                    href={comp.pdfFileUrl}
-                                    onClick={() => logDownload(comp.organizationId, 'Componente (PDF)', comp.id, comp.pdfFileUrl?.split('/').pop() || 'file.pdf')}
-                                    target="_blank" 
-                                    rel="noreferrer"
-                                    className="bg-red-50 hover:bg-red-100 text-red-750 text-[10px] px-2 py-1 rounded font-bold font-mono border border-red-100"
-                                  >
-                                    PDF
-                                  </a>
-                                )}
-                                {comp.dwgFileUrl && (
-                                  <a 
-                                    href={comp.dwgFileUrl}
-                                    onClick={() => logDownload(comp.organizationId, 'Componente (DWG)', comp.id, comp.dwgFileUrl?.split('/').pop() || 'file.dwg')}
-                                    target="_blank" 
-                                    rel="noreferrer"
-                                    className="bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] px-2 py-1 rounded font-bold font-mono border border-amber-100"
-                                  >
-                                    DWG
-                                  </a>
-                                )}
-                                {!comp.stepFileUrl && !comp.pdfFileUrl && !comp.dwgFileUrl && (
-                                  <span className="text-xs text-slate-400 italic">Indisponível</span>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ));
-                      })()}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                          <div className="space-y-1">
+                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-650 transition-colors">
+                              {comp.name}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                              {comp.application || comp.description || 'Sem descrição adicional.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                          <span className="text-slate-400 font-mono text-[10px] font-bold uppercase">
+                            COD: {comp.id.substring(0, 8)}
+                          </span>
+                          <span className="text-teal-600 group-hover:text-teal-750 font-bold flex items-center gap-1 transition-colors">
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Ver Detalhes</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
           {/* MODULE: DOCUMENTAÇÃO TÉCNICA */}
           {selectedModule === 'documentation' && (
             <div className="w-full">
-              {viewMode === 'grid' ? (
-                (() => {
-                  const filteredList = documents.filter(d => 
-                    d.organizationId === selectedOEM && 
-                    d.status === 'active' && 
-                    (selectedCategory === '' || getDocumentCategory(d) === selectedCategory)
-                  );
+              {(() => {
+                const filteredList = documents.filter(d => 
+                  d.organizationId === selectedOEM && 
+                  d.status === 'active'
+                );
 
-                  if (filteredList.length === 0) {
-                    return (
-                      <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
-                        Nenhum documento cadastrado nesta categoria.
-                      </div>
-                    );
-                  }
-
+                if (filteredList.length === 0) {
                   return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-200">
-                      {filteredList.map(doc => (
-                        <div 
-                          key={doc.id}
-                          onClick={() => setSelectedItemForModal({ type: 'document', data: doc })}
-                          className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
-                        >
-                          <div className="space-y-3">
-                            <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                              <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
-                                <FileText className="w-6 h-6 text-teal-600" />
-                              </div>
-                              <div className="absolute top-2 right-2">
-                                <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded">
-                                  REV {doc.revision}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <span className="text-[9px] font-extrabold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase">
-                                {doc.documentType}
-                              </span>
-                              <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-650 transition-colors">
-                                {doc.title}
-                              </h4>
-                              <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                                {doc.description || 'Sem descrição adicional.'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-                            <span className="text-slate-400 font-mono text-[10px] font-bold uppercase">
-                              {doc.fileName ? doc.fileName.split('.').pop()?.toUpperCase() : 'PDF'}
-                            </span>
-                            <span className="text-teal-600 group-hover:text-teal-750 font-bold flex items-center gap-1 transition-colors">
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>Ver Detalhes</span>
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
+                      Nenhum documento cadastrado para esta organização.
                     </div>
                   );
-                })()
-              ) : (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full animate-in fade-in duration-200">
-                  <Table>
-                    <TableHeader className="bg-slate-50 border-b border-slate-200">
-                      <TableRow>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Documento</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Descrição</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px] text-center">Rev.</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[120px] text-right pr-6">Download</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(() => {
-                        const filteredList = documents.filter(d => 
-                          d.organizationId === selectedOEM && 
-                          d.status === 'active' && 
-                          (selectedCategory === '' || getDocumentCategory(d) === selectedCategory)
-                        );
+                }
 
-                        if (filteredList.length === 0) {
-                          return (
-                            <TableRow>
-                              <TableCell colSpan={4} className="h-28 text-center text-slate-400 font-medium italic">
-                                Nenhum documento cadastrado nesta categoria.
-                              </TableCell>
-                            </TableRow>
-                          );
-                        }
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-200">
+                    {filteredList.map(doc => (
+                      <div 
+                        key={doc.id}
+                        onClick={() => setSelectedItemForModal({ type: 'document', data: doc })}
+                        className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
+                      >
+                        <div className="space-y-3">
+                          <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
+                            <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                              <FileText className="w-6 h-6 text-teal-600" />
+                            </div>
+                            <div className="absolute top-2 right-2">
+                              <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded">
+                                REV {doc.revision}
+                              </span>
+                            </div>
+                          </div>
 
-                        return filteredList.map(doc => (
-                          <TableRow 
-                            key={doc.id} 
-                            onClick={() => setSelectedItemForModal({ type: 'document', data: doc })}
-                            className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
-                          >
-                            <TableCell className="align-middle">
-                              <span className="font-bold text-[13px] text-slate-900 block">{doc.title}</span>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mt-0.5 block">{doc.documentType}</span>
-                            </TableCell>
-                            <TableCell className="align-middle text-[13px] text-slate-500">{doc.description || '-'}</TableCell>
-                            <TableCell className="align-middle text-[12px] text-slate-700 font-bold font-mono text-center">{doc.revision}</TableCell>
-                            <TableCell className="align-middle text-right pr-6" onClick={(e) => e.stopPropagation()}>
-                              {doc.fileUrl ? (
-                                <a 
-                                  href={doc.fileUrl}
-                                  onClick={() => logDownload(doc.organizationId, 'Documentação Técnica', doc.id, doc.fileName || 'file.pdf')}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white h-8 w-8 p-0 rounded-md">
-                                    <Download className="w-4 h-4" />
-                                  </Button>
-                                </a>
-                              ) : (
-                                <span className="text-xs text-slate-400 italic">Indisponível</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ));
-                      })()}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                          <div className="space-y-1">
+                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-650 transition-colors">
+                              {doc.title}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                              {doc.description || 'Sem descrição adicional.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                          <span className="text-slate-400 font-mono text-[10px] font-bold uppercase">
+                            {doc.fileName ? doc.fileName.split('.').pop()?.toUpperCase() : 'PDF'}
+                          </span>
+                          <span className="text-teal-600 group-hover:text-teal-750 font-bold flex items-center gap-1 transition-colors">
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Ver Detalhes</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
           {/* MODULE: NORMAS E PADRÕES */}
           {selectedModule === 'standards' && (
             <div className="w-full">
-              {viewMode === 'grid' ? (
-                (() => {
-                  const filteredList = standards.filter(s => 
-                    s.organizationId === selectedOEM && 
-                    s.status === 'active' && 
-                    (selectedCategory === '' || getStandardCategory(s) === selectedCategory)
-                  );
+              {(() => {
+                const filteredList = standards.filter(s => 
+                  s.organizationId === selectedOEM && 
+                  s.status === 'active'
+                );
 
-                  if (filteredList.length === 0) {
-                    return (
-                      <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
-                        Nenhuma norma cadastrada neste agrupamento.
-                      </div>
-                    );
-                  }
-
+                if (filteredList.length === 0) {
                   return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-200">
-                      {filteredList.map(std => (
-                        <div 
-                          key={std.id}
-                          onClick={() => setSelectedItemForModal({ type: 'standard', data: std })}
-                          className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
-                        >
-                          <div className="space-y-3">
-                            <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                              <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
-                                <ShieldCheck className="w-6 h-6 text-purple-600" />
-                              </div>
-                              <div className="absolute top-2 right-2">
-                                <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded">
-                                  REV {std.revision}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <span className="text-[9px] font-extrabold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded uppercase">
-                                {getStandardCategory(std)}
-                              </span>
-                              <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
-                                {std.title}
-                              </h4>
-                              <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                                {std.description || 'Sem descrição adicional.'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-                            <span className="text-slate-400 font-mono text-[10px] font-bold uppercase">
-                              {std.referenceDocument || 'REF: N/A'}
-                            </span>
-                            <span className="text-teal-600 group-hover:text-teal-755 font-bold flex items-center gap-1 transition-colors">
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>Ver Detalhes</span>
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
+                      Nenhuma norma cadastrada para esta organização.
                     </div>
                   );
-                })()
-              ) : (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full animate-in fade-in duration-200">
-                  <Table>
-                    <TableHeader className="bg-slate-50 border-b border-slate-200">
-                      <TableRow>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Norma / Diretriz</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Referência Técnica</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Descrição</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px] text-center">Rev.</TableHead>
-                        <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[120px] text-right pr-6">Download</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(() => {
-                        const filteredList = standards.filter(s => 
-                          s.organizationId === selectedOEM && 
-                          s.status === 'active' && 
-                          (selectedCategory === '' || getStandardCategory(s) === selectedCategory)
-                        );
+                }
 
-                        if (filteredList.length === 0) {
-                          return (
-                            <TableRow>
-                              <TableCell colSpan={5} className="h-28 text-center text-slate-400 font-medium italic">
-                                Nenhuma norma cadastrada neste agrupamento.
-                              </TableCell>
-                            </TableRow>
-                          );
-                        }
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-200">
+                    {filteredList.map(std => (
+                      <div 
+                        key={std.id}
+                        onClick={() => setSelectedItemForModal({ type: 'standard', data: std })}
+                        className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
+                      >
+                        <div className="space-y-3">
+                          <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
+                            <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                              <ShieldCheck className="w-6 h-6 text-purple-600" />
+                            </div>
+                            <div className="absolute top-2 right-2">
+                              <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded">
+                                REV {std.revision}
+                              </span>
+                            </div>
+                          </div>
 
-                        return filteredList.map(std => (
-                          <TableRow 
-                            key={std.id} 
-                            onClick={() => setSelectedItemForModal({ type: 'standard', data: std })}
-                            className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
-                          >
-                            <TableCell className="align-middle">
-                              <span className="font-bold text-[13px] text-slate-900 block">{std.title}</span>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mt-0.5 block">{std.standardType || 'Norma de Engenharia'}</span>
-                            </TableCell>
-                            <TableCell className="align-middle text-[13px] text-slate-600 font-mono font-bold">{std.referenceDocument || '-'}</TableCell>
-                            <TableCell className="align-middle text-[13px] text-slate-500">{std.description || '-'}</TableCell>
-                            <TableCell className="align-middle text-[12px] text-slate-700 font-bold font-mono text-center">{std.revision}</TableCell>
-                            <TableCell className="align-middle text-right pr-6" onClick={(e) => e.stopPropagation()}>
-                              {std.fileUrl ? (
-                                <a 
-                                  href={std.fileUrl}
-                                  onClick={() => logDownload(std.organizationId, 'Normas e Padrões', std.id, std.fileName || 'norma.pdf')}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white h-8 w-8 p-0 rounded-md">
-                                    <Download className="w-4 h-4" />
-                                  </Button>
-                                </a>
-                              ) : (
-                                <span className="text-xs text-slate-400 italic">Indisponível</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ));
-                      })()}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                          <div className="space-y-1">
+                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-650 transition-colors">
+                              {std.title}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                              {std.description || 'Sem descrição adicional.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                          <span className="text-slate-400 font-mono text-[10px] font-bold uppercase">
+                            {std.referenceDocument || 'REF: N/A'}
+                          </span>
+                          <span className="text-teal-600 group-hover:text-teal-750 font-bold flex items-center gap-1 transition-colors">
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Ver Detalhes</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -1664,22 +1258,8 @@ export default function Downloads() {
             {/* Right Side: Technical Specs & Download */}
             <div className="w-full md:w-1/2 p-8 flex flex-col justify-between overflow-y-auto max-h-[50vh] md:max-h-[90vh]">
               <div className="space-y-6">
-                {/* Meta Category and Rev */}
+                {/* Rev */}
                 <div className="flex items-center gap-2">
-                  <span className={cn(
-                    "text-[10px] font-extrabold px-2.5 py-1 rounded-full border uppercase tracking-wider",
-                    selectedItemForModal.type === 'component' 
-                      ? "bg-teal-50 border-teal-200 text-teal-700" 
-                      : selectedItemForModal.type === 'document' 
-                        ? "bg-blue-50 border-blue-200 text-blue-700" 
-                        : "bg-purple-50 border-purple-200 text-purple-700"
-                  )}>
-                    {selectedItemForModal.type === 'component' 
-                      ? getComponentCategory(selectedItemForModal.data.name) 
-                      : selectedItemForModal.type === 'document' 
-                        ? selectedItemForModal.data.documentType 
-                        : selectedItemForModal.data.standardType || 'Norma'}
-                  </span>
                   <span className="bg-slate-100 border border-slate-200 text-slate-650 font-mono text-[10px] font-extrabold px-2.5 py-1 rounded-full">
                     REV {selectedItemForModal.data.revision}
                   </span>
@@ -1722,10 +1302,6 @@ export default function Downloads() {
                           </span>
                         </div>
                       )}
-                      <div className="flex flex-col gap-1">
-                        <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider">Tipo</span>
-                        <span className="text-slate-800 font-semibold">{selectedItemForModal.data.documentType}</span>
-                      </div>
                     </>
                   )}
 
@@ -1735,12 +1311,6 @@ export default function Downloads() {
                         <div className="flex flex-col gap-1">
                           <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider">Referência Técnica</span>
                           <span className="text-slate-800 font-mono font-bold">{selectedItemForModal.data.referenceDocument}</span>
-                        </div>
-                      )}
-                      {selectedItemForModal.data.standardType && (
-                        <div className="flex flex-col gap-1">
-                          <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider">Categoria da Norma</span>
-                          <span className="text-slate-800 font-semibold">{selectedItemForModal.data.standardType}</span>
                         </div>
                       )}
                     </>
