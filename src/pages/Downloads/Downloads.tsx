@@ -19,7 +19,10 @@ import {
   AlertTriangle,
   HelpCircle,
   Info,
-  Eye
+  Eye,
+  Paperclip,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -27,6 +30,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/src/context/AppContext';
 import { ModuleType, ChecklistTemplate, ComponentEntry, DocumentEntry, StandardEntry } from '@/src/types';
+import { jsPDF } from 'jspdf';
+import { supabase, uploadFileToStorage } from '@/lib/supabase';
 
 const MODULE_INFO: Record<ModuleType, { title: string; desc: string; icon: React.ComponentType<any> }> = {
   components: { title: 'Componentes Homologados', desc: 'Biblioteca de partes técnicas e acoplamentos aprovados', icon: Layers },
@@ -181,8 +186,17 @@ export default function Downloads() {
   
   // Checklist Execution state
   const [activeChecklist, setActiveChecklist] = useState<ChecklistTemplate | null>(null);
-  const [checklistAnswers, setChecklistAnswers] = useState<Record<string, { status: 'C' | 'NC' | 'NA'; note: string }>>({});
+  const [checklistAnswers, setChecklistAnswers] = useState<Record<string, { 
+    status: 'C' | 'NC' | 'NA' | null; 
+    note: string; 
+    evidenceUrl?: string;
+    evidenceLoading?: boolean;
+  }>>({});
   const [showReportSuccessModal, setShowReportSuccessModal] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [generatedValCode, setGeneratedValCode] = useState('');
+  const [generatedVerCode, setGeneratedVerCode] = useState('');
+  const [isSubmittingChecklist, setIsSubmittingChecklist] = useState(false);
 
   const activeOems = organizations.filter(o => o.status === 'active');
   const selectedOEMObj = activeOems.find(o => o.id === selectedOEM);
@@ -218,10 +232,15 @@ export default function Downloads() {
   // Initialize checklist answers when entering checklist execution
   const startChecklistExecution = (checklist: ChecklistTemplate) => {
     setActiveChecklist(checklist);
-    const initialAnswers: Record<string, { status: 'C' | 'NC' | 'NA'; note: string }> = {};
+    const initialAnswers: Record<string, { 
+      status: 'C' | 'NC' | 'NA' | null; 
+      note: string; 
+      evidenceUrl?: string;
+      evidenceLoading?: boolean;
+    }> = {};
     checklist.sections?.forEach(sec => {
       sec.criteria?.forEach(crit => {
-        initialAnswers[crit.id] = { status: 'C', note: '' };
+        initialAnswers[crit.id] = { status: null, note: '', evidenceUrl: undefined };
       });
     });
     setChecklistAnswers(initialAnswers);
@@ -229,67 +248,494 @@ export default function Downloads() {
     logPageAccess(`Fornecedor - Executar Checklist: ${checklist.name}`);
   };
 
-  // Checklist execution progress calculation
-  const getChecklistProgress = () => {
-    if (!activeChecklist) return 0;
+  // Stats helper
+  const getChecklistStats = () => {
     let total = 0;
-    let answered = 0;
+    let conforms = 0;
+    let nonConforms = 0;
+    let na = 0;
+    let pending = 0;
+
+    if (activeChecklist) {
+      activeChecklist.sections?.forEach(sec => {
+        sec.criteria?.forEach(crit => {
+          total++;
+          const ans = checklistAnswers[crit.id];
+          const status = ans?.status;
+          if (!status) {
+            pending++;
+          } else if (status === 'C') {
+            conforms++;
+          } else if (status === 'NC') {
+            nonConforms++;
+          } else if (status === 'NA') {
+            na++;
+          }
+        });
+      });
+    }
+
+    const progress = total === 0 ? 0 : Math.round(((total - pending) / total) * 100);
+
+    return { total, conforms, nonConforms, na, pending, progress };
+  };
+
+  // Status helper
+  const getChecklistStatus = () => {
+    if (!activeChecklist) return { text: 'PENDENTE', colorClass: 'bg-slate-100 text-slate-700 border-slate-200' };
+
+    let hasMandatoryNC = false;
+    let hasOptionalNC = false;
+    let hasUnanswered = false;
+
     activeChecklist.sections?.forEach(sec => {
       sec.criteria?.forEach(crit => {
-        total++;
-        if (checklistAnswers[crit.id]?.status) answered++;
+        const ans = checklistAnswers[crit.id];
+        const status = ans?.status;
+
+        if (!status) {
+          hasUnanswered = true;
+        } else if (status === 'NC') {
+          if (crit.required) {
+            hasMandatoryNC = true;
+          } else {
+            hasOptionalNC = true;
+          }
+        }
       });
     });
-    return total === 0 ? 0 : Math.round((answered / total) * 100);
+
+    if (hasMandatoryNC) {
+      return { 
+        text: 'REPROVADO', 
+        colorClass: 'bg-rose-50 text-rose-700 border-rose-250 hover:bg-rose-100',
+        badgeClass: 'bg-rose-100 text-rose-800 border-rose-300'
+      };
+    }
+
+    if (hasUnanswered) {
+      return { 
+        text: 'PENDENTE', 
+        colorClass: 'bg-slate-150 text-slate-700 border-slate-250 hover:bg-slate-200',
+        badgeClass: 'bg-slate-200 text-slate-800 border-slate-350'
+      };
+    }
+
+    if (hasOptionalNC) {
+      return { 
+        text: 'APROVADO COM RESSALVAS', 
+        colorClass: 'bg-amber-50 text-amber-700 border-amber-250 hover:bg-amber-100',
+        badgeClass: 'bg-amber-100 text-amber-800 border-amber-300'
+      };
+    }
+
+    return { 
+      text: 'APROVADO', 
+      colorClass: 'bg-emerald-50 text-emerald-700 border-emerald-250 hover:bg-emerald-100',
+      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300'
+    };
   };
 
-  const isChecklistCompliant = () => {
-    return !Object.values(checklistAnswers).some((ans: any) => ans.status === 'NC');
+  const generateValidationCode = (oemName: string) => {
+    const initials = oemName.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 3) || 'PP';
+    const year = new Date().getFullYear();
+    const randomNumber = Math.floor(100000 + Math.random() * 900000);
+    return `${initials}-${year}-${randomNumber}`;
   };
 
-  // Download checklist report
-  const handleExportChecklistReport = () => {
+  const generateVerificationCode = () => {
+    const hex = '0123456789ABCDEF';
+    const randBlock = () => Array.from({ length: 4 }, () => hex[Math.floor(Math.random() * 16)]).join('');
+    return `${randBlock()}-${randBlock()}-${randBlock()}`;
+  };
+
+  const handleFileUpload = async (critId: string, file: File) => {
+    if (!activeChecklist || !selectedOEMObj) return;
+
+    // Set loading
+    setChecklistAnswers(prev => ({
+      ...prev,
+      [critId]: { ...prev[critId], evidenceLoading: true }
+    }));
+
+    try {
+      const { publicUrl } = await uploadFileToStorage(
+        file,
+        'checklist-evidencias',
+        selectedOEMObj.slug || 'oem',
+        'checklists'
+      );
+
+      setChecklistAnswers(prev => ({
+        ...prev,
+        [critId]: { ...prev[critId], evidenceUrl: publicUrl, evidenceLoading: false }
+      }));
+    } catch (error: any) {
+      console.error('Error uploading evidence:', error);
+      alert('Erro ao fazer upload da evidência: ' + error.message);
+      setChecklistAnswers(prev => ({
+        ...prev,
+        [critId]: { ...prev[critId], evidenceLoading: false }
+      }));
+    }
+  };
+
+  const handleRemoveEvidence = (critId: string) => {
+    setChecklistAnswers(prev => ({
+      ...prev,
+      [critId]: { ...prev[critId], evidenceUrl: undefined }
+    }));
+  };
+
+  const handleOpenConfirmation = () => {
     if (!activeChecklist) return;
 
-    let reportText = `RELATÓRIO DE CONFORMIDADE TÉCNICA - PERSPECPACK\n`;
-    reportText += `==================================================\n\n`;
-    reportText += `Checklist: ${activeChecklist.name}\n`;
-    reportText += `Revisão: ${activeChecklist.revision}\n`;
-    reportText += `Organização Proprietária: ${selectedOEMName}\n`;
-    reportText += `Validador: ${user?.email || 'fornecedor@perspecpack.com'}\n`;
-    reportText += `Data de Inspeção: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}\n`;
-    reportText += `Status Geral: ${isChecklistCompliant() ? 'CONFORME (APROVADO)' : 'NÃO CONFORME (REPROVADO)'}\n\n`;
-    reportText += `REGRAS E ITENS AVALIADOS:\n`;
-    reportText += `--------------------------------------------------\n\n`;
+    const currentStatus = getChecklistStatus();
+    const stats = getChecklistStats();
 
-    activeChecklist.sections?.forEach((sec, sIdx) => {
-      reportText += `Seção ${sIdx + 1}: ${sec.title}\n`;
-      sec.criteria?.forEach(crit => {
-        const ans = checklistAnswers[crit.id];
-        const statusText = ans?.status === 'C' ? 'CONFORME' : ans?.status === 'NC' ? 'NÃO CONFORME' : 'N.A.';
-        reportText += `  - [${crit.code}] ${crit.description}\n`;
-        reportText += `    Status: ${statusText}\n`;
-        if (ans?.note) {
-          reportText += `    Observação/Evidência: ${ans.note}\n`;
-        }
-        reportText += `\n`;
+    if (stats.pending > 0 && currentStatus.text !== 'REPROVADO') {
+      alert(`Existem ${stats.pending} item(ns) pendente(s) de resposta. Por favor, responda a todos os critérios antes de prosseguir.`);
+      return;
+    }
+
+    const valCode = generateValidationCode(selectedOEMName);
+    const verCode = generateVerificationCode();
+    setGeneratedValCode(valCode);
+    setGeneratedVerCode(verCode);
+    setShowConfirmationModal(true);
+  };
+
+  const handleExportChecklistReport = async () => {
+    if (!activeChecklist || !supabase) return;
+
+    setIsSubmittingChecklist(true);
+    const stats = getChecklistStats();
+    const currentStatus = getChecklistStatus();
+
+    try {
+      // 1. Persist in checklist_executions
+      const { data: execData, error: execError } = await supabase
+        .from('checklist_executions')
+        .insert({
+          organization_id: selectedOEM,
+          checklist_id: activeChecklist.id,
+          user_id: user?.email || 'fornecedor@perspecpack.com',
+          status: 'completed',
+          approval_level: currentStatus.text,
+          validation_code: generatedValCode,
+          verification_code: generatedVerCode,
+          progress: stats.progress,
+          total_items: stats.total,
+          conforming_items: stats.conforms,
+          nonconforming_items: stats.nonConforms,
+          na_items: stats.na,
+          pending_items: stats.pending
+        })
+        .select()
+        .single();
+
+      if (execError) throw execError;
+
+      // 2. Persist execution items
+      const itemsToInsert = Object.entries(checklistAnswers).map(([critId, val]) => {
+        const ans = val as any;
+        return {
+          execution_id: execData.id,
+          criterion_id: critId,
+          result: ans.status || null,
+          observation: ans.note || null,
+          evidence_url: ans.evidenceUrl || null
+        };
+      }).filter(item => item.result !== null);
+
+      if (itemsToInsert.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('checklist_execution_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+      }
+
+      // 3. Generate PDF using jsPDF
+      const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
       });
-      reportText += `\n`;
-    });
 
-    // File generation
-    const element = document.createElement("a");
-    const file = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
-    element.href = URL.createObjectURL(file);
-    element.download = `relatorio_inspecao_${activeChecklist.name.toLowerCase().replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+      // Colors
+      const primaryColor = [6, 36, 44]; // Deep Teal
+      const secondaryColor = [0, 245, 155]; // Neon Green
+      const grayColor = [100, 116, 139]; // Slate
 
-    // Save logs
-    logUpload(selectedOEM, `Relatório de Checklist (${activeChecklist.name})`, `relatorio_inspecao_${activeChecklist.name.toLowerCase().replace(/\s+/g, '_')}.txt`);
+      // Status color maps
+      let statusBg = [241, 245, 249];
+      let statusText = [71, 85, 105];
+      if (currentStatus.text === 'APROVADO') {
+        statusBg = [209, 250, 229];
+        statusText = [6, 95, 70];
+      } else if (currentStatus.text === 'APROVADO COM RESSALVAS') {
+        statusBg = [254, 243, 199];
+        statusText = [146, 64, 14];
+      } else if (currentStatus.text === 'REPROVADO') {
+        statusBg = [254, 226, 226];
+        statusText = [153, 27, 27];
+      }
 
-    setShowReportSuccessModal(true);
+      // Layout helper
+      let y = 15;
+      const pageHeight = 297;
+      const pageWidth = 210;
+      const margin = 15;
+      const contentWidth = pageWidth - (margin * 2);
+
+      const checkPageBreak = (neededHeight: number) => {
+        if (y + neededHeight > pageHeight - 20) {
+          doc.addPage();
+          drawPageHeaderAndFooter();
+          y = 35; // Start y below the header on new page
+        }
+      };
+
+      const drawPageHeaderAndFooter = () => {
+        // Draw Header bar
+        doc.setFillColor(6, 36, 44);
+        doc.rect(margin, 10, contentWidth, 15, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text('PERSPECPACK  |  RELATÓRIO DE CONFORMIDADE TÉCNICA', margin + 5, 19.5);
+        
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth - margin - 5, 19.5, { align: 'right' });
+
+        // Draw Footer line & text
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.5);
+        doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(7);
+        doc.text(`Código de Validação: ${generatedValCode}  |  Código de Rastreabilidade: ${generatedVerCode}`, margin, pageHeight - 10);
+        doc.text(`Página ${(doc as any).internal.getNumberOfPages()}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+      };
+
+      // Draw first page header
+      drawPageHeaderAndFooter();
+      y = 35;
+
+      // Title & Overview
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('Relatório de Validação de Embalagem', margin, y);
+      y += 6;
+
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Checklist Oficial: ${activeChecklist.name} (Rev. ${activeChecklist.revision})`, margin, y);
+      y += 10;
+
+      // Status general box
+      checkPageBreak(25);
+      doc.setFillColor(statusBg[0], statusBg[1], statusBg[2]);
+      doc.rect(margin, y, contentWidth, 20, 'F');
+      doc.setDrawColor(statusText[0], statusText[1], statusText[2]);
+      doc.setLineWidth(0.3);
+      doc.rect(margin, y, contentWidth, 20, 'S');
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(statusText[0], statusText[1], statusText[2]);
+      doc.text('RESULTADO DA AVALIAÇÃO / STATUS GERAL', margin + 6, y + 6);
+
+      doc.setFontSize(14);
+      doc.text(currentStatus.text, margin + 6, y + 14);
+
+      // Add progress inside the box
+      doc.setFontSize(8);
+      doc.setTextColor(statusText[0], statusText[1], statusText[2]);
+      doc.text(`PROGRESSO: ${stats.progress}%`, pageWidth - margin - 6, y + 14, { align: 'right' });
+      y += 26;
+
+      // Metadata Table details
+      checkPageBreak(35);
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, y, contentWidth, 26, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, y, contentWidth, 26, 'S');
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105);
+
+      // Metadata elements
+      doc.text('Organização OEM:', margin + 4, y + 6);
+      doc.setFont('Helvetica', 'normal');
+      doc.text(selectedOEMName, margin + 34, y + 6);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.text('Código Validação:', margin + 110, y + 6);
+      doc.setFont('Helvetica', 'normal');
+      doc.text(generatedValCode, margin + 140, y + 6);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.text('Validador / Auditor:', margin + 4, y + 13);
+      doc.setFont('Helvetica', 'normal');
+      doc.text(user?.email || 'fornecedor@perspecpack.com', margin + 34, y + 13);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.text('Rastreabilidade:', margin + 110, y + 13);
+      doc.setFont('Helvetica', 'normal');
+      doc.text(generatedVerCode, margin + 140, y + 13);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.text('Data de Emissão:', margin + 4, y + 20);
+      doc.setFont('Helvetica', 'normal');
+      doc.text(new Date().toLocaleDateString('pt-BR'), margin + 34, y + 20);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.text('Estatísticas:', margin + 110, y + 20);
+      doc.setFont('Helvetica', 'normal');
+      doc.text(`${stats.conforms} Conformes | ${stats.nonConforms} Não Conf. | ${stats.na} N.A.`, margin + 140, y + 20);
+
+      y += 34;
+
+      // Table Title
+      checkPageBreak(12);
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text('DETALHAMENTO DOS CRITÉRIOS AVALIADOS', margin, y);
+      y += 6;
+
+      // Table Header
+      checkPageBreak(10);
+      doc.setFillColor(241, 245, 249);
+      doc.rect(margin, y, contentWidth, 8, 'F');
+      doc.setDrawColor(203, 213, 225);
+      doc.line(margin, y + 8, pageWidth - margin, y + 8);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(71, 85, 105);
+
+      doc.text('CÓDIGO', margin + 2, y + 5.5);
+      doc.text('DESCRIÇÃO DO CRITÉRIO', margin + 22, y + 5.5);
+      doc.text('TIPO', margin + 112, y + 5.5);
+      doc.text('PARECER', margin + 132, y + 5.5);
+      doc.text('OBSERVAÇÕES E EVIDÊNCIAS', margin + 152, y + 5.5);
+
+      y += 8;
+
+      // Iterate criteria and sections
+      activeChecklist.sections?.forEach(sec => {
+        // Draw Section header
+        checkPageBreak(12);
+        doc.setFillColor(248, 250, 252);
+        doc.rect(margin, y, contentWidth, 6, 'F');
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text(sec.title.toUpperCase(), margin + 2, y + 4.5);
+        doc.line(margin, y + 6, pageWidth - margin, y + 6);
+        y += 6;
+
+        sec.criteria?.forEach(crit => {
+          const ans = checklistAnswers[crit.id] || { status: null, note: '' };
+          const critCode = crit.code;
+          const critDesc = crit.description;
+          const critReq = crit.required ? 'Obrigatório' : 'Opcional';
+          
+          let statusText = 'Pendente';
+          if (ans.status === 'C') statusText = 'Conforme';
+          else if (ans.status === 'NC') statusText = 'Não Conforme';
+          else if (ans.status === 'NA') statusText = 'N.A.';
+
+          let noteText = ans.note || '';
+          if (ans.evidenceUrl) {
+            noteText += (noteText ? ' | ' : '') + `Evidência anexa: ${ans.evidenceUrl}`;
+          }
+          if (!noteText) noteText = '-';
+
+          // Split texts to wrap columns
+          const descLines = doc.splitTextToSize(critDesc, 85);
+          const noteLines = doc.splitTextToSize(noteText, 40);
+
+          // Calculate height needed
+          const linesHeight = Math.max(descLines.length, noteLines.length) * 3.5 + 4;
+          const neededHeight = Math.max(linesHeight, 8);
+
+          checkPageBreak(neededHeight);
+
+          // Alternating backgrounds (subtle)
+          // Draw bottom border line
+          doc.setDrawColor(241, 245, 249);
+          doc.setLineWidth(0.2);
+          doc.line(margin, y + neededHeight, pageWidth - margin, y + neededHeight);
+
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(51, 65, 85);
+
+          // Draw Code (column 1)
+          doc.text(critCode, margin + 2, y + 5);
+
+          // Draw Desc (column 2)
+          doc.text(descLines, margin + 22, y + 5);
+
+          // Draw Type (column 3)
+          if (crit.required) {
+            doc.setFont('Helvetica', 'bold');
+            doc.setTextColor(153, 27, 27); // red
+          } else {
+            doc.setTextColor(71, 85, 105);
+          }
+          doc.text(critReq, margin + 112, y + 5);
+
+          doc.setFont('Helvetica', 'normal');
+          doc.setTextColor(51, 65, 85);
+
+          // Draw Result (column 4)
+          if (ans.status === 'C') {
+            doc.setFont('Helvetica', 'bold');
+            doc.setTextColor(6, 95, 70); // green
+          } else if (ans.status === 'NC') {
+            doc.setFont('Helvetica', 'bold');
+            doc.setTextColor(153, 27, 27); // red
+          } else {
+            doc.setTextColor(71, 85, 105);
+          }
+          doc.text(statusText, margin + 132, y + 5);
+
+          doc.setFont('Helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+
+          // Draw Observations (column 5)
+          doc.text(noteLines, margin + 152, y + 5);
+
+          y += neededHeight;
+        });
+      });
+
+      // Save the PDF file
+      doc.save(`Relatorio_Conformidade_${activeChecklist.name.replace(/\s+/g, '_')}_${generatedValCode}.pdf`);
+
+      // Log download details
+      logUpload(selectedOEM, `PDF de Conformidade (${activeChecklist.name})`, `Relatorio_Conformidade_${activeChecklist.name.replace(/\s+/g, '_')}_${generatedValCode}.pdf`);
+
+      // Done
+      setShowConfirmationModal(false);
+      setShowReportSuccessModal(true);
+    } catch (err: any) {
+      console.error('Error submitting checklist:', err);
+      alert('Ocorreu um erro ao salvar a auditoria: ' + err.message);
+    } finally {
+      setIsSubmittingChecklist(false);
+    }
   };
 
   // Helper to render static vector logos or abbreviations
@@ -978,7 +1424,7 @@ export default function Downloads() {
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar para Lista de Checklists</span>
           </button>
-
+ 
           {/* Checklist Metadata header */}
           <div className="bg-[#06242c] text-white p-6 rounded-2xl border border-teal-950 shadow-md relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
@@ -992,7 +1438,7 @@ export default function Downloads() {
                   Responda a todos os requisitos de inspeção da {selectedOEMName} para emitir o relatório de conformidade.
                 </p>
               </div>
-
+ 
               {/* Progress and status */}
               <div className="flex items-center gap-4 bg-teal-950/40 p-4 rounded-xl border border-teal-900/40 shrink-0 w-full md:w-auto">
                 <div className="space-y-1 flex-1 md:flex-initial">
@@ -1003,36 +1449,58 @@ export default function Downloads() {
                     <div className="w-32 bg-teal-950/80 rounded-full h-2 overflow-hidden border border-teal-900">
                       <div 
                         className="bg-[#00F59B] h-full transition-all duration-300"
-                        style={{ width: `${getChecklistProgress()}%` }}
+                        style={{ width: `${getChecklistStats().progress}%` }}
                       ></div>
                     </div>
-                    <span className="font-bold text-xs text-white">{getChecklistProgress()}%</span>
+                    <span className="font-bold text-xs text-white">{getChecklistStats().progress}%</span>
                   </div>
                 </div>
-
+ 
                 <div className="border-l border-teal-900/60 pl-4 space-y-0.5 shrink-0">
                   <span className="block text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">
-                    Status Atual
+                    Status Geral
                   </span>
-                  {isChecklistCompliant() ? (
-                    <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-900/60 px-2.5 py-0.5 rounded-full uppercase flex items-center gap-1">
-                      <CheckCircle className="w-3.5 h-3.5" /> Conforme
-                    </span>
-                  ) : (
-                    <span className="text-[11px] font-bold text-rose-400 bg-rose-950/60 border border-rose-900/60 px-2.5 py-0.5 rounded-full uppercase flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5" /> NC Pendente
-                    </span>
-                  )}
+                  <span className={cn("text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase flex items-center gap-1 border", getChecklistStatus().badgeClass)}>
+                    {getChecklistStatus().text === 'APROVADO' && <CheckCircle className="w-3.5 h-3.5" />}
+                    {getChecklistStatus().text === 'APROVADO COM RESSALVAS' && <AlertTriangle className="w-3.5 h-3.5" />}
+                    {getChecklistStatus().text === 'REPROVADO' && <X className="w-3.5 h-3.5" />}
+                    {getChecklistStatus().text === 'PENDENTE' && <HelpCircle className="w-3.5 h-3.5" />}
+                    <span>{getChecklistStatus().text}</span>
+                  </span>
                 </div>
               </div>
-
+ 
             </div>
           </div>
 
+          {/* Visual Summary Panel */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Total de Critérios</span>
+              <span className="text-2xl font-extrabold text-slate-800 mt-2">{getChecklistStats().total}</span>
+            </div>
+            <div className="bg-emerald-50/30 border border-emerald-100 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Conformes (✓)</span>
+              <span className="text-2xl font-extrabold text-emerald-700 mt-2">{getChecklistStats().conforms}</span>
+            </div>
+            <div className="bg-rose-50/30 border border-rose-100 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Não Conformes (⚠)</span>
+              <span className="text-2xl font-extrabold text-rose-700 mt-2">{getChecklistStats().nonConforms}</span>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">N.A. (⊘)</span>
+              <span className="text-2xl font-extrabold text-slate-700 mt-2">{getChecklistStats().na}</span>
+            </div>
+            <div className="bg-amber-50/20 border border-amber-100 rounded-xl p-4 shadow-sm flex flex-col justify-between col-span-2 md:col-span-1">
+              <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Pendentes</span>
+              <span className="text-2xl font-extrabold text-amber-705 mt-2">{getChecklistStats().pending}</span>
+            </div>
+          </div>
+ 
           {/* Form List of sections */}
           <div className="space-y-6">
             {activeChecklist.sections?.map((sec, sIdx) => (
-              <div key={sec.id || sIdx} className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+              <div key={sec.id || sIdx} className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden animate-in fade-in duration-150">
                 <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex justify-between items-center">
                   <h3 className="font-extrabold text-[14px] text-slate-800">
                     Seção {sIdx + 1}: {sec.title}
@@ -1041,100 +1509,154 @@ export default function Downloads() {
                     {sec.criteria?.length || 0} requisitos
                   </Badge>
                 </div>
-
+ 
                 <div className="divide-y divide-slate-150">
                   {sec.criteria?.map((crit, cIdx) => {
-                    const ans = checklistAnswers[crit.id] || { status: 'C', note: '' };
-
+                    const ans = checklistAnswers[crit.id] || { status: null, note: '' };
+ 
                     return (
-                      <div key={crit.id || cIdx} className="p-5 flex flex-col lg:flex-row lg:items-start justify-between gap-4 hover:bg-slate-50/20 transition-colors">
+                      <div key={crit.id || cIdx} className="p-5 flex flex-col lg:flex-row lg:items-start justify-between gap-4 hover:bg-slate-50/10 transition-colors">
                         {/* Criterion info */}
-                        <div className="flex-1 space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded">
+                        <div className="flex-1 space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-[11px] font-bold text-teal-755 bg-teal-50 border border-teal-150 px-2 py-0.5 rounded">
                               {crit.code}
                             </span>
                             {crit.required && (
-                              <span className="text-[9px] font-bold bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.2 rounded uppercase">
+                              <span className="text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 Obrigatório
                               </span>
                             )}
+                            {!crit.required && (
+                              <span className="text-[9px] font-bold bg-slate-50 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                Opcional
+                              </span>
+                            )}
                           </div>
-                          <p className="text-[13px] text-slate-850 font-bold leading-normal">
+                          <p className="text-[13px] text-slate-800 font-bold leading-normal">
                             {crit.description}
                           </p>
                           {crit.reference && (
-                            <p className="text-[11px] text-slate-450 font-medium">
+                            <p className="text-[11px] text-slate-400 font-medium">
                               <span className="font-extrabold">Referência:</span> {crit.reference}
                             </p>
                           )}
-
+ 
                           {/* Notes/Evidences input */}
-                          <div className="pt-2">
+                          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                             <input 
                               type="text"
-                              placeholder="Adicionar observações técnicas ou link de imagem de evidência..."
+                              placeholder="Adicionar observações técnicas..."
                               value={ans.note}
                               onChange={(e) => setChecklistAnswers({
                                 ...checklistAnswers,
                                 [crit.id]: { ...ans, note: e.target.value }
                               })}
-                              className="w-full max-w-lg px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 focus:bg-white transition-all"
+                              className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-705 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 focus:bg-white transition-all min-h-[36px]"
                             />
+                            
+                            {/* Evidence attachment widget */}
+                            <div className="shrink-0 flex items-center">
+                              {ans.evidenceLoading ? (
+                                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 min-h-[36px]">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-650" />
+                                  <span>Enviando...</span>
+                                </div>
+                              ) : ans.evidenceUrl ? (
+                                <div className="flex items-center gap-1.5">
+                                  <a 
+                                    href={ans.evidenceUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-1 text-[11px] font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg border border-teal-205 min-h-[36px] transition-colors"
+                                  >
+                                    <Paperclip className="w-3.5 h-3.5" />
+                                    <span>Ver Anexo</span>
+                                  </a>
+                                  <button
+                                    onClick={() => handleRemoveEvidence(crit.id)}
+                                    className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 min-h-[36px] transition-colors"
+                                    title="Remover anexo"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div>
+                                  <input
+                                    type="file"
+                                    id={`file-${crit.id}`}
+                                    accept=".png,.jpg,.jpeg,.pdf"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleFileUpload(crit.id, file);
+                                    }}
+                                    className="hidden"
+                                  />
+                                  <label
+                                    htmlFor={`file-${crit.id}`}
+                                    className="cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 min-h-[36px] transition-colors shadow-sm"
+                                  >
+                                    <Paperclip className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>Anexar Evidência</span>
+                                  </label>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-
-                        {/* Conformance selector chips */}
+ 
+                        {/* Conformance selector chips (Mutually exclusive with toggle) */}
                         <div className="flex gap-1.5 shrink-0 self-start lg:pt-1">
                           <button
                             onClick={() => setChecklistAnswers({
                               ...checklistAnswers,
-                              [crit.id]: { ...ans, status: 'C' }
+                              [crit.id]: { ...ans, status: ans.status === 'C' ? null : 'C' }
                             })}
                             className={cn(
-                              "px-3.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all flex items-center gap-1",
+                              "px-3.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all flex items-center gap-1.5 shadow-sm",
                               ans.status === 'C'
                                 ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-extrabold shadow-sm"
-                                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+                                : "bg-white border-slate-200 text-slate-550 hover:bg-slate-50"
                             )}
                           >
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
                             <span>Conforme</span>
                           </button>
-
+ 
                           <button
                             onClick={() => setChecklistAnswers({
                               ...checklistAnswers,
-                              [crit.id]: { ...ans, status: 'NC' }
+                              [crit.id]: { ...ans, status: ans.status === 'NC' ? null : 'NC' }
                             })}
                             className={cn(
-                              "px-3.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all flex items-center gap-1",
+                              "px-3.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all flex items-center gap-1.5 shadow-sm",
                               ans.status === 'NC'
                                 ? "bg-rose-50 border-rose-300 text-rose-700 font-extrabold shadow-sm"
-                                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+                                : "bg-white border-slate-200 text-slate-550 hover:bg-slate-50"
                             )}
                           >
                             <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                             <span>Não Conforme</span>
                           </button>
-
+ 
                           <button
                             onClick={() => setChecklistAnswers({
                               ...checklistAnswers,
-                              [crit.id]: { ...ans, status: 'NA' }
+                              [crit.id]: { ...ans, status: ans.status === 'NA' ? null : 'NA' }
                             })}
                             className={cn(
-                              "px-3.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all flex items-center gap-1",
+                              "px-3.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all flex items-center gap-1.5 shadow-sm",
                               ans.status === 'NA'
                                 ? "bg-slate-100 border-slate-300 text-slate-700 font-extrabold shadow-sm"
-                                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+                                : "bg-white border-slate-200 text-slate-550 hover:bg-slate-50"
                             )}
                           >
                             <Info className="w-3.5 h-3.5 text-slate-500" />
                             <span>N.A.</span>
                           </button>
                         </div>
-
+ 
                       </div>
                     );
                   })}
@@ -1142,11 +1664,11 @@ export default function Downloads() {
               </div>
             ))}
           </div>
-
+ 
           {/* Action footer */}
           <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="text-center sm:text-left text-xs text-slate-450 font-medium">
-              Ao concluir, clique no botão ao lado para baixar o relatório final e registrar a auditoria.
+              Ao concluir, clique no botão ao lado para abrir o painel de confirmação e emitir o relatório PDF.
             </div>
             <div className="flex gap-3 w-full sm:w-auto shrink-0">
               <Button
@@ -1157,18 +1679,18 @@ export default function Downloads() {
                 Cancelar
               </Button>
               <Button
-                onClick={handleExportChecklistReport}
-                className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold h-10 px-6 rounded-xl flex items-center gap-1.5 justify-center"
+                onClick={handleOpenConfirmation}
+                className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold h-10 px-6 rounded-xl flex items-center gap-1.5 justify-center shadow-md"
               >
                 <FileDown className="w-4.5 h-4.5" />
-                <span>Gerar Relatório & Salvar</span>
+                <span>Emitir Relatório</span>
               </Button>
             </div>
           </div>
-
+ 
         </section>
       )}
-
+ 
       {/* SUCCESS MODAL FOR REPORT */}
       {showReportSuccessModal && activeChecklist && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1178,11 +1700,11 @@ export default function Downloads() {
             </div>
             <div className="space-y-1.5">
               <h3 className="text-[18px] font-extrabold text-slate-900">Relatório Salvo com Sucesso!</h3>
-              <p className="text-slate-500 text-[13px] leading-relaxed">
-                O arquivo de auditoria conformidade para o checklist <strong>{activeChecklist.name}</strong> foi gerado e baixado localmente.
+              <p className="text-slate-550 text-[13px] leading-relaxed">
+                O relatório oficial de conformidade técnica em PDF para o checklist <strong>{activeChecklist.name}</strong> foi gerado e está disponível para download.
               </p>
               <p className="text-[11px] text-slate-400 font-medium">
-                O upload do registro foi auditado com sucesso na central de controle administratriva.
+                Os dados desta validação foram salvos com sucesso na central de controle administratriva.
               </p>
             </div>
             <Button
@@ -1197,6 +1719,123 @@ export default function Downloads() {
           </div>
         </div>
       )}
+
+      {/* CONFIRMATION MODAL */}
+      {showConfirmationModal && activeChecklist && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[550px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="bg-[#06242c] text-white p-5 border-b border-teal-950 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-[#00F59B]" />
+                <span>Resumo da Validação Técnica</span>
+              </h3>
+              <button 
+                onClick={() => setShowConfirmationModal(false)}
+                className="text-slate-350 hover:text-white hover:bg-teal-950/50 p-1.5 rounded-lg transition-colors"
+                disabled={isSubmittingChecklist}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 overflow-y-auto">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3.5 text-xs">
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2 gap-4">
+                  <span className="font-semibold text-slate-500">Checklist Executado:</span>
+                  <span className="font-bold text-slate-800 text-right">{activeChecklist.name}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                  <span className="font-semibold text-slate-500">Organização OEM:</span>
+                  <span className="font-bold text-slate-800">{selectedOEMName}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                  <span className="font-semibold text-slate-500">Validador:</span>
+                  <span className="font-mono text-slate-700 font-bold">{user?.email || 'fornecedor@perspecpack.com'}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                  <span className="font-semibold text-slate-500">Código de Validação:</span>
+                  <span className="font-mono text-[#06242c] font-black">{generatedValCode}</span>
+                </div>
+                <div className="flex justify-between items-center pb-1">
+                  <span className="font-semibold text-slate-500">Código de Rastreabilidade:</span>
+                  <span className="font-mono text-[#06242c] font-black">{generatedVerCode}</span>
+                </div>
+              </div>
+
+              {/* Status and Statistics Panel */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status Geral da Auditoria</h4>
+                <div className={cn(
+                  "p-4 rounded-xl border flex items-center justify-between shadow-sm",
+                  getChecklistStatus().colorClass
+                )}>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-85">Resultado da Conformidade</span>
+                    <div className="font-black text-[15px]">{getChecklistStatus().text}</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold uppercase tracking-wider block opacity-85">Progresso</span>
+                    <span className="text-lg font-black">{getChecklistStats().progress}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Counts details */}
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg">
+                  <span className="block text-[9px] font-bold text-slate-450 uppercase">Conformes</span>
+                  <span className="text-sm font-extrabold text-emerald-600">{getChecklistStats().conforms}</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg">
+                  <span className="block text-[9px] font-bold text-slate-455 uppercase">Não Conf.</span>
+                  <span className="text-sm font-extrabold text-rose-600">{getChecklistStats().nonConforms}</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg">
+                  <span className="block text-[9px] font-bold text-slate-455 uppercase">N.A.</span>
+                  <span className="text-sm font-extrabold text-slate-600">{getChecklistStats().na}</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg">
+                  <span className="block text-[9px] font-bold text-slate-455 uppercase">Pendente</span>
+                  <span className="text-sm font-extrabold text-amber-600">{getChecklistStats().pending}</span>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-400 text-center leading-relaxed">
+                Ao clicar em confirmar, um relatório técnico em formato <strong>PDF oficial</strong> será emitido e o registro da auditoria será salvo nos servidores para fins de rastreabilidade e auditoria.
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center gap-3 shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmationModal(false)}
+                className="w-1/2 text-xs font-semibold h-10 rounded-xl"
+                disabled={isSubmittingChecklist}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleExportChecklistReport}
+                className="w-1/2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold h-10 rounded-xl flex items-center justify-center gap-1.5 shadow-md"
+                disabled={isSubmittingChecklist}
+              >
+                {isSubmittingChecklist ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processando...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="w-4 h-4" />
+                    <span>Emitir PDF & Salvar</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ITEM DETAILS MODAL */}
       {selectedItemForModal && (
         <div 
