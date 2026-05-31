@@ -106,30 +106,29 @@ export interface StandardEntry {
   updatedAt: string;
 }
 
-export interface ChecklistItem {
+export interface ChecklistCriterion {
   id: string;
-  checklistId: string;
-  category: 
-    | 'Estrutura'
-    | 'Empilhamento'
-    | 'Ergonomia'
-    | 'AGV'
-    | 'Identificação'
-    | 'Segurança'
-    | 'Logística'
-    | 'Documentação';
+  checklistSectionId: string;
+  code: string;
   description: string;
-  required: boolean;
   reference?: string;
+  responseType: 'conformance' | 'yes_no' | 'free_text' | 'number' | 'evidence';
+  required: boolean;
   sortOrder: number;
   createdAt: string;
-  // Legacy aliases
-  order?: number;
-  isMandatory?: boolean;
-  techRef?: string;
+  updatedAt: string;
 }
 
-export interface ChecklistEntry {
+export interface ChecklistSection {
+  id: string;
+  checklistTemplateId: string;
+  title: string;
+  description?: string;
+  sortOrder: number;
+  criteria: ChecklistCriterion[];
+}
+
+export interface ChecklistTemplate {
   id: string;
   organizationId: string;
   name: string;
@@ -137,12 +136,9 @@ export interface ChecklistEntry {
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
-  items: ChecklistItem[];
-  fileUrl?: string;
-  fileName?: string;
-  fileType?: string;
-  // Legacy aliases
-  oemId?: string;
+  sections: ChecklistSection[];
+  // For backwards compatibility in lists
+  items?: any[];
 }
 
 export interface ReferenceProjectEntry {

@@ -8,13 +8,15 @@ import {
   Download, 
   Layers,
   FileDown,
-  HardDrive
+  HardDrive,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/src/context/AppContext';
-import { ModuleType } from '@/src/types';
+import { ModuleType, ChecklistTemplate } from '@/src/types';
 
 const MODULE_INFO: Record<ModuleType, { title: string; icon: React.ComponentType<any> }> = {
   components: { title: 'Componentes Homologados', icon: Layers },
@@ -25,6 +27,14 @@ const MODULE_INFO: Record<ModuleType, { title: string; icon: React.ComponentType
   cad_library: { title: 'Biblioteca CAD', icon: HardDrive },
   procedures: { title: 'Procedimentos', icon: Box }
 };
+
+const RESPONSE_TYPES = [
+  { value: 'conformance', label: 'Conforme/Não Conforme/N.A.' },
+  { value: 'yes_no', label: 'Sim/Não/N.A.' },
+  { value: 'free_text', label: 'Texto Livre' },
+  { value: 'number', label: 'Numérico' },
+  { value: 'evidence', label: 'Evidência (Foto/Arquivo)' }
+];
 
 export default function Downloads() {
   const { 
@@ -39,6 +49,7 @@ export default function Downloads() {
 
   const [selectedOEM, setSelectedOEM] = useState<string>('');
   const [selectedModule, setSelectedModule] = useState<ModuleType>('components');
+  const [viewingChecklist, setViewingChecklist] = useState<ChecklistTemplate | null>(null);
 
   const activeOems = organizations.filter(o => o.status === 'active');
 
@@ -369,7 +380,7 @@ export default function Downloads() {
                         <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12">Checklist</TableHead>
                         <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12">Critérios de Inspeção</TableHead>
                         <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12 w-[100px]">Rev.</TableHead>
-                        <TableHead className="text-right text-[12px] font-bold text-gray-600 uppercase h-12 pr-6">Opções / Arquivos</TableHead>
+                        <TableHead className="text-right text-[12px] font-bold text-gray-600 uppercase h-12 pr-6 w-[180px]">Opções</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -383,19 +394,18 @@ export default function Downloads() {
                         checklists.filter(c => c.organizationId === selectedOEM && c.status === 'active').map((chk) => (
                           <TableRow key={chk.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
                             <TableCell className="font-bold text-[13px] text-gray-900">{chk.name}</TableCell>
-                            <TableCell className="text-[13px] text-gray-600 font-medium">{chk.items?.length || 0} regras de validação</TableCell>
+                            <TableCell className="text-[13px] text-gray-600 font-medium">
+                              {chk.sections?.reduce((sum: number, s: any) => sum + (s.criteria?.length || 0), 0) || 0} regras de validação
+                            </TableCell>
                             <TableCell className="text-[13px] text-gray-700 font-semibold font-mono">{chk.revision}</TableCell>
-                            <TableCell className="text-right pr-6 space-x-1.5 flex justify-end items-center h-[72px]">
-                              {chk.fileUrl && (
-                                <a href={chk.fileUrl} target="_blank" rel="noreferrer" title={chk.fileName}>
-                                  <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white h-7.5 px-2 rounded-md shadow-sm text-xs font-bold gap-1">
-                                    <Download className="w-3.5 h-3.5" /> Anexo
-                                  </Button>
-                                </a>
-                              )}
-                              <span className="text-[11px] bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold font-mono">
-                                DINÂMICO
-                              </span>
+                            <TableCell className="text-right pr-6">
+                              <Button 
+                                onClick={() => setViewingChecklist(chk)}
+                                size="sm" 
+                                className="bg-teal-600 hover:bg-teal-700 text-white h-8 px-3 rounded-md shadow-sm text-xs font-bold gap-1"
+                              >
+                                Visualizar Requisitos
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
@@ -465,6 +475,88 @@ export default function Downloads() {
             </section>
           )}
         </>
+      )}
+
+      {/* Modal Requisitos */}
+      {viewingChecklist && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-[900px] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <header className="px-6 py-4 bg-[#06242c] text-white flex justify-between items-center">
+              <div>
+                <span className="text-[10px] bg-teal-500/20 text-[#00F59B] px-2 py-0.5 rounded-full font-bold font-mono uppercase tracking-wider">
+                  Checklist Técnico &bull; Rev. {viewingChecklist.revision}
+                </span>
+                <h3 className="font-extrabold text-[16px] text-white mt-1">{viewingChecklist.name}</h3>
+              </div>
+              <button onClick={() => setViewingChecklist(null)} className="text-slate-300 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+            
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto bg-slate-50">
+              {viewingChecklist.sections?.map((sec, idx) => {
+                if (!sec.criteria || sec.criteria.length === 0) return null;
+                return (
+                  <div key={sec.id || idx} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+                      <h4 className="text-[13px] font-bold text-slate-800">
+                        {idx + 1}. {sec.title}
+                      </h4>
+                      <Badge className="bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-bold px-2 py-0">
+                        {sec.criteria.length} {sec.criteria.length === 1 ? 'item' : 'itens'}
+                      </Badge>
+                    </div>
+                    
+                    <div className="divide-y divide-slate-100">
+                      {sec.criteria.map((crit, cIdx) => (
+                        <div key={crit.id || cIdx} className="p-4 flex flex-col md:flex-row md:items-start gap-3 hover:bg-slate-50/40 transition-colors">
+                          <div className="font-mono text-xs font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded w-fit shrink-0">
+                            {crit.code}
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <p className="text-[13px] text-slate-900 font-semibold leading-relaxed">
+                              {crit.description}
+                            </p>
+                            {crit.reference && (
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                <span className="font-bold">Referência Técnica:</span> {crit.reference}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                            <span className="text-[11px] text-slate-500 font-medium bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                              {RESPONSE_TYPES.find(r => r.value === crit.responseType)?.label || crit.responseType}
+                            </span>
+                            {crit.required && (
+                              <span className="text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded">
+                                Obrigatório (Mandatory)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {(!viewingChecklist.sections || viewingChecklist.sections.every(s => !s.criteria || s.criteria.length === 0)) && (
+                <div className="text-center py-12 text-slate-400 italic text-[13px]">
+                  Nenhum critério técnico cadastrado neste modelo de checklist.
+                </div>
+              )}
+            </div>
+
+            <footer className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <Button 
+                onClick={() => setViewingChecklist(null)} 
+                className="bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg text-xs px-4 h-9"
+              >
+                Fechar
+              </Button>
+            </footer>
+          </div>
+        </div>
       )}
     </div>
   );

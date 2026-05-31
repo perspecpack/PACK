@@ -1,21 +1,33 @@
 import React, { useState } from 'react';
-import { useApp, ChecklistEntry, ChecklistItem } from '@/src/context/AppContext';
+import { useApp } from '@/src/context/AppContext';
+import { ChecklistTemplate, ChecklistSection, ChecklistCriterion } from '@/src/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit2, Trash2, X, AlertTriangle, PlusCircle, Trash } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, AlertTriangle, CheckSquare } from 'lucide-react';
 
-const CHECKLIST_CATEGORIES = [
-  'Estrutura',
-  'Empilhamento',
-  'Ergonomia',
-  'AGV',
-  'Identificação',
-  'Logística',
-  'Segurança',
-  'Documentação',
+const DEFAULT_SECTIONS = [
+  { title: 'Identificação do Projeto', sortOrder: 1 },
+  { title: 'Estrutura da Embalagem', sortOrder: 2 },
+  { title: 'Componentes Homologados', sortOrder: 3 },
+  { title: 'Empilhamento', sortOrder: 4 },
+  { title: 'Movimentação e Logística', sortOrder: 5 },
+  { title: 'Ergonomia', sortOrder: 6 },
+  { title: 'Identificação e Etiquetagem', sortOrder: 7 },
+  { title: 'Segurança', sortOrder: 8 },
+  { title: 'Documentação Técnica', sortOrder: 9 },
+  { title: 'Aprovação Final', sortOrder: 10 }
+];
+
+const RESPONSE_TYPES = [
+  { value: 'conformance', label: 'Conforme/Não Conforme/N.A.' },
+  { value: 'yes_no', label: 'Sim/Não/N.A.' },
+  { value: 'free_text', label: 'Texto Livre' },
+  { value: 'number', label: 'Numérico' },
+  { value: 'evidence', label: 'Evidência (Foto/Arquivo)' }
 ];
 
 export default function Checklists() {
@@ -23,16 +35,27 @@ export default function Checklists() {
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingChecklist, setEditingChecklist] = useState<ChecklistEntry | null>(null);
+  const [editingChecklist, setEditingChecklist] = useState<ChecklistTemplate | null>(null);
 
   // Form states - Checklist Metadata
   const [name, setName] = useState('');
-  const [oemId, setOemId] = useState('');
+  const [organizationId, setOrganizationId] = useState('');
   const [revision, setRevision] = useState('01');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
 
-  // Form states - Dynamic Items
-  const [items, setItems] = useState<Omit<ChecklistItem, 'checklistId'>[]>([]);
+  // Form states - Dynamic Sections and Criteria
+  const [sections, setSections] = useState<ChecklistSection[]>([]);
+  const [activeSectionIndex, setActiveSectionIndex] = useState<number>(0);
+  const [isAddingCriterion, setIsAddingCriterion] = useState(false);
+  const [editingCriterionIndex, setEditingCriterionIndex] = useState<number | null>(null);
+
+  // Local states for editing a criterion
+  const [critCode, setCritCode] = useState('');
+  const [critDescription, setCritDescription] = useState('');
+  const [critReference, setCritReference] = useState('');
+  const [critResponseType, setCritResponseType] = useState<'conformance' | 'yes_no' | 'free_text' | 'number' | 'evidence'>('conformance');
+  const [critRequired, setCritRequired] = useState(true);
+  const [critSortOrder, setCritSortOrder] = useState(1);
 
   // Delete confirm state
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -40,67 +63,105 @@ export default function Checklists() {
   const openAddModal = () => {
     setEditingChecklist(null);
     setName('');
-    setOemId(oems[0]?.id || '');
+    setOrganizationId(oems[0]?.id || '');
     setRevision('01');
     setStatus('active');
-    setItems([
-      { id: '', category: 'Estrutura', description: '', isMandatory: true, techRef: '', order: 1 }
-    ]);
+    
+    // Pre-populate with default 10 sections
+    setSections(
+      DEFAULT_SECTIONS.map((sec, idx) => ({
+        id: '',
+        checklistTemplateId: '',
+        title: sec.title,
+        sortOrder: sec.sortOrder,
+        criteria: []
+      }))
+    );
+    setActiveSectionIndex(0);
+    setIsAddingCriterion(false);
+    setEditingCriterionIndex(null);
+
     setIsModalOpen(true);
   };
 
-  const openEditModal = (chk: ChecklistEntry) => {
+  const openEditModal = (chk: ChecklistTemplate) => {
     setEditingChecklist(chk);
     setName(chk.name);
-    setOemId(chk.oemId);
+    setOrganizationId(chk.organizationId);
     setRevision(chk.revision);
     setStatus(chk.status);
-    setItems(chk.items.map(item => ({ ...item })));
+    
+    // Deep copy checklists sections & criteria
+    setSections(chk.sections ? JSON.parse(JSON.stringify(chk.sections)) : []);
+    setActiveSectionIndex(0);
+    setIsAddingCriterion(false);
+    setEditingCriterionIndex(null);
+
     setIsModalOpen(true);
   };
 
-  // Add Item to dynamic list
-  const handleAddItemRow = () => {
-    const nextOrder = items.length > 0 ? Math.max(...items.map(i => i.order)) + 1 : 1;
-    setItems(prev => [
-      ...prev,
-      { id: '', category: 'Estrutura', description: '', isMandatory: true, techRef: '', order: nextOrder }
-    ]);
-  };
+  // Dynamic Checklist Criteria Handlers
+  const handleSaveCriterion = () => {
+    if (!critCode.trim() || !critDescription.trim()) return;
 
-  // Remove Item from dynamic list
-  const handleRemoveItemRow = (index: number) => {
-    setItems(prev => prev.filter((_, idx) => idx !== index));
-  };
+    const newCriterion: ChecklistCriterion = {
+      id: editingCriterionIndex !== null && sections[activeSectionIndex]?.criteria[editingCriterionIndex]?.id 
+        ? sections[activeSectionIndex].criteria[editingCriterionIndex].id 
+        : '',
+      checklistSectionId: sections[activeSectionIndex]?.id || '',
+      code: critCode.trim(),
+      description: critDescription.trim(),
+      reference: critReference.trim() || undefined,
+      responseType: critResponseType,
+      required: critRequired,
+      sortOrder: critSortOrder || ((sections[activeSectionIndex]?.criteria?.length || 0) + 1),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
-  // Change Item value in dynamic list
-  const handleItemValueChange = (index: number, field: keyof Omit<ChecklistItem, 'id' | 'checklistId'>, value: any) => {
-    setItems(prev => prev.map((item, idx) => {
-      if (idx === index) {
-        return { ...item, [field]: value };
+    setSections(prev => prev.map((sec, idx) => {
+      if (idx === activeSectionIndex) {
+        let updatedCriteria = [...(sec.criteria || [])];
+        if (editingCriterionIndex !== null) {
+          updatedCriteria[editingCriterionIndex] = newCriterion;
+        } else {
+          updatedCriteria.push(newCriterion);
+        }
+        updatedCriteria.sort((a, b) => a.sortOrder - b.sortOrder);
+        return { ...sec, criteria: updatedCriteria };
       }
-      return item;
+      return sec;
+    }));
+
+    setIsAddingCriterion(false);
+    setEditingCriterionIndex(null);
+  };
+
+  const handleDeleteCriterion = (cIdx: number) => {
+    setSections(prev => prev.map((sec, idx) => {
+      if (idx === activeSectionIndex) {
+        const updatedCriteria = sec.criteria.filter((_, i) => i !== cIdx);
+        return { ...sec, criteria: updatedCriteria };
+      }
+      return sec;
     }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !oemId) return;
-
-    // Filter out rows without descriptions
-    const validItems = items.filter(item => item.description.trim() !== '');
+    if (!name.trim() || !organizationId) return;
 
     const checklistData = {
+      organizationId,
       name,
-      oemId,
       revision,
-      status,
+      status
     };
 
     if (editingChecklist) {
-      updateChecklist(editingChecklist.id, checklistData, validItems);
+      updateChecklist(editingChecklist.id, checklistData, sections);
     } else {
-      addChecklist(checklistData, validItems);
+      addChecklist(checklistData, sections);
     }
     setIsModalOpen(false);
   };
@@ -113,12 +174,12 @@ export default function Checklists() {
   const getOEMName = (id: string) => oems.find(o => o.id === id)?.name || 'Desconhecido';
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto">
+    <div className="space-y-6 max-w-[1200px] mx-auto font-sans">
       {/* Header section */}
       <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div>
           <h2 className="text-[16px] font-bold text-slate-900">Modelos de Checklists</h2>
-          <p className="text-[13px] text-slate-500 mt-1">Crie e configure checklists e formulários de auditoria técnica para homologação de embalagens.</p>
+          <p className="text-[13px] text-slate-500 mt-1">Crie e configure checklists técnicos dinâmicos para homologação de embalagens industriais.</p>
         </div>
         <Button 
           onClick={openAddModal}
@@ -137,7 +198,7 @@ export default function Checklists() {
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12">Nome do Checklist</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12">Organização</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[100px]">Revisão</TableHead>
-              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[120px]">Qtd. Requisitos</TableHead>
+              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[150px]">Qtd. Requisitos</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[120px]">Status</TableHead>
               <TableHead className="text-right text-[12px] font-semibold text-slate-600 uppercase h-12 pr-6 w-[150px]">Ações</TableHead>
             </TableRow>
@@ -156,14 +217,14 @@ export default function Checklists() {
                     {chk.name}
                   </TableCell>
                   <TableCell className="align-middle text-[13px] text-slate-600">
-                    {getOEMName(chk.oemId)}
+                    {getOEMName(chk.organizationId)}
                   </TableCell>
                   <TableCell className="align-middle text-[13px] font-mono text-slate-700">
                     {chk.revision}
                   </TableCell>
                   <TableCell className="align-middle">
                     <span className="bg-teal-50 border border-teal-100 text-teal-700 font-bold px-2.5 py-0.5 rounded text-[11px]">
-                      {chk.items.length} itens
+                      {chk.sections?.reduce((sum: number, s: any) => sum + (s.criteria?.length || 0), 0) || 0} itens
                     </span>
                   </TableCell>
                   <TableCell className="align-middle">
@@ -202,7 +263,7 @@ export default function Checklists() {
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-[850px] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-[1100px] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <header className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
               <h3 className="font-bold text-slate-900 text-[15px]">{editingChecklist ? 'Editar Checklist' : 'Novo Checklist de Organização'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
@@ -229,8 +290,8 @@ export default function Checklists() {
                   <Label htmlFor="chk-oem" className="text-xs font-bold text-slate-700">Organização</Label>
                   <select 
                     id="chk-oem" 
-                    value={oemId} 
-                    onChange={(e) => setOemId(e.target.value)}
+                    value={organizationId} 
+                    onChange={(e) => setOrganizationId(e.target.value)}
                     className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-[13px] focus:ring-teal-500 focus:border-teal-500 text-slate-800"
                     required
                   >
@@ -267,117 +328,247 @@ export default function Checklists() {
                 </div>
               </div>
 
-              {/* Checklist Dynamic Requirements Area */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Itens e Critérios de Homologação</h4>
-                  <Button 
-                    type="button" 
-                    onClick={handleAddItemRow}
-                    variant="outline"
-                    className="h-9 px-3 rounded-md text-[13px] text-teal-600 hover:text-teal-700 border-teal-200 hover:bg-teal-50 flex items-center gap-1.5 font-bold"
-                  >
-                    <PlusCircle className="w-4 h-4" />
-                    Adicionar Critério
-                  </Button>
-                </div>
+              {/* Side-by-side Editor */}
+              <div className="col-span-2 border-t border-slate-100 pt-4 mt-2 space-y-4">
+                <div className="grid grid-cols-12 gap-6 min-h-[500px]">
+                  {/* Left Panel: Sections List */}
+                  <div className="col-span-4 border-r border-slate-200 pr-4 space-y-2">
+                    <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-3">Seções do Checklist</Label>
+                    <div className="space-y-1.5 max-h-[450px] overflow-y-auto pr-1">
+                      {sections.map((sec, idx) => {
+                        const isSelected = activeSectionIndex === idx;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setActiveSectionIndex(idx);
+                              setEditingCriterionIndex(null);
+                              setIsAddingCriterion(false);
+                            }}
+                            className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all flex items-center justify-between ${
+                              isSelected 
+                                ? 'bg-teal-50 text-teal-800 border-l-4 border-teal-600 font-semibold shadow-sm' 
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent'
+                            }`}
+                          >
+                            <span className="truncate pr-2">{idx + 1}. {sec.title}</span>
+                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              isSelected ? 'bg-teal-200 text-teal-900' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {sec.criteria?.length || 0}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                {/* Items List Table */}
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-slate-100 border-b border-slate-200">
-                      <TableRow>
-                        <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-10 w-[60px]">Ordem</TableHead>
-                        <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-10 w-[140px]">Categoria</TableHead>
-                        <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-10">Descrição do Requisito</TableHead>
-                        <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-10 w-[110px]">Obrigatório?</TableHead>
-                        <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-10 w-[150px]">Ref. Técnica</TableHead>
-                        <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-10 w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="h-20 text-center text-slate-400 italic text-[13px]">
-                            Nenhum critério inserido. Clique em "+ Adicionar Critério" para começar.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        items.map((item, idx) => (
-                          <TableRow key={idx} className="border-b border-slate-100 hover:bg-slate-50/20">
-                            {/* Order */}
-                            <TableCell className="align-middle py-2">
-                              <Input 
-                                type="number" 
-                                value={item.order} 
-                                onChange={(e) => handleItemValueChange(idx, 'order', parseInt(e.target.value) || 0)}
-                                className="h-9 px-1 text-center text-[12px] font-semibold border-slate-200 focus:ring-teal-500 rounded-md"
-                              />
-                            </TableCell>
+                  {/* Right Panel: Criteria List / Edit for the selected Section */}
+                  <div className="col-span-8 space-y-4">
+                    {activeSectionIndex !== null && sections[activeSectionIndex] && (
+                      <>
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                          <div>
+                            <h4 className="text-[14px] font-extrabold text-slate-800">
+                              {activeSectionIndex + 1}. {sections[activeSectionIndex].title}
+                            </h4>
+                            <p className="text-[12px] text-slate-500 mt-0.5">Gerencie os critérios de conformidade pertencentes a esta seção.</p>
+                          </div>
+                          
+                          {!isAddingCriterion && editingCriterionIndex === null && (
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                setIsAddingCriterion(true);
+                                const sectionNum = activeSectionIndex + 1;
+                                const nextItemNum = (sections[activeSectionIndex].criteria?.length || 0) + 1;
+                                setCritCode(`${sectionNum}.${nextItemNum}`);
+                                setCritDescription('');
+                                setCritReference('');
+                                setCritResponseType('conformance');
+                                setCritRequired(true);
+                                setCritSortOrder(nextItemNum);
+                              }}
+                              className="bg-teal-600 hover:bg-teal-700 text-white font-bold h-9 px-3 rounded-lg text-xs flex items-center gap-1.5 shadow-sm"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Adicionar Critério
+                            </Button>
+                          )}
+                        </div>
 
-                            {/* Category */}
-                            <TableCell className="align-middle py-2">
-                              <select 
-                                value={item.category} 
-                                onChange={(e) => handleItemValueChange(idx, 'category', e.target.value)}
-                                className="w-full h-9 px-2 bg-white border border-slate-200 rounded-md text-[12px] focus:ring-teal-500 focus:border-teal-500 text-slate-800 font-medium"
+                        {/* Criterion Form (Inline Add/Edit) */}
+                        {(isAddingCriterion || editingCriterionIndex !== null) && (
+                          <div className="bg-slate-50 border border-teal-100 rounded-xl p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150">
+                            <h5 className="text-[12px] font-bold text-teal-900 flex items-center gap-1.5">
+                              <CheckSquare className="w-4 h-4" />
+                              {isAddingCriterion ? 'Novo Critério' : 'Editar Critério'}
+                            </h5>
+                            
+                            <div className="grid grid-cols-6 gap-3">
+                              <div className="col-span-2 space-y-1">
+                                <Label className="text-[11px] font-bold text-slate-600">Código</Label>
+                                <Input
+                                  value={critCode}
+                                  onChange={(e) => setCritCode(e.target.value)}
+                                  placeholder="Ex: 1.1"
+                                  className="h-8 text-[12px] bg-white border-slate-300"
+                                  required
+                                />
+                              </div>
+
+                              <div className="col-span-4 space-y-1">
+                                <Label className="text-[11px] font-bold text-slate-600">Referência Técnica</Label>
+                                <Input
+                                  value={critReference}
+                                  onChange={(e) => setCritReference(e.target.value)}
+                                  placeholder="Ex: ISO 11228-1, Opcional"
+                                  className="h-8 text-[12px] bg-white border-slate-300"
+                                />
+                              </div>
+
+                              <div className="col-span-6 space-y-1">
+                                <Label className="text-[11px] font-bold text-slate-600">Descrição do Critério</Label>
+                                <Textarea
+                                  value={critDescription}
+                                  onChange={(e) => setCritDescription(e.target.value)}
+                                  placeholder="O que o inspetor/fornecedor deve avaliar?"
+                                  className="text-[12px] bg-white min-h-[50px] rounded-lg border-slate-300"
+                                  required
+                                />
+                              </div>
+
+                              <div className="col-span-3 space-y-1">
+                                <Label className="text-[11px] font-bold text-slate-600">Tipo de Resposta</Label>
+                                <select
+                                  value={critResponseType}
+                                  onChange={(e) => setCritResponseType(e.target.value as any)}
+                                  className="w-full h-8 px-2 bg-white border border-slate-300 rounded text-[12px] text-slate-800"
+                                >
+                                  {RESPONSE_TYPES.map(t => (
+                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div className="col-span-3 flex items-center gap-2 mt-5">
+                                <input
+                                  type="checkbox"
+                                  id="crit-req"
+                                  checked={critRequired}
+                                  onChange={(e) => setCritRequired(e.target.checked)}
+                                  className="rounded border-slate-300 text-teal-600 w-4 h-4 focus:ring-teal-500"
+                                />
+                                <Label htmlFor="crit-req" className="text-[12px] font-semibold text-slate-700 cursor-pointer select-none">
+                                  Obrigatório (Mandatory)
+                                </Label>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => {
+                                  setIsAddingCriterion(false);
+                                  setEditingCriterionIndex(null);
+                                }}
+                                className="h-8 px-3 text-xs text-slate-600"
                               >
-                                {CHECKLIST_CATEGORIES.map(cat => (
-                                  <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                              </select>
-                            </TableCell>
-
-                            {/* Description */}
-                            <TableCell className="align-middle py-2">
-                              <Input 
-                                value={item.description} 
-                                onChange={(e) => handleItemValueChange(idx, 'description', e.target.value)}
-                                placeholder="Descreva claramente o critério..." 
-                                required
-                                className="h-9 text-[12px] border-slate-200 focus:ring-teal-500 rounded-md"
-                              />
-                            </TableCell>
-
-                            {/* Mandatory */}
-                            <TableCell className="align-middle py-2">
-                              <select 
-                                value={item.isMandatory ? 'yes' : 'no'} 
-                                onChange={(e) => handleItemValueChange(idx, 'isMandatory', e.target.value === 'yes')}
-                                className="w-full h-9 px-2 bg-white border border-slate-200 rounded-md text-[12px] focus:ring-teal-500 focus:border-teal-500 text-slate-800 font-medium"
-                              >
-                                <option value="yes">Sim</option>
-                                <option value="no">Não</option>
-                              </select>
-                            </TableCell>
-
-                            {/* Tech reference */}
-                            <TableCell className="align-middle py-2">
-                              <Input 
-                                value={item.techRef || ''} 
-                                onChange={(e) => handleItemValueChange(idx, 'techRef', e.target.value)}
-                                placeholder="Norma / Capítulo" 
-                                className="h-9 text-[12px] border-slate-200 focus:ring-teal-500 rounded-md"
-                              />
-                            </TableCell>
-
-                            {/* Delete Action */}
-                            <TableCell className="align-middle py-2 text-center">
-                              <Button 
-                                type="button" 
-                                onClick={() => handleRemoveItemRow(idx)}
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
-                              >
-                                <Trash className="w-3.5 h-3.5" />
+                                Cancelar
                               </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                              <Button
+                                type="button"
+                                onClick={handleSaveCriterion}
+                                className="h-8 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs"
+                              >
+                                Confirmar
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Criteria List */}
+                        {!isAddingCriterion && editingCriterionIndex === null && (
+                          <div className="border border-slate-200 rounded-lg overflow-hidden bg-white max-h-[350px] overflow-y-auto">
+                            <Table>
+                              <TableHeader className="bg-slate-50 border-b border-slate-200">
+                                <TableRow>
+                                  <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9 w-[70px]">Cód.</TableHead>
+                                  <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9">Descrição</TableHead>
+                                  <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9 w-[120px]">Ref. Técnica</TableHead>
+                                  <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9 w-[130px]">Resposta</TableHead>
+                                  <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9 w-[80px]">Obrig.</TableHead>
+                                  <TableHead className="text-right text-[11px] font-bold text-slate-600 uppercase h-9 pr-4 w-[100px]">Ações</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {!sections[activeSectionIndex].criteria || sections[activeSectionIndex].criteria.length === 0 ? (
+                                  <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center text-slate-400 italic text-[12px]">
+                                      Nenhum critério cadastrado nesta seção. Clique em "+ Adicionar Critério" para criar.
+                                    </TableCell>
+                                  </TableRow>
+                                ) : (
+                                  sections[activeSectionIndex].criteria.map((crit, cIdx) => (
+                                    <TableRow key={cIdx} className="border-b border-slate-100 hover:bg-slate-50/50">
+                                      <TableCell className="align-middle py-2 font-mono text-[12px] font-bold text-slate-700">
+                                        {crit.code}
+                                      </TableCell>
+                                      <TableCell className="align-middle py-2 text-[12px] text-slate-900 font-medium">
+                                        {crit.description}
+                                      </TableCell>
+                                      <TableCell className="align-middle py-2 text-[11px] text-slate-500 font-semibold">
+                                        {crit.reference || <span className="text-slate-300 italic">-</span>}
+                                      </TableCell>
+                                      <TableCell className="align-middle py-2 text-[11px] text-slate-600">
+                                        {RESPONSE_TYPES.find(r => r.value === crit.responseType)?.label || crit.responseType}
+                                      </TableCell>
+                                      <TableCell className="align-middle py-2">
+                                        {crit.required ? (
+                                          <Badge className="bg-red-50 border border-red-200 text-red-700 font-bold text-[9px] px-1.5 py-0">Sim</Badge>
+                                        ) : (
+                                          <Badge className="bg-slate-50 border border-slate-200 text-slate-500 text-[9px] px-1.5 py-0">Não</Badge>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="align-middle py-2 text-right pr-4 space-x-1">
+                                        <Button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingCriterionIndex(cIdx);
+                                            setCritCode(crit.code);
+                                            setCritDescription(crit.description);
+                                            setCritReference(crit.reference || '');
+                                            setCritResponseType(crit.responseType);
+                                            setCritRequired(crit.required);
+                                            setCritSortOrder(crit.sortOrder);
+                                          }}
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 w-7 p-0 text-slate-500 hover:text-teal-600 hover:bg-teal-50"
+                                        >
+                                          <Edit2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          onClick={() => handleDeleteCriterion(cIdx)}
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 

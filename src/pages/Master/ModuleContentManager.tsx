@@ -24,7 +24,28 @@ import {
   FileDown,
   Paperclip
 } from 'lucide-react';
-import { ModuleType, DocumentType, StandardType } from '@/src/types';
+import { ModuleType, DocumentType, StandardType, ChecklistSection, ChecklistCriterion } from '@/src/types';
+
+const DEFAULT_SECTIONS = [
+  { title: 'Identificação do Projeto', sortOrder: 1 },
+  { title: 'Estrutura da Embalagem', sortOrder: 2 },
+  { title: 'Componentes Homologados', sortOrder: 3 },
+  { title: 'Empilhamento', sortOrder: 4 },
+  { title: 'Movimentação e Logística', sortOrder: 5 },
+  { title: 'Ergonomia', sortOrder: 6 },
+  { title: 'Identificação e Etiquetagem', sortOrder: 7 },
+  { title: 'Segurança', sortOrder: 8 },
+  { title: 'Documentação Técnica', sortOrder: 9 },
+  { title: 'Aprovação Final', sortOrder: 10 }
+];
+
+const RESPONSE_TYPES = [
+  { value: 'conformance', label: 'Conforme/Não Conforme/N.A.' },
+  { value: 'yes_no', label: 'Sim/Não/N.A.' },
+  { value: 'free_text', label: 'Texto Livre' },
+  { value: 'number', label: 'Numérico' },
+  { value: 'evidence', label: 'Evidência (Foto/Arquivo)' }
+];
 
 const DOCUMENT_TYPES: DocumentType[] = [
   'Caderno de Encargos',
@@ -42,17 +63,6 @@ const STANDARD_TYPES: StandardType[] = [
   'Padrão de Empilhamento',
   'Norma de Segurança',
   'Outros'
-];
-
-const CHECKLIST_CATEGORIES = [
-  'Estrutura',
-  'Empilhamento',
-  'Ergonomia',
-  'AGV',
-  'Identificação',
-  'Segurança',
-  'Logística',
-  'Documentação'
 ];
 
 export default function ModuleContentManager() {
@@ -101,7 +111,18 @@ export default function ModuleContentManager() {
   const [standardType, setStandardType] = useState<StandardType>('Norma de Embalagem');
 
   // Checklist Specific States
-  const [checklistItems, setChecklistItems] = useState<{ id?: string; category: string; description: string; required: boolean; reference?: string; sortOrder: number }[]>([]);
+  const [sections, setSections] = useState<ChecklistSection[]>([]);
+  const [activeSectionIndex, setActiveSectionIndex] = useState<number>(0);
+  const [isAddingCriterion, setIsAddingCriterion] = useState(false);
+  const [editingCriterionIndex, setEditingCriterionIndex] = useState<number | null>(null);
+  
+  // Local states for editing a criterion
+  const [critCode, setCritCode] = useState('');
+  const [critDescription, setCritDescription] = useState('');
+  const [critReference, setCritReference] = useState('');
+  const [critResponseType, setCritResponseType] = useState<'conformance' | 'yes_no' | 'free_text' | 'number' | 'evidence'>('conformance');
+  const [critRequired, setCritRequired] = useState(true);
+  const [critSortOrder, setCritSortOrder] = useState(1);
 
   // Project Specific States
   const [attachmentUrl, setAttachmentUrl] = useState('');
@@ -173,9 +194,20 @@ export default function ModuleContentManager() {
     setAttachmentUrl('');
     setAttachmentName('');
     setAttachmentType('');
-    setChecklistItems([
-      { category: 'Estrutura', description: '', required: true, sortOrder: 1 }
-    ]);
+    
+    // Pre-populate with default 10 sections
+    setSections(
+      DEFAULT_SECTIONS.map((sec, idx) => ({
+        id: '',
+        checklistTemplateId: '',
+        title: sec.title,
+        sortOrder: sec.sortOrder,
+        criteria: []
+      }))
+    );
+    setActiveSectionIndex(0);
+    setIsAddingCriterion(false);
+    setEditingCriterionIndex(null);
 
     setIsModalOpen(true);
   };
@@ -202,7 +234,12 @@ export default function ModuleContentManager() {
     setAttachmentUrl(rec.attachmentUrl || '');
     setAttachmentName(rec.attachmentName || '');
     setAttachmentType(rec.attachmentType || '');
-    setChecklistItems(rec.items ? [...rec.items] : []);
+    
+    // Deep copy checklists sections & criteria
+    setSections(rec.sections ? JSON.parse(JSON.stringify(rec.sections)) : []);
+    setActiveSectionIndex(0);
+    setIsAddingCriterion(false);
+    setEditingCriterionIndex(null);
 
     setIsModalOpen(true);
   };
@@ -272,26 +309,13 @@ export default function ModuleContentManager() {
         organizationId: orgId!,
         name,
         revision,
-        status,
-        fileUrl: fileUrl || undefined,
-        fileName: fileName || undefined,
-        fileType: fileTypeState || undefined
+        status
       };
 
-      // Map dynamic items
-      const items = checklistItems.map((itm, idx) => ({
-        id: itm.id,
-        category: itm.category as any,
-        description: itm.description,
-        required: itm.required,
-        reference: itm.reference || undefined,
-        sortOrder: idx + 1
-      }));
-
       if (editingId) {
-        updateChecklist(editingId, chkData, items);
+        updateChecklist(editingId, chkData, sections);
       } else {
-        addChecklist(chkData, items);
+        addChecklist(chkData, sections);
       }
     } else if (moduleType === 'reference_projects') {
       const projData = {
@@ -328,20 +352,52 @@ export default function ModuleContentManager() {
     setDeletingId(null);
   };
 
-  // Dynamic Checklist Row Handlers
-  const addChecklistItemRow = () => {
-    setChecklistItems(prev => [
-      ...prev,
-      { category: 'Estrutura', description: '', required: true, sortOrder: prev.length + 1 }
-    ]);
+  // Dynamic Checklist Criteria Handlers
+  const handleSaveCriterion = () => {
+    if (!critCode.trim() || !critDescription.trim()) return;
+
+    const newCriterion: ChecklistCriterion = {
+      id: editingCriterionIndex !== null && sections[activeSectionIndex]?.criteria[editingCriterionIndex]?.id 
+        ? sections[activeSectionIndex].criteria[editingCriterionIndex].id 
+        : '',
+      checklistSectionId: sections[activeSectionIndex]?.id || '',
+      code: critCode.trim(),
+      description: critDescription.trim(),
+      reference: critReference.trim() || undefined,
+      responseType: critResponseType,
+      required: critRequired,
+      sortOrder: critSortOrder || ((sections[activeSectionIndex]?.criteria?.length || 0) + 1),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    setSections(prev => prev.map((sec, idx) => {
+      if (idx === activeSectionIndex) {
+        let updatedCriteria = [...(sec.criteria || [])];
+        if (editingCriterionIndex !== null) {
+          updatedCriteria[editingCriterionIndex] = newCriterion;
+        } else {
+          updatedCriteria.push(newCriterion);
+        }
+        // Sort criteria by sortOrder
+        updatedCriteria.sort((a, b) => a.sortOrder - b.sortOrder);
+        return { ...sec, criteria: updatedCriteria };
+      }
+      return sec;
+    }));
+
+    setIsAddingCriterion(false);
+    setEditingCriterionIndex(null);
   };
 
-  const removeChecklistItemRow = (index: number) => {
-    setChecklistItems(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateChecklistItemRow = (index: number, field: string, value: any) => {
-    setChecklistItems(prev => prev.map((itm, i) => i === index ? { ...itm, [field]: value } : itm));
+  const handleDeleteCriterion = (cIdx: number) => {
+    setSections(prev => prev.map((sec, idx) => {
+      if (idx === activeSectionIndex) {
+        const updatedCriteria = sec.criteria.filter((_, i) => i !== cIdx);
+        return { ...sec, criteria: updatedCriteria };
+      }
+      return sec;
+    }));
   };
 
   return (
@@ -408,9 +464,8 @@ export default function ModuleContentManager() {
               {moduleType === 'checklists' && (
                 <>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Nome do Checklist</TableHead>
-                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[100px]">Itens</TableHead>
-                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[100px]">Revisão</TableHead>
-                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Template Anexo</TableHead>
+                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[150px]">Qtd. Requisitos</TableHead>
+                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[120px]">Revisão</TableHead>
                 </>
               )}
               {moduleType === 'reference_projects' && (
@@ -524,21 +579,13 @@ export default function ModuleContentManager() {
                       <TableCell className="align-middle font-bold text-[13px] text-slate-900">
                         {rec.name}
                       </TableCell>
-                      <TableCell className="align-middle font-bold text-[13px] text-slate-700">
-                        {rec.items?.length || 0} critérios
+                      <TableCell className="align-middle">
+                        <span className="bg-teal-50 border border-teal-100 text-teal-700 font-bold px-2.5 py-0.5 rounded text-[11px]">
+                          {rec.sections?.reduce((sum: number, s: any) => sum + (s.criteria?.length || 0), 0) || 0} itens
+                        </span>
                       </TableCell>
                       <TableCell className="align-middle font-mono font-bold text-[12px] text-slate-700">
                         {rec.revision}
-                      </TableCell>
-                      <TableCell className="align-middle">
-                        {rec.fileUrl ? (
-                          <a href={rec.fileUrl} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700 flex items-center gap-1.5 font-bold text-[12px] bg-teal-50 border border-teal-100 px-2 py-1 rounded-md w-fit">
-                            <FileDown className="w-3.5 h-3.5" />
-                            <span className="max-w-[120px] truncate">{rec.fileName || 'Template'}</span>
-                          </a>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">Nenhum</span>
-                        )}
                       </TableCell>
                     </>
                   )}
@@ -612,7 +659,7 @@ export default function ModuleContentManager() {
       {/* Add / Edit polymorphic Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-[650px] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className={`bg-white border border-slate-200 rounded-xl shadow-xl w-full ${moduleType === 'checklists' ? 'max-w-[1100px]' : 'max-w-[650px]'} overflow-hidden animate-in fade-in zoom-in-95 duration-150`}>
             <header className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
               <h3 className="font-bold text-slate-900 text-[15px]">
                 {editingId ? 'Editar Registro' : `Novo Registro - ${getModuleTitle()}`}
@@ -824,31 +871,7 @@ export default function ModuleContentManager() {
                   </>
                 )}
 
-                {moduleType === 'checklists' && (
-                  <>
-                    {/* Checklist Template Upload */}
-                    <div className="col-span-2">
-                      <FileUploadField
-                        label="Modelo PDF, Planilha XLSX ou Documento DOCX de Apoio"
-                        acceptedTypes="application/pdf,.docx,.xlsx"
-                        bucket="checklists"
-                        currentFileUrl={fileUrl}
-                        orgSlug={org.slug}
-                        moduleType="checklists"
-                        onUploadComplete={(url, name, ext) => {
-                          setFileUrl(url);
-                          setFileName(name);
-                          setFileTypeState(ext);
-                        }}
-                        onRemove={() => {
-                          setFileUrl('');
-                          setFileName('');
-                          setFileTypeState('');
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
+
 
                 {moduleType === 'reference_projects' && (
                   <>
@@ -916,78 +939,246 @@ export default function ModuleContentManager() {
                 {/* Checklist Criteria dynamic list */}
                 {moduleType === 'checklists' && (
                   <div className="col-span-2 border-t border-slate-100 pt-4 mt-2 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Itens / Critérios de Inspeção</Label>
-                      <Button 
-                        type="button" 
-                        onClick={addChecklistItemRow}
-                        className="h-8 bg-teal-50 border border-teal-200 text-teal-700 hover:bg-teal-100 rounded px-2.5 text-xs font-bold flex items-center gap-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Adicionar Critério
-                      </Button>
-                    </div>
-
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                      {checklistItems.map((itm, idx) => (
-                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded-lg p-3 relative space-y-2">
-                          <button 
-                            type="button" 
-                            onClick={() => removeChecklistItemRow(idx)}
-                            className="absolute right-2 top-2 text-slate-400 hover:text-red-500"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-
-                          <div className="grid grid-cols-2 gap-3 pr-6">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase">Categoria</label>
-                              <select 
-                                value={itm.category} 
-                                onChange={(e) => updateChecklistItemRow(idx, 'category', e.target.value)}
-                                className="w-full h-8 px-2 bg-white border border-slate-300 rounded text-[12px] text-slate-800"
+                    <div className="grid grid-cols-12 gap-6 min-h-[500px]">
+                      {/* Left Panel: Sections List */}
+                      <div className="col-span-4 border-r border-slate-200 pr-4 space-y-2">
+                        <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-3">Seções do Checklist</Label>
+                        <div className="space-y-1.5 max-h-[450px] overflow-y-auto pr-1">
+                          {sections.map((sec, idx) => {
+                            const isSelected = activeSectionIndex === idx;
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  setActiveSectionIndex(idx);
+                                  setEditingCriterionIndex(null);
+                                  setIsAddingCriterion(false);
+                                }}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all flex items-center justify-between ${
+                                  isSelected 
+                                    ? 'bg-teal-50 text-teal-800 border-l-4 border-teal-600 font-semibold shadow-sm' 
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent'
+                                }`}
                               >
-                                {CHECKLIST_CATEGORIES.map(c => (
-                                  <option key={c} value={c}>{c}</option>
-                                ))}
-                              </select>
-                            </div>
-                            
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase">Documento / Ref</label>
-                              <Input 
-                                value={itm.reference || ''} 
-                                onChange={(e) => updateChecklistItemRow(idx, 'reference', e.target.value)}
-                                placeholder="VW 39D 120"
-                                className="h-8 text-[12px] rounded border-slate-300"
-                              />
-                            </div>
-
-                            <div className="col-span-2 space-y-1">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase">Descrição da Checagem</label>
-                              <Input 
-                                value={itm.description} 
-                                onChange={(e) => updateChecklistItemRow(idx, 'description', e.target.value)}
-                                placeholder="Possui cantoneiras de empilhamento homologadas?"
-                                required
-                                className="h-8 text-[12px] rounded border-slate-300"
-                              />
-                            </div>
-
-                            <div className="col-span-2 flex items-center gap-1.5 mt-1">
-                              <input 
-                                type="checkbox" 
-                                id={`req-${idx}`}
-                                checked={itm.required} 
-                                onChange={(e) => updateChecklistItemRow(idx, 'required', e.target.checked)}
-                                className="rounded border-slate-300 text-teal-600 w-3.5 h-3.5"
-                              />
-                              <label htmlFor={`req-${idx}`} className="text-[11px] font-bold text-slate-600 select-none cursor-pointer">
-                                Critério Obrigatório (Mandatory)
-                              </label>
-                            </div>
-                          </div>
+                                <span className="truncate pr-2">{idx + 1}. {sec.title}</span>
+                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                  isSelected ? 'bg-teal-200 text-teal-900' : 'bg-slate-100 text-slate-500'
+                                }`}>
+                                  {sec.criteria?.length || 0}
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Right Panel: Criteria List / Edit for the selected Section */}
+                      <div className="col-span-8 space-y-4">
+                        {activeSectionIndex !== null && sections[activeSectionIndex] && (
+                          <>
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                              <div>
+                                <h4 className="text-[14px] font-extrabold text-slate-800">
+                                  {activeSectionIndex + 1}. {sections[activeSectionIndex].title}
+                                </h4>
+                                <p className="text-[12px] text-slate-500 mt-0.5">Gerencie os critérios de conformidade pertencentes a esta seção.</p>
+                              </div>
+                              
+                              {!isAddingCriterion && editingCriterionIndex === null && (
+                                <Button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsAddingCriterion(true);
+                                    // Pre-fill next code suggestion e.g. "2.2"
+                                    const sectionNum = activeSectionIndex + 1;
+                                    const nextItemNum = (sections[activeSectionIndex].criteria?.length || 0) + 1;
+                                    setCritCode(`${sectionNum}.${nextItemNum}`);
+                                    setCritDescription('');
+                                    setCritReference('');
+                                    setCritResponseType('conformance');
+                                    setCritRequired(true);
+                                    setCritSortOrder(nextItemNum);
+                                  }}
+                                  className="bg-teal-600 hover:bg-teal-700 text-white font-bold h-9 px-3 rounded-lg text-xs flex items-center gap-1.5 shadow-sm"
+                                >
+                                  <Plus className="w-3.5 h-3.5" /> Adicionar Critério
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Criterion Form (Inline Add/Edit) */}
+                            {(isAddingCriterion || editingCriterionIndex !== null) && (
+                              <div className="bg-slate-50 border border-teal-100 rounded-xl p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150">
+                                <h5 className="text-[12px] font-bold text-teal-900 flex items-center gap-1.5">
+                                  <CheckSquare className="w-4 h-4" />
+                                  {isAddingCriterion ? 'Novo Critério' : 'Editar Critério'}
+                                </h5>
+                                
+                                <div className="grid grid-cols-6 gap-3">
+                                  <div className="col-span-2 space-y-1">
+                                    <Label className="text-[11px] font-bold text-slate-600">Código</Label>
+                                    <Input
+                                      value={critCode}
+                                      onChange={(e) => setCritCode(e.target.value)}
+                                      placeholder="Ex: 1.1"
+                                      className="h-8 text-[12px] bg-white border-slate-300"
+                                      required
+                                    />
+                                  </div>
+
+                                  <div className="col-span-4 space-y-1">
+                                    <Label className="text-[11px] font-bold text-slate-600">Referência Técnica</Label>
+                                    <Input
+                                      value={critReference}
+                                      onChange={(e) => setCritReference(e.target.value)}
+                                      placeholder="Ex: ISO 11228-1, Opcional"
+                                      className="h-8 text-[12px] bg-white border-slate-300"
+                                    />
+                                  </div>
+
+                                  <div className="col-span-6 space-y-1">
+                                    <Label className="text-[11px] font-bold text-slate-600">Descrição do Critério</Label>
+                                    <Textarea
+                                      value={critDescription}
+                                      onChange={(e) => setCritDescription(e.target.value)}
+                                      placeholder="O que o inspetor/fornecedor deve avaliar?"
+                                      className="text-[12px] bg-white min-h-[50px] rounded-lg border-slate-300"
+                                      required
+                                    />
+                                  </div>
+
+                                  <div className="col-span-3 space-y-1">
+                                    <Label className="text-[11px] font-bold text-slate-600">Tipo de Resposta</Label>
+                                    <select
+                                      value={critResponseType}
+                                      onChange={(e) => setCritResponseType(e.target.value as any)}
+                                      className="w-full h-8 px-2 bg-white border border-slate-300 rounded text-[12px] text-slate-800"
+                                    >
+                                      {RESPONSE_TYPES.map(t => (
+                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  <div className="col-span-3 flex items-center gap-2 mt-5">
+                                    <input
+                                      type="checkbox"
+                                      id="crit-req"
+                                      checked={critRequired}
+                                      onChange={(e) => setCritRequired(e.target.checked)}
+                                      className="rounded border-slate-300 text-teal-600 w-4 h-4 focus:ring-teal-500"
+                                    />
+                                    <Label htmlFor="crit-req" className="text-[12px] font-semibold text-slate-700 cursor-pointer select-none">
+                                      Obrigatório (Mandatory)
+                                    </Label>
+                                  </div>
+                                </div>
+
+                                <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setIsAddingCriterion(false);
+                                      setEditingCriterionIndex(null);
+                                    }}
+                                    className="h-8 px-3 text-xs text-slate-600"
+                                  >
+                                    Cancelar
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    onClick={handleSaveCriterion}
+                                    className="h-8 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs"
+                                  >
+                                    Confirmar
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Criteria List */}
+                            {!isAddingCriterion && editingCriterionIndex === null && (
+                              <div className="border border-slate-200 rounded-lg overflow-hidden bg-white max-h-[350px] overflow-y-auto">
+                                <Table>
+                                  <TableHeader className="bg-slate-50 border-b border-slate-200">
+                                    <TableRow>
+                                      <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9 w-[70px]">Cód.</TableHead>
+                                      <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9">Descrição</TableHead>
+                                      <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9 w-[120px]">Ref. Técnica</TableHead>
+                                      <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9 w-[130px]">Resposta</TableHead>
+                                      <TableHead className="text-[11px] font-bold text-slate-600 uppercase h-9 w-[80px]">Obrig.</TableHead>
+                                      <TableHead className="text-right text-[11px] font-bold text-slate-600 uppercase h-9 pr-4 w-[100px]">Ações</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {!sections[activeSectionIndex].criteria || sections[activeSectionIndex].criteria.length === 0 ? (
+                                      <TableRow>
+                                        <TableCell colSpan={6} className="h-24 text-center text-slate-400 italic text-[12px]">
+                                          Nenhum critério cadastrado nesta seção. Clique em "+ Adicionar Critério" para criar.
+                                        </TableCell>
+                                      </TableRow>
+                                    ) : (
+                                      sections[activeSectionIndex].criteria.map((crit, cIdx) => (
+                                        <TableRow key={cIdx} className="border-b border-slate-100 hover:bg-slate-50/50">
+                                          <TableCell className="align-middle py-2 font-mono text-[12px] font-bold text-slate-700">
+                                            {crit.code}
+                                          </TableCell>
+                                          <TableCell className="align-middle py-2 text-[12px] text-slate-900 font-medium">
+                                            {crit.description}
+                                          </TableCell>
+                                          <TableCell className="align-middle py-2 text-[11px] text-slate-500 font-semibold">
+                                            {crit.reference || <span className="text-slate-300 italic">-</span>}
+                                          </TableCell>
+                                          <TableCell className="align-middle py-2 text-[11px] text-slate-600">
+                                            {RESPONSE_TYPES.find(r => r.value === crit.responseType)?.label || crit.responseType}
+                                          </TableCell>
+                                          <TableCell className="align-middle py-2">
+                                            {crit.required ? (
+                                              <Badge className="bg-red-50 border border-red-200 text-red-700 font-bold text-[9px] px-1.5 py-0">Sim</Badge>
+                                            ) : (
+                                              <Badge className="bg-slate-50 border border-slate-200 text-slate-500 text-[9px] px-1.5 py-0">Não</Badge>
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="align-middle py-2 text-right pr-4 space-x-1">
+                                            <Button
+                                              type="button"
+                                              onClick={() => {
+                                                setEditingCriterionIndex(cIdx);
+                                                setCritCode(crit.code);
+                                                setCritDescription(crit.description);
+                                                setCritReference(crit.reference || '');
+                                                setCritResponseType(crit.responseType);
+                                                setCritRequired(crit.required);
+                                                setCritSortOrder(crit.sortOrder);
+                                              }}
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 w-7 p-0 text-slate-500 hover:text-teal-600 hover:bg-teal-50"
+                                            >
+                                              <Edit2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              onClick={() => handleDeleteCriterion(cIdx)}
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

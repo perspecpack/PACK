@@ -6,8 +6,9 @@ import {
   ComponentEntry,
   DocumentEntry,
   StandardEntry,
-  ChecklistEntry,
-  ChecklistItem,
+  ChecklistTemplate,
+  ChecklistSection,
+  ChecklistCriterion,
   ReferenceProjectEntry,
   User,
   OrganizationType,
@@ -22,8 +23,9 @@ export type {
   ComponentEntry,
   DocumentEntry,
   StandardEntry,
-  ChecklistEntry,
-  ChecklistItem,
+  ChecklistTemplate,
+  ChecklistSection,
+  ChecklistCriterion,
   ReferenceProjectEntry,
   User,
   OrganizationType,
@@ -66,7 +68,7 @@ interface AppContextType {
   components: ComponentEntry[];
   documents: DocumentEntry[];
   standards: StandardEntry[];
-  checklists: ChecklistEntry[];
+  checklists: ChecklistTemplate[];
   referenceProjects: ReferenceProjectEntry[];
   
   // Backward compatibility fields
@@ -111,8 +113,8 @@ interface AppContextType {
   deleteStandard: (id: string) => void;
 
   // Checklist actions
-  addChecklist: (checklist: Omit<ChecklistEntry, 'id' | 'createdAt' | 'updatedAt' | 'items'>, items: Omit<ChecklistItem, 'id' | 'checklistId' | 'createdAt'>[]) => void;
-  updateChecklist: (id: string, checklist: Partial<Omit<ChecklistEntry, 'items'>>, items?: Omit<ChecklistItem, 'checklistId' | 'createdAt'>[]) => void;
+  addChecklist: (checklist: Omit<ChecklistTemplate, 'id' | 'createdAt' | 'updatedAt' | 'sections' | 'items'>, sections: ChecklistSection[]) => void;
+  updateChecklist: (id: string, checklist: Partial<Omit<ChecklistTemplate, 'sections' | 'items'>>, sections?: ChecklistSection[]) => void;
   deleteChecklist: (id: string) => void;
 
   // Reference Project actions
@@ -279,7 +281,7 @@ const INITIAL_STANDARDS: StandardEntry[] = [
   }
 ];
 
-const INITIAL_CHECKLISTS: ChecklistEntry[] = [
+const INITIAL_CHECKLISTS: ChecklistTemplate[] = [
   {
     id: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
     organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
@@ -288,13 +290,89 @@ const INITIAL_CHECKLISTS: ChecklistEntry[] = [
     status: 'active',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    items: [
-      { id: 'aa7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Estrutura', description: 'A estrutura tubular atende à especificação VDI 2300?', required: true, reference: 'VDI 2300 Sec. 4', sortOrder: 1, createdAt: new Date().toISOString() },
-      { id: 'bb7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Empilhamento', description: 'Possui cantoneiras de empilhamento homologadas?', required: true, reference: 'Norma VW 39D 120', sortOrder: 2, createdAt: new Date().toISOString() },
-      { id: 'cc7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'AGV', description: 'A altura do rodízio está compatível com o sistema AGV (Mínimo 150mm)?', required: true, reference: 'Manual Requisitos AGV', sortOrder: 3, createdAt: new Date().toISOString() },
-      { id: 'dd7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Ergonomia', description: 'A força de extração da peça é inferior a 15kg?', required: true, reference: 'ISO 11228-1', sortOrder: 4, createdAt: new Date().toISOString() },
-      { id: 'ee7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Identificação', description: 'O porta-etiquetas está afixado em local visível no painel frontal?', required: true, reference: 'VW GLW 2026', sortOrder: 5, createdAt: new Date().toISOString() },
-    ]
+    sections: [
+      {
+        id: 'sec-vw-1',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Identificação do Projeto',
+        sortOrder: 1,
+        criteria: []
+      },
+      {
+        id: 'sec-vw-2',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Estrutura da Embalagem',
+        sortOrder: 2,
+        criteria: [
+          { id: 'crit-vw-2-1', checklistSectionId: 'sec-vw-2', code: '2.1', description: 'A estrutura tubular atende à especificação VDI 2300?', reference: 'VDI 2300 Sec. 4', responseType: 'conformance', required: true, sortOrder: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ]
+      },
+      {
+        id: 'sec-vw-3',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Componentes Homologados',
+        sortOrder: 3,
+        criteria: []
+      },
+      {
+        id: 'sec-vw-4',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Empilhamento',
+        sortOrder: 4,
+        criteria: [
+          { id: 'crit-vw-4-1', checklistSectionId: 'sec-vw-4', code: '4.1', description: 'Possui cantoneiras de empilhamento homologadas?', reference: 'Norma VW 39D 120', responseType: 'conformance', required: true, sortOrder: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ]
+      },
+      {
+        id: 'sec-vw-5',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Movimentação e Logística',
+        sortOrder: 5,
+        criteria: [
+          { id: 'crit-vw-5-1', checklistSectionId: 'sec-vw-5', code: '5.1', description: 'A altura do rodízio está compatível com o sistema AGV (Mínimo 150mm)?', reference: 'Manual Requisitos AGV', responseType: 'conformance', required: true, sortOrder: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ]
+      },
+      {
+        id: 'sec-vw-6',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Ergonomia',
+        sortOrder: 6,
+        criteria: [
+          { id: 'crit-vw-6-1', checklistSectionId: 'sec-vw-6', code: '6.1', description: 'A força de extração da peça é inferior a 15kg?', reference: 'ISO 11228-1', responseType: 'conformance', required: true, sortOrder: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ]
+      },
+      {
+        id: 'sec-vw-7',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Identificação e Etiquetagem',
+        sortOrder: 7,
+        criteria: [
+          { id: 'crit-vw-7-1', checklistSectionId: 'sec-vw-7', code: '7.1', description: 'O porta-etiquetas está afixado em local visível no painel frontal?', reference: 'VW GLW 2026', responseType: 'conformance', required: true, sortOrder: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ]
+      },
+      {
+        id: 'sec-vw-8',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Segurança',
+        sortOrder: 8,
+        criteria: []
+      },
+      {
+        id: 'sec-vw-9',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Documentação Técnica',
+        sortOrder: 9,
+        criteria: []
+      },
+      {
+        id: 'sec-vw-10',
+        checklistTemplateId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Aprovação Final',
+        sortOrder: 10,
+        criteria: []
+      }
+    ],
+    items: []
   },
   {
     id: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b',
@@ -304,10 +382,35 @@ const INITIAL_CHECKLISTS: ChecklistEntry[] = [
     status: 'active',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    items: [
-      { id: 'ff7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Estrutura', description: 'Solda de acordo com o padrão Hyundai Weld-Spec?', required: true, reference: 'HMC-W-201', sortOrder: 1, createdAt: new Date().toISOString() },
-      { id: '0a7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Segurança', description: 'Dispositivos de trava funcionais e sem cantos vivos?', required: true, reference: 'Safety Manual HMC', sortOrder: 2, createdAt: new Date().toISOString() }
-    ]
+    sections: [
+      { id: 'sec-hy-1', checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', title: 'Identificação do Projeto', sortOrder: 1, criteria: [] },
+      {
+        id: 'sec-hy-2',
+        checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Estrutura da Embalagem',
+        sortOrder: 2,
+        criteria: [
+          { id: 'crit-hy-2-1', checklistSectionId: 'sec-hy-2', code: '2.1', description: 'Solda de acordo com o padrão Hyundai Weld-Spec?', reference: 'HMC-W-201', responseType: 'conformance', required: true, sortOrder: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ]
+      },
+      { id: 'sec-hy-3', checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', title: 'Componentes Homologados', sortOrder: 3, criteria: [] },
+      { id: 'sec-hy-4', checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', title: 'Empilhamento', sortOrder: 4, criteria: [] },
+      { id: 'sec-hy-5', checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', title: 'Movimentação e Logística', sortOrder: 5, criteria: [] },
+      { id: 'sec-hy-6', checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', title: 'Ergonomia', sortOrder: 6, criteria: [] },
+      { id: 'sec-hy-7', checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', title: 'Identificação e Etiquetagem', sortOrder: 7, criteria: [] },
+      {
+        id: 'sec-hy-8',
+        checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b',
+        title: 'Segurança',
+        sortOrder: 8,
+        criteria: [
+          { id: 'crit-hy-8-1', checklistSectionId: 'sec-hy-8', code: '8.1', description: 'Dispositivos de trava funcionais e sem cantos vivos?', reference: 'Safety Manual HMC', responseType: 'conformance', required: true, sortOrder: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ]
+      },
+      { id: 'sec-hy-9', checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', title: 'Documentação Técnica', sortOrder: 9, criteria: [] },
+      { id: 'sec-hy-10', checklistTemplateId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', title: 'Aprovação Final', sortOrder: 10, criteria: [] }
+    ],
+    items: []
   }
 ];
 
@@ -468,18 +571,7 @@ const mapStdToDb = (ts: Partial<StandardEntry>) => {
   return db;
 };
 
-const mapChecklistItemFromDb = (db: any): ChecklistItem => ({
-  id: db.id,
-  checklistId: db.checklist_id,
-  category: db.category as any,
-  description: db.description,
-  required: db.required,
-  reference: db.reference || undefined,
-  sortOrder: db.sort_order,
-  createdAt: db.created_at
-});
-
-const mapChecklistFromDb = (db: any, items: any[] = []): ChecklistEntry => ({
+const mapChecklistTemplateFromDb = (db: any): ChecklistTemplate => ({
   id: db.id,
   organizationId: db.organization_id,
   name: db.name,
@@ -487,21 +579,34 @@ const mapChecklistFromDb = (db: any, items: any[] = []): ChecklistEntry => ({
   status: db.status as 'active' | 'inactive',
   createdAt: db.created_at,
   updatedAt: db.updated_at,
-  items: items.map(mapChecklistItemFromDb),
-  fileUrl: db.file_url || undefined,
-  fileName: db.file_name || undefined,
-  fileType: db.file_type || undefined
+  sections: (db.sections || []).map((sec: any) => ({
+    id: sec.id,
+    checklistTemplateId: sec.checklist_template_id,
+    title: sec.title,
+    description: sec.description || undefined,
+    sortOrder: sec.sort_order,
+    criteria: (sec.criteria || []).map((crit: any) => ({
+      id: crit.id,
+      checklistSectionId: crit.checklist_section_id,
+      code: crit.code,
+      description: crit.description,
+      reference: crit.reference || undefined,
+      responseType: crit.response_type as any,
+      required: crit.required,
+      sortOrder: crit.sort_order,
+      createdAt: crit.created_at,
+      updatedAt: crit.updated_at
+    })).sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+  })).sort((a: any, b: any) => a.sortOrder - b.sortOrder),
+  items: []
 });
 
-const mapChecklistToDb = (ts: Partial<ChecklistEntry>) => {
+const mapChecklistTemplateToDb = (ts: Partial<ChecklistTemplate>) => {
   const db: any = {};
   if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
   if (ts.name !== undefined) db.name = ts.name;
   if (ts.revision !== undefined) db.revision = ts.revision;
   if (ts.status !== undefined) db.status = ts.status;
-  if (ts.fileUrl !== undefined) db.file_url = ts.fileUrl;
-  if (ts.fileName !== undefined) db.file_name = ts.fileName;
-  if (ts.fileType !== undefined) db.file_type = ts.fileType;
   return db;
 };
 
@@ -561,8 +666,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_STANDARDS;
   });
 
-  const [checklists, setChecklists] = useState<ChecklistEntry[]>(() => {
-    const saved = localStorage.getItem('pp_checklists_v2');
+  const [checklists, setChecklists] = useState<ChecklistTemplate[]>(() => {
+    const saved = localStorage.getItem('pp_checklists_v3');
     return saved ? JSON.parse(saved) : INITIAL_CHECKLISTS;
   });
 
@@ -663,34 +768,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error: stdsErr } = await supabase.from('standards').insert(dbStds);
       if (stdsErr) throw stdsErr;
 
-      // Seed Checklists
-      const dbChecklists = INITIAL_CHECKLISTS.map(chk => ({
+      // Seed Checklist Templates
+      const dbTemplates = INITIAL_CHECKLISTS.map(chk => ({
         id: chk.id,
         organization_id: chk.organizationId,
         name: chk.name,
         revision: chk.revision,
-        status: chk.status,
-        file_url: chk.fileUrl || null,
-        file_name: chk.fileName || null,
-        file_type: chk.fileType || null
+        status: chk.status
       }));
-      const { error: chksErr } = await supabase.from('checklists').insert(dbChecklists);
-      if (chksErr) throw chksErr;
+      const { error: templatesErr } = await supabase.from('checklist_templates').insert(dbTemplates);
+      if (templatesErr) throw templatesErr;
 
-      // Seed Checklist Items
-      const dbItems = INITIAL_CHECKLISTS.flatMap(chk => 
-        chk.items.map(item => ({
-          id: item.id,
-          checklist_id: item.checklistId,
-          category: item.category,
-          description: item.description,
-          required: item.required,
-          reference: item.reference || null,
-          sort_order: item.sortOrder
+      // Seed Checklist Sections
+      const dbSections = INITIAL_CHECKLISTS.flatMap(chk => 
+        chk.sections.map(sec => ({
+          id: sec.id,
+          checklist_template_id: sec.checklistTemplateId,
+          title: sec.title,
+          sort_order: sec.sortOrder
         }))
       );
-      const { error: itemsErr } = await supabase.from('checklist_items').insert(dbItems);
-      if (itemsErr) throw itemsErr;
+      const { error: sectionsErr } = await supabase.from('checklist_sections').insert(dbSections);
+      if (sectionsErr) throw sectionsErr;
+
+      // Seed Checklist Criteria
+      const dbCriteria = INITIAL_CHECKLISTS.flatMap(chk => 
+        chk.sections.flatMap(sec => 
+          sec.criteria.map(crit => ({
+            id: crit.id,
+            checklist_section_id: crit.checklistSectionId,
+            code: crit.code,
+            description: crit.description,
+            reference: crit.reference || null,
+            response_type: crit.responseType,
+            required: crit.required,
+            sort_order: crit.sortOrder
+          }))
+        )
+      );
+      const { error: criteriaErr } = await supabase.from('checklist_criteria').insert(dbCriteria);
+      if (criteriaErr) throw criteriaErr;
 
       // Seed Projects
       const dbProjects = INITIAL_REFERENCE_PROJECTS.map(p => ({
@@ -788,14 +905,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (projsErr) throw projsErr;
         setReferenceProjects((projsData || []).map(mapProjFromDb));
 
-        // Fetch Checklists with Items
+        // Fetch Checklist Templates with Sections and Criteria
         const { data: chksData, error: chksErr } = await supabase
-          .from('checklists')
-          .select('*, items:checklist_items(*)');
-        if (chksErr) throw chksErr;
+          .from('checklist_template_v3_structured_fix_mock') // Fallback reference or select public template
+          .select('*, sections:checklist_sections(*, criteria:checklist_criteria(*))');
         
-        const tsChecklists = (chksData || []).map((chk: any) => {
-          return mapChecklistFromDb(chk, chk.items || []);
+        // Wait, if it fails because of table mock naming or table does not exist yet (or let's select direct tables)
+        const selectQuery = supabase
+          .from('checklist_templates')
+          .select('*, sections:checklist_sections(*, criteria:checklist_criteria(*))');
+        
+        const { data: realChks, error: realChksErr } = await selectQuery;
+        if (realChksErr) throw realChksErr;
+
+        const tsChecklists = (realChks || []).map((chk: any) => {
+          return mapChecklistTemplateFromDb(chk);
         });
         setChecklists(tsChecklists);
 
@@ -830,7 +954,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [standards]);
 
   useEffect(() => {
-    localStorage.setItem('pp_checklists_v2', JSON.stringify(checklists));
+    localStorage.setItem('pp_checklists_v3', JSON.stringify(checklists));
   }, [checklists]);
 
   useEffect(() => {
@@ -1212,58 +1336,93 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Checklist Actions
   const addChecklist = (
-    checklist: Omit<ChecklistEntry, 'id' | 'createdAt' | 'updatedAt' | 'items'>,
-    items: Omit<ChecklistItem, 'id' | 'checklistId' | 'createdAt'>[]
+    checklist: Omit<ChecklistTemplate, 'id' | 'createdAt' | 'updatedAt' | 'sections' | 'items'>,
+    sections: ChecklistSection[]
   ) => {
-    const newChecklistId = crypto.randomUUID();
-    const mappedItems: ChecklistItem[] = items.map((item, idx) => ({
-      ...item,
-      id: crypto.randomUUID(),
-      checklistId: newChecklistId,
-      createdAt: new Date().toISOString()
-    }));
+    const templateId = crypto.randomUUID();
+    const mappedSections: ChecklistSection[] = sections.map((sec, secIdx) => {
+      const secId = crypto.randomUUID();
+      return {
+        ...sec,
+        id: secId,
+        checklistTemplateId: templateId,
+        sortOrder: sec.sortOrder || (secIdx + 1),
+        criteria: (sec.criteria || []).map((crit, critIdx) => ({
+          ...crit,
+          id: crypto.randomUUID(),
+          checklistSectionId: secId,
+          sortOrder: crit.sortOrder || (critIdx + 1),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }))
+      };
+    });
 
-    const newChecklist: ChecklistEntry = {
+    const newTemplate: ChecklistTemplate = {
       ...checklist,
-      id: newChecklistId,
+      id: templateId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      items: mappedItems,
+      sections: mappedSections,
+      items: []
     };
-    setChecklists(prev => [newChecklist, ...prev]);
+
+    setChecklists(prev => [newTemplate, ...prev]);
 
     if (supabase) {
       supabase
-        .from('checklists')
+        .from('checklist_templates')
         .insert({
-          id: newChecklistId,
+          id: templateId,
           organization_id: checklist.organizationId,
           name: checklist.name,
           revision: checklist.revision,
-          status: checklist.status,
-          file_url: checklist.fileUrl || null,
-          file_name: checklist.fileName || null,
-          file_type: checklist.fileType || null
+          status: checklist.status
         })
-        .then(({ error: chkErr }) => {
-          if (chkErr) {
-            console.error('Error adding checklist to Supabase:', chkErr);
+        .then(({ error: tErr }) => {
+          if (tErr) {
+            console.error('Error adding checklist template to Supabase:', tErr);
             return;
           }
-          const dbItems = mappedItems.map(itm => ({
-            id: itm.id,
-            checklist_id: itm.checklistId,
-            category: itm.category,
-            description: itm.description,
-            required: itm.required,
-            reference: itm.reference || null,
-            sort_order: itm.sortOrder
+
+          const dbSections = mappedSections.map(sec => ({
+            id: sec.id,
+            checklist_template_id: templateId,
+            title: sec.title,
+            description: sec.description || null,
+            sort_order: sec.sortOrder
           }));
+
           supabase
-            .from('checklist_items')
-            .insert(dbItems)
-            .then(({ error: itemsErr }) => {
-              if (itemsErr) console.error('Error adding checklist items to Supabase:', itemsErr);
+            .from('checklist_sections')
+            .insert(dbSections)
+            .then(({ error: secErr }) => {
+              if (secErr) {
+                console.error('Error adding checklist sections to Supabase:', secErr);
+                return;
+              }
+
+              const dbCriteria = mappedSections.flatMap(sec => 
+                sec.criteria.map(crit => ({
+                  id: crit.id,
+                  checklist_section_id: sec.id,
+                  code: crit.code,
+                  description: crit.description,
+                  reference: crit.reference || null,
+                  response_type: crit.responseType,
+                  required: crit.required,
+                  sort_order: crit.sortOrder
+                }))
+              );
+
+              if (dbCriteria.length > 0) {
+                supabase
+                  .from('checklist_criteria')
+                  .insert(dbCriteria)
+                  .then(({ error: critErr }) => {
+                    if (critErr) console.error('Error adding checklist criteria to Supabase:', critErr);
+                  });
+              }
             });
         });
     }
@@ -1271,64 +1430,100 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateChecklist = (
     id: string,
-    checklistFields: Partial<Omit<ChecklistEntry, 'items'>>,
-    itemsList?: Omit<ChecklistItem, 'checklistId' | 'createdAt'>[]
+    checklistFields: Partial<Omit<ChecklistTemplate, 'sections' | 'items'>>,
+    sectionsList?: ChecklistSection[]
   ) => {
-    let finalItems: ChecklistItem[] = [];
+    let finalSections: ChecklistSection[] = [];
     setChecklists(prev => prev.map(item => {
       if (item.id === id) {
-        const updatedChecklist = { ...item, ...checklistFields, updatedAt: new Date().toISOString() };
-        if (itemsList) {
-          finalItems = itemsList.map((itm, idx) => ({
-            ...itm,
-            id: itm.id || crypto.randomUUID(),
-            checklistId: id,
-            createdAt: (itm as any).createdAt || new Date().toISOString()
-          }));
-          updatedChecklist.items = finalItems;
+        const updated = { ...item, ...checklistFields, updatedAt: new Date().toISOString() };
+        if (sectionsList) {
+          finalSections = sectionsList.map((sec, secIdx) => {
+            const secId = sec.id || crypto.randomUUID();
+            return {
+              ...sec,
+              id: secId,
+              checklistTemplateId: id,
+              sortOrder: sec.sortOrder || (secIdx + 1),
+              criteria: (sec.criteria || []).map((crit, critIdx) => ({
+                ...crit,
+                id: crit.id || crypto.randomUUID(),
+                checklistSectionId: secId,
+                sortOrder: crit.sortOrder || (critIdx + 1),
+                createdAt: crit.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              }))
+            };
+          });
+          updated.sections = finalSections;
         }
-        return updatedChecklist;
+        return updated;
       }
       return item;
     }));
 
     if (supabase) {
-      const dbFields = mapChecklistToDb(checklistFields);
-      
+      const dbFields = mapChecklistTemplateToDb(checklistFields);
+
       const updatePromise = Object.keys(dbFields).length > 0
-        ? supabase.from('checklists').update(dbFields).eq('id', id)
+        ? supabase.from('checklist_templates').update(dbFields).eq('id', id)
         : Promise.resolve({ error: null });
 
       updatePromise.then(({ error }) => {
         if (error) {
-          console.error('Error updating checklist in Supabase:', error);
+          console.error('Error updating checklist template in Supabase:', error);
           return;
         }
 
-        if (itemsList) {
+        if (sectionsList) {
           supabase
-            .from('checklist_items')
+            .from('checklist_sections')
             .delete()
-            .eq('checklist_id', id)
+            .eq('checklist_template_id', id)
             .then(({ error: delErr }) => {
               if (delErr) {
-                console.error('Error removing old checklist items in Supabase:', delErr);
+                console.error('Error removing old sections in Supabase:', delErr);
                 return;
               }
-              const dbItems = finalItems.map((itm, idx) => ({
-                id: itm.id,
-                checklist_id: id,
-                category: itm.category,
-                description: itm.description,
-                required: itm.required,
-                reference: itm.reference || null,
-                sort_order: itm.sortOrder || (idx + 1)
+
+              const dbSections = finalSections.map(sec => ({
+                id: sec.id,
+                checklist_template_id: id,
+                title: sec.title,
+                description: sec.description || null,
+                sort_order: sec.sortOrder
               }));
+
               supabase
-                .from('checklist_items')
-                .insert(dbItems)
-                .then(({ error: insErr }) => {
-                  if (insErr) console.error('Error inserting new checklist items in Supabase:', insErr);
+                .from('checklist_sections')
+                .insert(dbSections)
+                .then(({ error: insSecErr }) => {
+                  if (insSecErr) {
+                    console.error('Error inserting sections in Supabase:', insSecErr);
+                    return;
+                  }
+
+                  const dbCriteria = finalSections.flatMap(sec => 
+                    sec.criteria.map(crit => ({
+                      id: crit.id,
+                      checklist_section_id: sec.id,
+                      code: crit.code,
+                      description: crit.description,
+                      reference: crit.reference || null,
+                      response_type: crit.responseType,
+                      required: crit.required,
+                      sort_order: crit.sortOrder
+                    }))
+                  );
+
+                  if (dbCriteria.length > 0) {
+                    supabase
+                      .from('checklist_criteria')
+                      .insert(dbCriteria)
+                      .then(({ error: insCritErr }) => {
+                        if (insCritErr) console.error('Error inserting criteria in Supabase:', insCritErr);
+                      });
+                  }
                 });
             });
         }
@@ -1341,11 +1536,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (supabase) {
       supabase
-        .from('checklists')
+        .from('checklist_templates')
         .delete()
         .eq('id', id)
         .then(({ error }) => {
-          if (error) console.error('Error deleting checklist in Supabase:', error);
+          if (error) console.error('Error deleting checklist template in Supabase:', error);
         });
     }
   };
