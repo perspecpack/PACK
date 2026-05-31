@@ -10,7 +10,6 @@ import {
   Eye, 
   Settings as SettingsIcon, 
   LogOut,
-  User as UserIcon,
   Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -30,11 +29,6 @@ export function MasterLayout() {
     { name: 'Conteúdo', href: '/master/content', icon: Layers },
     { name: 'Uploads', href: '/master/uploads', icon: FileText },
   ];
-
-  const handleViewPlatform = () => {
-    setViewingAsUser(true);
-    navigate('/');
-  };
 
   const handleLogout = () => {
     logout();
@@ -87,15 +81,6 @@ export function MasterLayout() {
           })}
 
           <div className="pt-4 border-t border-teal-950/50 mt-4 space-y-1">
-            <button
-              onClick={handleViewPlatform}
-              className="w-full text-left text-slate-400 hover:bg-white/5 hover:text-white border-l-4 border-transparent group flex items-center gap-3.5 px-4 py-3 text-[14px] transition-all duration-200 rounded-r-md"
-            >
-              <UserIcon className="flex-shrink-0 h-[18px] w-[18px] text-slate-400 group-hover:text-white" />
-              <span className="truncate flex-1">Simular Área do Fornecedor</span>
-              <span className="text-[10px] bg-teal-900 text-[#00F59B] px-1.5 py-0.5 rounded font-mono font-bold">SIMULAR</span>
-            </button>
-
             <Link
               to="/master/settings"
               className={cn(

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Building2, 
   FileText, 
@@ -39,8 +39,11 @@ export default function Dashboard() {
     uploadsLog,
     pageAccessLog,
     logPageAccess,
-    user
+    user,
+    setViewingAsUser
   } = useApp();
+
+  const navigate = useNavigate();
 
   const [syncTime, setSyncTime] = useState<string>('');
 
@@ -48,6 +51,11 @@ export default function Dashboard() {
     logPageAccess('Master - Centro de Controle');
     setSyncTime(new Date().toLocaleTimeString('pt-BR'));
   }, [logPageAccess]);
+
+  const handleSimulate = () => {
+    setViewingAsUser(true);
+    navigate('/');
+  };
 
   // Storage Estimator
   const getFilesList = () => {
@@ -749,9 +757,9 @@ export default function Dashboard() {
                 <p className="text-[10px] text-slate-300">Simule a área do fornecedor.</p>
               </div>
             </div>
-            <Link to="/" className="p-1 bg-[#00F59B] text-teal-950 rounded-lg hover:opacity-90 transition-opacity">
+            <button onClick={handleSimulate} className="p-1 bg-[#00F59B] text-teal-950 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center">
               <ChevronRight className="w-4.5 h-4.5" />
-            </Link>
+            </button>
           </div>
         </section>
 
