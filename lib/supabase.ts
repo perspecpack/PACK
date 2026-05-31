@@ -1,9 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseAnonKey = 
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 
+  import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+  import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 
+  '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Safe client initialization to prevent boot-time crash if environment variables are missing or misconfigured.
+export const supabase = (supabaseUrl && supabaseAnonKey) 
+  ? createClient(supabaseUrl, supabaseAnonKey) 
+  : null as any;
 
 /**
  * Uploads a file to a specific Supabase storage bucket under a structured path.
@@ -15,8 +22,8 @@ export async function uploadFileToStorage(
   orgSlug: string,
   moduleType: string
 ): Promise<{ publicUrl: string; path: string }> {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Supabase credentials are not configured. Please add them in the project settings.');
+  if (!supabaseUrl || !supabaseAnonKey || !supabase) {
+    throw new Error('As credenciais do Supabase não estão configuradas. Por favor, adicione-as nas configurações do projeto.');
   }
 
   // Clean filename to prevent weird characters
@@ -55,7 +62,7 @@ export async function uploadFileToStorage(
  * Deletes a file from Supabase storage by its path or public URL.
  */
 export async function deleteFileFromStorage(bucket: string, pathOrUrl: string): Promise<void> {
-  if (!supabaseUrl || !supabaseAnonKey || !pathOrUrl) return;
+  if (!supabaseUrl || !supabaseAnonKey || !supabase || !pathOrUrl) return;
   
   try {
     // Extract path if it is a full URL
@@ -75,3 +82,4 @@ export async function deleteFileFromStorage(bucket: string, pathOrUrl: string): 
     console.error('Error parsing file path for deletion:', err);
   }
 }
+
