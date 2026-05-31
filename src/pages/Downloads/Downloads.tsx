@@ -93,11 +93,21 @@ export default function Downloads() {
     user
   } = useApp();
 
-  const { searchQuery, setSearchQuery } = useOutletContext<{ searchQuery: string; setSearchQuery: (q: string) => void }>();
+  const { searchQuery, setSearchQuery, resetTrigger } = useOutletContext<{ searchQuery: string; setSearchQuery: (q: string) => void; resetTrigger: number }>();
 
   // Steps: 'org_selection' | 'module_selection' | 'content_view' | 'checklist_execution'
   const [step, setStep] = useState<'org_selection' | 'module_selection' | 'content_view' | 'checklist_execution'>('org_selection');
   const [selectedOEM, setSelectedOEM] = useState<string>('');
+
+  useEffect(() => {
+    if (resetTrigger > 0) {
+      setStep('org_selection');
+      setSelectedOEM('');
+      setSelectedModule('components');
+      setSelectedCategory('');
+      setActiveChecklist(null);
+    }
+  }, [resetTrigger]);
   const [selectedModule, setSelectedModule] = useState<ModuleType>('components');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   

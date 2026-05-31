@@ -39,13 +39,13 @@ export function MasterLayout() {
     <div className="flex h-screen bg-[#F8FAFC] text-[#0F172A] overflow-hidden font-sans">
       {/* Sidebar - Deep Petrol & Neon Green accents */}
       <div className="w-[280px] bg-[#06242c] text-slate-300 flex flex-col shrink-0 px-0 py-8 border-r border-teal-950 shadow-[4px_0_24px_rgba(6,36,44,0.15)] z-20">
-        <div className="mb-10 flex items-center gap-3 px-6">
+        <Link to="/master/dashboard" className="mb-10 flex items-center gap-3 px-6 hover:opacity-90 transition-opacity">
           <img src={logoImage} alt="Perspecpack Logo" className="h-10 w-auto object-contain" />
           <span className="font-sans text-[20px] tracking-wider select-none">
             <span className="font-bold text-[#c0c0c0]">PERSPEC</span>
             <span className="font-normal text-[#00ff00]">PACK</span>
           </span>
-        </div>
+        </Link>
 
         <div className="px-4 mb-4">
           <div className="flex items-center gap-2 px-3 py-2 bg-teal-950/60 border border-teal-800/40 rounded-lg text-xs font-semibold text-[#00F59B]">

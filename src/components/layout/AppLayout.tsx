@@ -18,8 +18,14 @@ export function AppLayout() {
   const navigate = useNavigate();
   const { user, viewingAsUser, setViewingAsUser, logout } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
+  const [resetTrigger, setResetTrigger] = useState(0);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleLogoClick = () => {
+    setSearchQuery('');
+    setResetTrigger(prev => prev + 1);
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -70,7 +76,7 @@ export function AppLayout() {
       {/* Fixed Premium Header */}
       <header className="bg-[#06242c] text-white border-b border-teal-950/80 h-[76px] flex items-center justify-between px-6 lg:px-10 shrink-0 shadow-md z-20 sticky top-0">
         {/* Left Side: Logo & Subtitle */}
-        <Link to="/" className="flex items-center gap-3 shrink-0" onClick={() => setSearchQuery('')}>
+        <Link to="/" className="flex items-center gap-3 shrink-0" onClick={handleLogoClick}>
           <img src={logoImage} alt="Perspecpack Logo" className="h-10 w-auto object-contain" />
           <div className="flex flex-col text-left">
             <div className="font-sans text-[20px] tracking-wider leading-none select-none">
@@ -182,7 +188,7 @@ export function AppLayout() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto bg-[#F8FAFC]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Outlet context={{ searchQuery, setSearchQuery }} />
+          <Outlet context={{ searchQuery, setSearchQuery, resetTrigger }} />
         </div>
       </main>
     </div>
