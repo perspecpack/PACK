@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, ShieldCheck, User } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, User, X, Loader2, CheckCircle, AlertTriangle, FileText, HelpCircle, Download } from 'lucide-react';
 import { useApp } from '@/src/context/AppContext';
+import { supabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 import loginImage from '@/Imagem.png';
 import logoImage from '@/logo.png';
 import brandTextImg from '@/PERSPECPACK.png';
@@ -16,6 +18,63 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Validation State
+  const { validationCode } = useParams<{ validationCode?: string }>();
+  const [validationCodeInput, setValidationCodeInput] = useState('');
+  const [isValidatingReport, setIsValidatingReport] = useState(false);
+  const [validationResult, setValidationResult] = useState<any | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+
+  const handleValidateReport = async (codeToValidate?: string) => {
+    const code = (codeToValidate || validationCodeInput).trim().toUpperCase();
+    if (!code) return;
+
+    setIsValidatingReport(true);
+    setValidationError(null);
+    setValidationResult(null);
+
+    try {
+      if (!supabase) {
+        throw new Error('Supabase client not initialized.');
+      }
+
+      // Query the database for the validation_code
+      const { data, error } = await supabase
+        .from('checklist_executions')
+        .select(`
+          *,
+          organization:organizations(name),
+          checklist:checklist_templates(name, revision)
+        `)
+        .eq('validation_code', code)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        setValidationError('Código não encontrado ou relatório inválido.');
+        setShowValidationModal(true);
+      } else {
+        setValidationResult(data);
+        setShowValidationModal(true);
+      }
+    } catch (err: any) {
+      console.error('Error validating report:', err);
+      setValidationError('Erro ao conectar ao servidor. Tente novamente.');
+      setShowValidationModal(true);
+    } finally {
+      setIsValidatingReport(false);
+    }
+  };
+
+  useEffect(() => {
+    if (validationCode) {
+      setValidationCodeInput(validationCode);
+      handleValidateReport(validationCode);
+    }
+  }, [validationCode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,6 +211,36 @@ export default function Login() {
               </div>
             </div>
 
+            {/* Validar Relatório Box */}
+            <div className="pt-6 border-t border-slate-100 space-y-3">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block text-center">
+                Validar Código do Relatório
+              </span>
+              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 space-y-3 shadow-inner">
+                <div className="flex gap-2">
+                  <Input 
+                    type="text"
+                    placeholder="Digite o código de validação"
+                    value={validationCodeInput}
+                    onChange={(e) => setValidationCodeInput(e.target.value)}
+                    className="h-10 text-xs rounded-lg border-gray-300 shadow-sm focus:ring-teal-500 focus:border-teal-500"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => handleValidateReport()}
+                    className="bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-10 px-4 text-xs rounded-lg shrink-0 transition-colors shadow-md"
+                    disabled={isValidatingReport}
+                  >
+                    {isValidatingReport ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      'Validar Relatório'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <p className="text-center text-[13px] text-gray-500">
               Não tem uma conta? <Link to="#" className="font-semibold text-teal-600 hover:text-teal-700">Fale com o administrador.</Link>
             </p>
@@ -162,6 +251,132 @@ export default function Login() {
       <footer className="py-6 bg-[#FAFBFA] text-center text-[12px] text-gray-500 font-medium border-t border-gray-100">
         © 2026 PERSPECPACK. Todos os direitos reservados.
       </footer>
+
+      {/* VALIDATION MODAL */}
+      {showValidationModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[500px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="bg-[#06242c] text-white p-5 border-b border-teal-950 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-[#00F59B]" />
+                <span>Autenticação de Relatório</span>
+              </h3>
+              <button 
+                onClick={() => setShowValidationModal(false)}
+                className="text-slate-300 hover:text-white hover:bg-teal-950/50 p-1.5 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto">
+              {validationError ? (
+                <div className="text-center py-6 space-y-4">
+                  <div className="w-14 h-14 bg-rose-50 text-rose-600 border border-rose-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                    <AlertTriangle className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h4 className="text-md font-extrabold text-slate-900">Falha na Autenticação</h4>
+                    <p className="text-xs text-rose-600 bg-rose-50/50 border border-rose-100 px-3 py-1.5 rounded-lg font-semibold max-w-sm mx-auto">
+                      {validationError}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                validationResult && (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="w-12 h-12 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                      <CheckCircle className="w-6 h-6" />
+                    </div>
+                    
+                    <div className="text-center space-y-1">
+                      <h4 className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full w-fit mx-auto uppercase">
+                        Relatório Válido
+                      </h4>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Relatório válido e gerado pela plataforma PERSPECPACK.
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 text-xs">
+                      <div className="flex justify-between items-center border-b border-slate-200 pb-2 gap-4">
+                        <span className="font-semibold text-slate-505">Checklist Executado:</span>
+                        <span className="font-bold text-slate-800 text-right">
+                          {validationResult.checklist?.name || 'Checklist de Validação'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                        <span className="font-semibold text-slate-505">Revisão do Checklist:</span>
+                        <span className="font-mono text-slate-800 font-bold">
+                          REV {validationResult.checklist?.revision || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                        <span className="font-semibold text-slate-505">Organização OEM:</span>
+                        <span className="font-bold text-slate-800">
+                          {validationResult.organization?.name || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                        <span className="font-semibold text-slate-505">Validador / Emissor:</span>
+                        <span className="font-mono text-slate-700 font-bold">{validationResult.user_id}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                        <span className="font-semibold text-slate-505">Data de Emissão:</span>
+                        <span className="font-bold text-slate-800">
+                          {new Date(validationResult.generated_at || validationResult.created_at).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                        <span className="font-semibold text-slate-550">Código de Validação:</span>
+                        <span className="font-mono text-[#06242c] font-black">{validationResult.validation_code}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                        <span className="font-semibold text-slate-550">Código de Rastreabilidade:</span>
+                        <span className="font-mono text-slate-700 font-bold">{validationResult.verification_code}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-slate-550">Resultado Geral:</span>
+                        <span className={cn(
+                          "font-bold px-2 py-0.5 rounded text-[10px] uppercase border",
+                          validationResult.report_status === 'APROVADO'
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-250"
+                            : validationResult.report_status === 'APROVADO COM RESSALVAS'
+                            ? "bg-amber-50 text-amber-700 border-amber-250"
+                            : "bg-rose-50 text-rose-700 border-rose-250"
+                        )}>
+                          {validationResult.report_status || 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {validationResult.pdf_url && (
+                      <a 
+                        href={validationResult.pdf_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center gap-1.5 w-full bg-teal-650 hover:bg-teal-700 text-white font-bold h-10 px-4 text-xs rounded-xl shadow-sm transition-colors text-center animate-in fade-in"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Visualizar PDF do Relatório</span>
+                      </a>
+                    )}
+                  </div>
+                )
+              )}
+            </div>
+
+            <div className="bg-slate-50 p-4 border-t border-slate-200 shrink-0">
+              <Button
+                onClick={() => setShowValidationModal(false)}
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold h-10 text-xs rounded-xl"
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

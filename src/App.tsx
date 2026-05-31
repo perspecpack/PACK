@@ -42,6 +42,7 @@ function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/validar/:validationCode" element={<Login />} />
         
         {/* Protected Supplier / Final User Routes */}
         <Route 

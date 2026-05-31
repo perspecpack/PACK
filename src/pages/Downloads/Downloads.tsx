@@ -32,6 +32,17 @@ import { useApp } from '@/src/context/AppContext';
 import { ModuleType, ChecklistTemplate, ComponentEntry, DocumentEntry, StandardEntry } from '@/src/types';
 import { jsPDF } from 'jspdf';
 import { supabase, uploadFileToStorage } from '@/lib/supabase';
+import perspecpackLogo from '@/PERSPECPACK.png';
+
+const loadImage = (src: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = src;
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+  });
+};
 
 const MODULE_INFO: Record<ModuleType, { title: string; desc: string; icon: React.ComponentType<any> }> = {
   components: { title: 'Componentes Homologados', desc: 'Biblioteca de partes técnicas e acoplamentos aprovados', icon: Layers },
@@ -197,6 +208,9 @@ export default function Downloads() {
   const [generatedValCode, setGeneratedValCode] = useState('');
   const [generatedVerCode, setGeneratedVerCode] = useState('');
   const [isSubmittingChecklist, setIsSubmittingChecklist] = useState(false);
+  const [issuerCompany, setIssuerCompany] = useState('');
+  const [issuerLogoUrl, setIssuerLogoUrl] = useState<string | null>(null);
+  const [isLogoUploading, setIsLogoUploading] = useState(false);
 
   const activeOems = organizations.filter(o => o.status === 'active');
   const selectedOEMObj = activeOems.find(o => o.id === selectedOEM);
@@ -336,11 +350,10 @@ export default function Downloads() {
     };
   };
 
-  const generateValidationCode = (oemName: string) => {
-    const initials = oemName.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 3) || 'PP';
+  const generateValidationCode = () => {
     const year = new Date().getFullYear();
     const randomNumber = Math.floor(100000 + Math.random() * 900000);
-    return `${initials}-${year}-${randomNumber}`;
+    return `V-${year}-${randomNumber}`;
   };
 
   const generateVerificationCode = () => {
@@ -387,6 +400,24 @@ export default function Downloads() {
     }));
   };
 
+  const handleLogoUpload = async (file: File) => {
+    setIsLogoUploading(true);
+    try {
+      const { publicUrl } = await uploadFileToStorage(
+        file,
+        'checklist-evidencias',
+        selectedOEMObj?.slug || 'emissor',
+        'logos'
+      );
+      setIssuerLogoUrl(publicUrl);
+    } catch (error: any) {
+      console.error('Error uploading logo:', error);
+      alert('Erro ao fazer upload do logotipo: ' + error.message);
+    } finally {
+      setIsLogoUploading(false);
+    }
+  };
+
   const handleOpenConfirmation = () => {
     if (!activeChecklist) return;
 
@@ -398,10 +429,18 @@ export default function Downloads() {
       return;
     }
 
-    const valCode = generateValidationCode(selectedOEMName);
+    const valCode = generateValidationCode();
     const verCode = generateVerificationCode();
     setGeneratedValCode(valCode);
     setGeneratedVerCode(verCode);
+
+    // Initialize issuerCompany name if empty, defaulting to email domain
+    if (!issuerCompany) {
+      const emailDomain = user?.email ? user.email.split('@')[1].split('.')[0] : '';
+      const formattedDomain = emailDomain ? emailDomain.toUpperCase() : 'FORNECEDOR';
+      setIssuerCompany(formattedDomain);
+    }
+
     setShowConfirmationModal(true);
   };
 
@@ -413,50 +452,54 @@ export default function Downloads() {
     const currentStatus = getChecklistStatus();
 
     try {
-      // 1. Persist in checklist_executions
-      const { data: execData, error: execError } = await supabase
-        .from('checklist_executions')
-        .insert({
-          organization_id: selectedOEM,
-          checklist_id: activeChecklist.id,
-          user_id: user?.email || 'fornecedor@perspecpack.com',
-          status: 'completed',
-          approval_level: currentStatus.text,
-          validation_code: generatedValCode,
-          verification_code: generatedVerCode,
-          progress: stats.progress,
-          total_items: stats.total,
-          conforming_items: stats.conforms,
-          nonconforming_items: stats.nonConforms,
-          na_items: stats.na,
-          pending_items: stats.pending
-        })
-        .select()
-        .single();
+      // 1. Safety Uniqueness Verification Loop
+      let valCode = generatedValCode;
+      let verCode = generatedVerCode;
+      let isUnique = false;
+      let checkAttempts = 0;
+      while (!isUnique && checkAttempts < 10) {
+        const { data, error } = await supabase
+          .from('checklist_executions')
+          .select('id')
+          .or(`validation_code.eq.${valCode},verification_code.eq.${verCode}`);
+        
+        if (error) {
+          console.error('Error checking code uniqueness:', error);
+          break;
+        }
+        
+        if (!data || data.length === 0) {
+          isUnique = true;
+        } else {
+          valCode = generateValidationCode();
+          verCode = generateVerificationCode();
+          checkAttempts++;
+        }
+      }
+      
+      // Update state for consistency in React view
+      setGeneratedValCode(valCode);
+      setGeneratedVerCode(verCode);
 
-      if (execError) throw execError;
+      // 2. Preload Logo Images (Official and Custom)
+      let perspecpackLogoImg: HTMLImageElement | null = null;
+      let issuerLogoImg: HTMLImageElement | null = null;
 
-      // 2. Persist execution items
-      const itemsToInsert = Object.entries(checklistAnswers).map(([critId, val]) => {
-        const ans = val as any;
-        return {
-          execution_id: execData.id,
-          criterion_id: critId,
-          result: ans.status || null,
-          observation: ans.note || null,
-          evidence_url: ans.evidenceUrl || null
-        };
-      }).filter(item => item.result !== null);
-
-      if (itemsToInsert.length > 0) {
-        const { error: itemsError } = await supabase
-          .from('checklist_execution_items')
-          .insert(itemsToInsert);
-
-        if (itemsError) throw itemsError;
+      try {
+        perspecpackLogoImg = await loadImage(perspecpackLogo);
+      } catch (e) {
+        console.error('Error preloading official logo:', e);
       }
 
-      // 3. Generate PDF using jsPDF
+      if (issuerLogoUrl) {
+        try {
+          issuerLogoImg = await loadImage(issuerLogoUrl);
+        } catch (e) {
+          console.error('Error preloading issuer logo:', e);
+        }
+      }
+
+      // 3. Generate PDF structure
       const doc = new jsPDF({
         orientation: 'p',
         unit: 'mm',
@@ -483,53 +526,48 @@ export default function Downloads() {
       }
 
       // Layout helper
-      let y = 15;
+      let y = 35; // Start content below the header (margin top 15mm + header height 15mm)
       const pageHeight = 297;
       const pageWidth = 210;
       const margin = 15;
       const contentWidth = pageWidth - (margin * 2);
 
       const checkPageBreak = (neededHeight: number) => {
-        if (y + neededHeight > pageHeight - 20) {
+        if (y + neededHeight > pageHeight - 25) { // Leave 25mm space at bottom for footer
           doc.addPage();
-          drawPageHeaderAndFooter();
-          y = 35; // Start y below the header on new page
+          y = 35; // Start below top header space on the new page
         }
       };
 
-      const drawPageHeaderAndFooter = () => {
-        // Draw Header bar
-        doc.setFillColor(6, 36, 44);
-        doc.rect(margin, 10, contentWidth, 15, 'F');
-        
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.text('PERSPECPACK  |  RELATÓRIO DE CONFORMIDADE TÉCNICA', margin + 5, 19.5);
-        
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth - margin - 5, 19.5, { align: 'right' });
+      // --- PAGE 1: TITLE & HIGHLIGHTED VALIDATION BOX ---
+      
+      // Validation Code highlight box (top of first page)
+      doc.setFillColor(240, 253, 250); // very soft teal/emerald
+      doc.rect(margin, y, contentWidth, 20, 'F');
+      doc.setDrawColor(0, 245, 155); // Neon green border
+      doc.setLineWidth(0.4);
+      doc.rect(margin, y, contentWidth, 20, 'S');
 
-        // Draw Footer line & text
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.5);
-        doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(6, 36, 44);
+      doc.text('CÓDIGO DE VALIDAÇÃO PÚBLICA', margin + 6, y + 6);
 
-        doc.setTextColor(148, 163, 184);
-        doc.setFontSize(7);
-        doc.text(`Código de Validação: ${generatedValCode}  |  Código de Rastreabilidade: ${generatedVerCode}`, margin, pageHeight - 10);
-        doc.text(`Página ${(doc as any).internal.getNumberOfPages()}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-      };
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(6, 36, 44);
+      doc.text(valCode, margin + 6, y + 14);
 
-      // Draw first page header
-      drawPageHeaderAndFooter();
-      y = 35;
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Verifique a autenticidade deste relatório em perspecpack.com', pageWidth - margin - 6, y + 14, { align: 'right' });
+      y += 26;
 
       // Title & Overview
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(16);
+      doc.setFontSize(15);
       doc.text('Relatório de Validação de Embalagem', margin, y);
       y += 6;
 
@@ -580,7 +618,7 @@ export default function Downloads() {
       doc.setFont('Helvetica', 'bold');
       doc.text('Código Validação:', margin + 110, y + 6);
       doc.setFont('Helvetica', 'normal');
-      doc.text(generatedValCode, margin + 140, y + 6);
+      doc.text(valCode, margin + 140, y + 6);
 
       doc.setFont('Helvetica', 'bold');
       doc.text('Validador / Auditor:', margin + 4, y + 13);
@@ -590,7 +628,7 @@ export default function Downloads() {
       doc.setFont('Helvetica', 'bold');
       doc.text('Rastreabilidade:', margin + 110, y + 13);
       doc.setFont('Helvetica', 'normal');
-      doc.text(generatedVerCode, margin + 140, y + 13);
+      doc.text(verCode, margin + 140, y + 13);
 
       doc.setFont('Helvetica', 'bold');
       doc.text('Data de Emissão:', margin + 4, y + 20);
@@ -721,11 +759,150 @@ export default function Downloads() {
         });
       });
 
-      // Save the PDF file
-      doc.save(`Relatorio_Conformidade_${activeChecklist.name.replace(/\s+/g, '_')}_${generatedValCode}.pdf`);
+      // 4. Draw headers and footers on ALL pages retrospectively
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        
+        // --- HEADER ---
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.line(margin, 25, pageWidth - margin, 25);
+        
+        // Header Left: Issuer Logo or Issuer Company Text
+        if (issuerLogoImg) {
+          try {
+            doc.addImage(issuerLogoImg, 'PNG', margin, 12, 35, 10, undefined, 'FAST');
+          } catch (e) {
+            console.error('Error drawing issuer logo in PDF:', e);
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(6, 36, 44);
+            doc.text(issuerCompany || 'FORNECEDOR', margin, 19);
+          }
+        } else {
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.setTextColor(6, 36, 44);
+          doc.text(issuerCompany || 'FORNECEDOR', margin, 19);
+        }
+        
+        // Header Right: Title and Date
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text('RELATÓRIO DE CONFORMIDADE TÉCNICA', pageWidth - margin, 15, { align: 'right' });
+        
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth - margin, 20, { align: 'right' });
+        
+        // --- FOOTER ---
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+        
+        // Footer Left: PERSPECPACK Logo
+        if (perspecpackLogoImg) {
+          try {
+            doc.addImage(perspecpackLogoImg, 'PNG', margin, pageHeight - 17, 22, 4.4, undefined, 'FAST');
+          } catch (e) {
+            console.error('Error drawing PERSPECPACK logo in PDF:', e);
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(7.5);
+            doc.setTextColor(6, 36, 44);
+            doc.text('PERSPECPACK', margin, pageHeight - 14);
+          }
+        } else {
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(7.5);
+          doc.setTextColor(6, 36, 44);
+          doc.text('PERSPECPACK', margin, pageHeight - 14);
+        }
+        
+        // Footer Tagline
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        doc.text(' — Plataforma de Conformidade para Embalagens Industriais', margin + 24, pageHeight - 13.8);
+        
+        // Footer Codes
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Validação: ${valCode}  |  Rastreabilidade: ${verCode}`, margin, pageHeight - 7);
+        
+        // Footer Page Number
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 7, { align: 'right' });
+      }
+
+      // 5. Output PDF as Blob, File and Upload to storage
+      const pdfBlob = doc.output('blob');
+      const filename = `Relatorio_Conformidade_${activeChecklist.name.replace(/\s+/g, '_')}_${valCode}.pdf`;
+      const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+      const { publicUrl: pdfUrl } = await uploadFileToStorage(
+        pdfFile,
+        'checklist-evidencias',
+        selectedOEMObj?.slug || 'oem',
+        'relatorios'
+      );
+
+      // 6. Save the PDF locally for user download
+      doc.save(filename);
+
+      // 7. Persist in checklist_executions
+      const { data: execData, error: execError } = await supabase
+        .from('checklist_executions')
+        .insert({
+          organization_id: selectedOEM,
+          checklist_id: activeChecklist.id,
+          user_id: user?.email || 'fornecedor@perspecpack.com',
+          status: 'completed',
+          approval_level: currentStatus.text,
+          validation_code: valCode,
+          verification_code: verCode,
+          progress: stats.progress,
+          total_items: stats.total,
+          conforming_items: stats.conforms,
+          nonconforming_items: stats.nonConforms,
+          na_items: stats.na,
+          pending_items: stats.pending,
+          pdf_url: pdfUrl,
+          report_status: currentStatus.text,
+          generated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (execError) throw execError;
+
+      // 8. Persist execution items
+      const itemsToInsert = Object.entries(checklistAnswers).map(([critId, val]) => {
+        const ans = val as any;
+        return {
+          execution_id: execData.id,
+          criterion_id: critId,
+          result: ans.status || null,
+          observation: ans.note || null,
+          evidence_url: ans.evidenceUrl || null
+        };
+      }).filter(item => item.result !== null);
+
+      if (itemsToInsert.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('checklist_execution_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+      }
 
       // Log download details
-      logUpload(selectedOEM, `PDF de Conformidade (${activeChecklist.name})`, `Relatorio_Conformidade_${activeChecklist.name.replace(/\s+/g, '_')}_${generatedValCode}.pdf`);
+      logUpload(selectedOEM, `PDF de Conformidade (${activeChecklist.name})`, filename);
 
       // Done
       setShowConfirmationModal(false);
@@ -1759,6 +1936,79 @@ export default function Downloads() {
                 <div className="flex justify-between items-center pb-1">
                   <span className="font-semibold text-slate-500">Código de Rastreabilidade:</span>
                   <span className="font-mono text-[#06242c] font-black">{generatedVerCode}</span>
+                </div>
+              </div>
+
+              {/* Identificação do Emissor */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3.5 text-xs">
+                <div className="border-b border-slate-200 pb-2">
+                  <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Identificação do Emissor (PDF)</h4>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                      Nome da Empresa / Emissor
+                    </label>
+                    <input 
+                      type="text"
+                      value={issuerCompany}
+                      onChange={(e) => setIssuerCompany(e.target.value)}
+                      placeholder="Ex: Minha Empresa Ltda"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-455 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                      Logotipo da Empresa (Opcional)
+                    </label>
+                    <div className="flex items-center gap-4">
+                      {issuerLogoUrl ? (
+                        <div className="relative border border-slate-200 rounded-lg p-1 bg-white flex items-center justify-center h-12 w-24 shadow-sm">
+                          <img src={issuerLogoUrl} alt="Logo Emissor" className="max-h-full max-w-full object-contain" />
+                          <button
+                            type="button"
+                            onClick={() => setIssuerLogoUrl(null)}
+                            className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white rounded-full p-0.5 hover:bg-rose-600 transition-colors shadow shadow-slate-400"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex-1">
+                          <label className={cn(
+                            "flex items-center justify-center gap-2 border border-dashed rounded-lg p-2.5 text-xs font-semibold cursor-pointer transition-all min-h-[42px]",
+                            isLogoUploading
+                              ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                              : "border-slate-300 hover:border-teal-400 hover:bg-slate-100 text-slate-650"
+                          )}>
+                            {isLogoUploading ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+                                <span>Enviando logo...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Paperclip className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Selecionar Logotipo</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={isLogoUploading}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleLogoUpload(file);
+                              }}
+                            />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
