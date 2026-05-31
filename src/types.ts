@@ -1,9 +1,8 @@
 export type OrganizationType = 
   | 'oem' 
-  | 'tier1' 
   | 'component_manufacturer' 
-  | 'industrial_client' 
-  | 'internal_standard';
+  | 'packaging_supplier' 
+  | 'packaging_manufacturer';
 
 export interface Organization {
   id: string;

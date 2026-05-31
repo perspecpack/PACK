@@ -132,9 +132,9 @@ export default function ModuleContentManager() {
   const getModuleTitle = () => {
     switch (moduleType) {
       case 'components': return 'Componentes Homologados';
-      case 'documentation': return 'Documentação Técnica';
-      case 'standards': return 'Normas e Padrões';
-      case 'checklists': return 'Checklists de Validação';
+      case 'documentation': return 'Caderno de Encargos';
+      case 'standards': return 'Documentação Técnica';
+      case 'checklists': return 'Checklist de Validação';
       case 'reference_projects': return 'Projetos de Referência';
       default: return 'Gerenciador';
     }

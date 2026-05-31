@@ -5,11 +5,10 @@ import { Building2, ChevronRight, Layers, LayoutGrid } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 const ORG_TYPE_LABELS: Record<string, string> = {
-  oem: 'Montadora / OEM',
-  tier1: 'Fornecedor Tier 1',
-  component_manufacturer: 'Fabricante de Componentes',
-  industrial_client: 'Cliente Industrial',
-  internal_standard: 'Padrão Interno'
+  oem: 'Montadora',
+  component_manufacturer: 'Fabricante de Componentes Automotivos',
+  packaging_supplier: 'Fornecedor de Componentes para Embalagens Metálicas',
+  packaging_manufacturer: 'Fabricante de Embalagens Metálicas'
 };
 
 export default function Content() {
@@ -20,7 +19,8 @@ export default function Content() {
   const activeOrgs = organizations.filter(o => o.status === 'active');
 
   const getEnabledModulesCount = (orgId: string) => {
-    return organizationModules.filter(m => m.organizationId === orgId && m.enabled).length;
+    const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
+    return organizationModules.filter(m => m.organizationId === orgId && m.enabled && allowedModules.includes(m.moduleType)).length;
   };
 
   const handleOrgClick = (id: string) => {

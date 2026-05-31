@@ -133,7 +133,7 @@ const INITIAL_ORGANIZATIONS: Organization[] = [
   { id: 'b60c2eb7-7f30-410a-ba92-f2ad30018f2d', name: 'Nissan', slug: 'nissan', organizationType: 'oem', description: 'Requisitos de embalagens Nissan.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
   { id: 'fa80459a-14d2-43bb-a15d-852a4ef99dfb', name: 'Renault', slug: 'renault', organizationType: 'oem', description: 'Especificações de rack e logísticas Renault.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
   { id: '0f898394-bb9e-4a6c-9477-70be0e2e28a5', name: 'Scania', slug: 'scania', organizationType: 'oem', description: 'Caderno de encargos e embalagens pesadas Scania.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: '9689e472-8889-4e78-95ef-fce678b8a5cf', name: 'Gestamp', slug: 'gestamp', organizationType: 'tier1', description: 'Padrões logísticos da multinacional Gestamp.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: '9689e472-8889-4e78-95ef-fce678b8a5cf', name: 'Gestamp', slug: 'gestamp', organizationType: 'component_manufacturer', description: 'Padrões logísticos da multinacional Gestamp.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
 ];
 
 const MODULE_TYPES: ModuleType[] = ['components', 'documentation', 'standards', 'checklists', 'reference_projects', 'cad_library', 'procedures'];
@@ -142,8 +142,8 @@ const INITIAL_MODULES: OrganizationModule[] = [];
 INITIAL_ORGANIZATIONS.forEach(org => {
   MODULE_TYPES.forEach(mod => {
     // Default enabled modules based on specification:
-    // components, documentation (standards in spec as 'standards'), checklists, reference_projects are active by default
-    const isDefaultEnabled = ['components', 'documentation', 'standards', 'checklists', 'reference_projects'].includes(mod);
+    // components, documentation (standards in spec as 'standards'), checklists are active by default
+    const isDefaultEnabled = ['components', 'documentation', 'standards', 'checklists'].includes(mod);
     INITIAL_MODULES.push({
       id: crypto.randomUUID(),
       organizationId: org.id,
@@ -1425,9 +1425,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const activeOems = organizations.filter(o => o.status === 'active');
   const dummyCategories = [
     { id: 'cat-comp', name: 'Componentes Homologados', slug: 'componentes-homologados', icon: 'Box', status: 'active' as const },
-    { id: 'cat-doc', name: 'Documentação Técnica', slug: 'documentacao-tecnica', icon: 'FileText', status: 'active' as const },
-    { id: 'cat-normas', name: 'Normas e Padrões', slug: 'normas-e-padroes', icon: 'ShieldCheck', status: 'active' as const },
-    { id: 'cat-checks', name: 'Checklists', icon: 'CheckSquare', slug: 'checklists', status: 'active' as const },
+    { id: 'cat-doc', name: 'Caderno de Encargos', slug: 'caderno-de-encargos', icon: 'FileText', status: 'active' as const },
+    { id: 'cat-normas', name: 'Documentação Técnica', slug: 'documentacao-tecnica', icon: 'ShieldCheck', status: 'active' as const },
+    { id: 'cat-checks', name: 'Checklist de Validação', icon: 'CheckSquare', slug: 'checklist-de-validao', status: 'active' as const },
     { id: 'cat-proj', name: 'Projetos de Referência', icon: 'FolderKanban', slug: 'projetos-de-referencia', status: 'active' as const },
   ];
 

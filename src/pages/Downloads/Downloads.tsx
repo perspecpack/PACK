@@ -18,9 +18,9 @@ import { ModuleType } from '@/src/types';
 
 const MODULE_INFO: Record<ModuleType, { title: string; icon: React.ComponentType<any> }> = {
   components: { title: 'Componentes Homologados', icon: Layers },
-  documentation: { title: 'Documentação Técnica', icon: FileText },
-  standards: { title: 'Normas e Padrões', icon: ShieldCheck },
-  checklists: { title: 'Checklists de Validação', icon: CheckSquare },
+  documentation: { title: 'Caderno de Encargos', icon: FileText },
+  standards: { title: 'Documentação Técnica', icon: ShieldCheck },
+  checklists: { title: 'Checklist de Validação', icon: CheckSquare },
   reference_projects: { title: 'Projetos de Referência', icon: FolderKanban },
   cad_library: { title: 'Biblioteca CAD', icon: HardDrive },
   procedures: { title: 'Procedimentos', icon: Box }
@@ -52,7 +52,8 @@ export default function Downloads() {
   // Set default module based on organization's enabled modules
   useEffect(() => {
     if (selectedOEM) {
-      const orgMods = organizationModules.filter(m => m.organizationId === selectedOEM && m.enabled);
+      const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
+      const orgMods = organizationModules.filter(m => m.organizationId === selectedOEM && m.enabled && allowedModules.includes(m.moduleType));
       if (orgMods.length > 0) {
         // Find if current selectedModule is enabled, otherwise pick first enabled
         const isCurrentEnabled = orgMods.some(m => m.moduleType === selectedModule);
@@ -67,7 +68,8 @@ export default function Downloads() {
   const selectedOEMName = selectedOEMObj?.name || '';
 
   // Get active modules for selected OEM
-  const activeModules = organizationModules.filter(m => m.organizationId === selectedOEM && m.enabled);
+  const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
+  const activeModules = organizationModules.filter(m => m.organizationId === selectedOEM && m.enabled && allowedModules.includes(m.moduleType));
 
   // Helper to get real records count per module
   const getRecordCount = (moduleType: ModuleType) => {

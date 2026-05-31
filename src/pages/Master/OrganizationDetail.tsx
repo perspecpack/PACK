@@ -18,11 +18,10 @@ import { Badge } from '@/components/ui/badge';
 import { ModuleType } from '@/src/types';
 
 const ORG_TYPE_LABELS: Record<string, string> = {
-  oem: 'Montadora / OEM',
-  tier1: 'Fornecedor Tier 1',
-  component_manufacturer: 'Fabricante de Componentes',
-  industrial_client: 'Cliente Industrial',
-  internal_standard: 'Padrão Interno'
+  oem: 'Montadora',
+  component_manufacturer: 'Fabricante de Componentes Automotivos',
+  packaging_supplier: 'Fornecedor de Componentes para Embalagens Metálicas',
+  packaging_manufacturer: 'Fabricante de Embalagens Metálicas'
 };
 
 const MODULE_INFO: Record<ModuleType, { title: string; desc: string; icon: React.ComponentType<any>; color: string }> = {
@@ -33,19 +32,19 @@ const MODULE_INFO: Record<ModuleType, { title: string; desc: string; icon: React
     color: 'from-purple-500/10 to-indigo-500/10 text-purple-600 border-purple-100'
   },
   documentation: {
-    title: 'Documentação Técnica',
+    title: 'Caderno de Encargos',
     desc: 'Cadernos de encargos, manuais e anexos da engenharia',
     icon: FileText,
     color: 'from-amber-500/10 to-orange-500/10 text-amber-600 border-amber-100'
   },
   standards: {
-    title: 'Normas e Padrões',
+    title: 'Documentação Técnica',
     desc: 'Normas de empilhamento, skids, AGV e ergonomia',
     icon: ShieldCheck,
     color: 'from-blue-500/10 to-sky-500/10 text-blue-600 border-blue-100'
   },
   checklists: {
-    title: 'Checklists de Validação',
+    title: 'Checklist de Validação',
     desc: 'Templates de inspeção e conformidade física',
     icon: CheckSquare,
     color: 'from-emerald-500/10 to-green-500/10 text-emerald-600 border-emerald-100'
@@ -99,7 +98,8 @@ export default function OrganizationDetail() {
   }
 
   // Get active modules for this organization
-  const activeModules = organizationModules.filter(m => m.organizationId === orgId && m.enabled);
+  const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
+  const activeModules = organizationModules.filter(m => m.organizationId === orgId && m.enabled && allowedModules.includes(m.moduleType));
 
   // Helper to get real records count per module
   const getRecordCount = (moduleType: ModuleType) => {

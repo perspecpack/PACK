@@ -201,7 +201,7 @@ export default function Categories() {
                   id="cat-name" 
                   value={name} 
                   onChange={handleNameChange}
-                  placeholder="Ex: Normas e Padrões" 
+                  placeholder="Ex: Documentação Técnica" 
                   required 
                   className="h-10 text-[14px] rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500" 
                 />
@@ -213,7 +213,7 @@ export default function Categories() {
                   id="cat-slug" 
                   value={slug} 
                   onChange={(e) => setSlug(e.target.value)}
-                  placeholder="normas-e-padroes" 
+                  placeholder="documentacao-tecnica" 
                   required 
                   className="h-10 text-[14px] font-mono rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500" 
                 />

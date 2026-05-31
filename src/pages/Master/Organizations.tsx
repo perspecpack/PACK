@@ -8,21 +8,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit2, Trash2, X, AlertTriangle } from 'lucide-react';
 import { ModuleType } from '@/src/types';
+import { FileUploadField } from '@/components/ui/FileUploadField';
 
 const ORG_TYPE_OPTIONS: { value: OrganizationType; label: string }[] = [
-  { value: 'oem', label: 'Montadora / OEM' },
-  { value: 'tier1', label: 'Fornecedor Tier 1' },
-  { value: 'component_manufacturer', label: 'Fabricante de componentes' },
-  { value: 'industrial_client', label: 'Cliente industrial' },
-  { value: 'internal_standard', label: 'Padrão interno PERSPECPACK' }
+  { value: 'oem', label: 'Montadora' },
+  { value: 'component_manufacturer', label: 'Fabricante de Componentes Automotivos' },
+  { value: 'packaging_supplier', label: 'Fornecedor de Componentes para Embalagens Metálicas' },
+  { value: 'packaging_manufacturer', label: 'Fabricante de Embalagens Metálicas' }
 ];
 
 const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
-  oem: 'Montadora / OEM',
-  tier1: 'Fornecedor Tier 1',
-  component_manufacturer: 'Fabricante de componentes',
-  industrial_client: 'Cliente industrial',
-  internal_standard: 'Padrão interno PERSPECPACK'
+  oem: 'Montadora',
+  component_manufacturer: 'Fabricante de Componentes Automotivos',
+  packaging_supplier: 'Fornecedor de Componentes para Embalagens Metálicas',
+  packaging_manufacturer: 'Fabricante de Embalagens Metálicas'
 };
 
 export default function Organizations() {
@@ -257,18 +256,6 @@ export default function Organizations() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="org-slug" className="text-xs font-bold text-slate-700">Slug (Gerado Automaticamente)</Label>
-                <Input 
-                  id="org-slug" 
-                  value={slug} 
-                  onChange={(e) => setSlug(e.target.value)}
-                  placeholder="ex-volkswagen" 
-                  required 
-                  className="h-10 text-[14px] font-mono rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500" 
-                />
-              </div>
-
-              <div className="space-y-1.5">
                 <Label htmlFor="org-type" className="text-xs font-bold text-slate-700">Tipo de Organização</Label>
                 <select 
                   id="org-type" 
@@ -284,13 +271,15 @@ export default function Organizations() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="org-logo" className="text-xs font-bold text-slate-700">URL do Logo (Opcional)</Label>
-                <Input 
-                  id="org-logo" 
-                  value={logoUrl} 
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://example.com/logo.png" 
-                  className="h-10 text-[14px] rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500" 
+                <FileUploadField
+                  label="Logotipo (JPG ou PNG)"
+                  acceptedTypes="image/png,image/jpeg"
+                  bucket="organization-logos"
+                  currentFileUrl={logoUrl}
+                  orgSlug={slug || 'global'}
+                  moduleType="logos"
+                  onUploadComplete={(url) => setLogoUrl(url)}
+                  onRemove={() => setLogoUrl('')}
                 />
               </div>
 
@@ -323,12 +312,9 @@ export default function Organizations() {
                 <div className="grid grid-cols-2 gap-3 mt-1.5">
                   {[
                     { id: 'components', label: 'Componentes Homologados' },
-                    { id: 'documentation', label: 'Documentação Técnica' },
-                    { id: 'standards', label: 'Normas e Padrões' },
-                    { id: 'checklists', label: 'Checklist de Validação' },
-                    { id: 'reference_projects', label: 'Projetos de Referência' },
-                    { id: 'cad_library', label: 'Biblioteca CAD' },
-                    { id: 'procedures', label: 'Procedimentos' }
+                    { id: 'documentation', label: 'Caderno de Encargos' },
+                    { id: 'standards', label: 'Documentação Técnica' },
+                    { id: 'checklists', label: 'Checklist de Validação' }
                   ].map((mod) => (
                     <label key={mod.id} className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200/50 p-2.5 rounded-lg hover:bg-slate-100/50 transition-colors">
                       <input
