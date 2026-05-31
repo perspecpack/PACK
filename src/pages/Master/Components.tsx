@@ -182,7 +182,7 @@ export default function Components() {
                   <TableCell className="align-middle">
                     <Badge className={comp.status === 'active' 
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold' 
-                      : 'bg-slate-100 text-slate-500 border border-slate-200 font-semibold'
+                      : 'bg-orange-50 text-orange-700 border border-orange-200 font-semibold'
                     }>
                       {comp.status === 'active' ? 'Ativo' : 'Inativo'}
                     </Badge>
