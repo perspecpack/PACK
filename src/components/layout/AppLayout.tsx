@@ -10,6 +10,8 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/src/context/AppContext';
+import logoImage from '@/logo.png';
+import brandTextImg from '@/PERSPECPACK.png';
 
 export function AppLayout() {
   const location = useLocation();
@@ -60,9 +62,9 @@ export function AppLayout() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - Teal/Petrol Theme */}
         <div className="w-[260px] bg-[#0c3944] text-gray-300 flex flex-col shrink-0 px-0 py-8 z-20 shadow-md">
-          <div className="text-white font-bold text-[20px] tracking-tight mb-10 flex items-center gap-3 px-6">
-            <Box className="w-8 h-8 text-teal-400" />
-            PERSPECPACK
+          <div className="mb-10 flex items-center gap-3 px-6">
+            <img src={logoImage} alt="Perspecpack Logo" className="h-10 w-auto object-contain" />
+            <img src={brandTextImg} alt="PERSPECPACK" className="h-4.5 w-auto object-contain brightness-0 invert" />
           </div>
           
           <nav className="flex-1 space-y-2">

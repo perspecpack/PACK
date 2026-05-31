@@ -16,6 +16,8 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/src/context/AppContext';
+import logoImage from '@/logo.png';
+import brandTextImg from '@/PERSPECPACK.png';
 
 export function MasterLayout() {
   const location = useLocation();
@@ -42,12 +44,9 @@ export function MasterLayout() {
     <div className="flex h-screen bg-[#F8FAFC] text-[#0F172A] overflow-hidden font-sans">
       {/* Sidebar - Deep Petrol & Neon Green accents */}
       <div className="w-[280px] bg-[#06242c] text-slate-300 flex flex-col shrink-0 px-0 py-8 border-r border-teal-950 shadow-[4px_0_24px_rgba(6,36,44,0.15)] z-20">
-        <div className="text-white font-bold text-[20px] tracking-tight mb-10 flex items-center gap-3 px-6">
-          <div className="relative">
-            <Box className="w-8 h-8 text-[#00F59B]" />
-            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#00F59B] rounded-full animate-ping"></div>
-          </div>
-          <span className="bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent font-extrabold">PERSPECPACK</span>
+        <div className="mb-10 flex items-center gap-3 px-6">
+          <img src={logoImage} alt="Perspecpack Logo" className="h-10 w-auto object-contain" />
+          <img src={brandTextImg} alt="PERSPECPACK" className="h-4.5 w-auto object-contain brightness-0 invert" />
         </div>
 
         <div className="px-4 mb-4">
