@@ -94,15 +94,15 @@ export default function Files() {
       {/* Header section */}
       <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-[16px] font-bold text-slate-900">Listagem de Arquivos</h2>
-          <p className="text-[13px] text-slate-500 mt-1">Gerencie normas, modelagens 3D (CAD), cadernos de encargos e checklists técnicos.</p>
+          <h2 className="text-[16px] font-bold text-slate-900">Central de Uploads</h2>
+          <p className="text-[13px] text-slate-500 mt-1">Gerenciamento de arquivos brutos, normas, desenhos CAD e imagens hospedadas no sistema.</p>
         </div>
         <Button 
           onClick={openAddModal}
           className="bg-teal-600 hover:bg-teal-700 text-white font-semibold h-10 px-4 rounded-lg flex items-center gap-2 transition-colors shadow-sm shadow-teal-500/10"
         >
           <Plus className="w-4 h-4" />
-          Cadastrar Arquivo
+          Fazer Upload de Arquivo
         </Button>
       </div>
 

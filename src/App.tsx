@@ -7,14 +7,12 @@ import Login from './pages/Auth/Login';
 import Downloads from './pages/Downloads/Downloads';
 
 // Master Pages
-import Dashboard from './pages/Master/Dashboard';
 import Organizations from './pages/Master/Organizations';
-import Categories from './pages/Master/Categories';
 import Files from './pages/Master/Files';
-import Components from './pages/Master/Components';
-import Checklists from './pages/Master/Checklists';
-import Projects from './pages/Master/Projects';
 import Settings from './pages/Master/Settings';
+import Content from './pages/Master/Content';
+import OrganizationDetail from './pages/Master/OrganizationDetail';
+import ModuleContentManager from './pages/Master/ModuleContentManager';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -63,13 +61,12 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path="/master" element={<Dashboard />} />
+          <Route path="/master" element={<Navigate to="/master/oems" replace />} />
           <Route path="/master/oems" element={<Organizations />} />
-          <Route path="/master/categories" element={<Categories />} />
-          <Route path="/master/files" element={<Files />} />
-          <Route path="/master/components" element={<Components />} />
-          <Route path="/master/checklists" element={<Checklists />} />
-          <Route path="/master/projects" element={<Projects />} />
+          <Route path="/master/content" element={<Content />} />
+          <Route path="/master/content/:orgId" element={<OrganizationDetail />} />
+          <Route path="/master/content/:orgId/:moduleType" element={<ModuleContentManager />} />
+          <Route path="/master/uploads" element={<Files />} />
           <Route path="/master/settings" element={<Settings />} />
         </Route>
 
@@ -78,7 +75,7 @@ function AppRoutes() {
           path="*" 
           element={
             <Navigate 
-              to={user ? (user.role === 'master' ? '/master' : '/') : '/login'} 
+              to={user ? (user.role === 'master' ? '/master/oems' : '/') : '/login'} 
               replace 
             />
           } 

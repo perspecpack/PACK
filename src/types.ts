@@ -1,22 +1,3 @@
-export type ComponentCategory = 
-  | 'porta_etiquetas' 
-  | 'rodizios' 
-  | 'travas_canhao' 
-  | 'engates' 
-  | 'batentes' 
-  | 'agv' 
-  | 'olhais' 
-  | 'estruturas';
-
-export type DocumentCategory = 
-  | 'caderno_encargos' 
-  | 'normas' 
-  | 'boletins' 
-  | 'procedimentos' 
-  | 'apresentacoes';
-
-export type ProjectStatus = 'in_development' | 'in_validation' | 'compliant' | 'rejected';
-
 export type OrganizationType = 
   | 'oem' 
   | 'tier1' 
@@ -24,36 +5,146 @@ export type OrganizationType =
   | 'industrial_client' 
   | 'internal_standard';
 
-export interface OEM {
+export interface Organization {
   id: string;
   name: string;
+  slug: string;
   organizationType: OrganizationType;
-  logo_url?: string;
-  created_at: string;
+  logoUrl?: string;
+  description?: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+  updatedAt: string;
+  // Legacy aliases
+  oemId?: string;
 }
 
-export interface OEMComponent {
+export type ModuleType =
+  | 'components'
+  | 'documentation'
+  | 'standards'
+  | 'checklists'
+  | 'reference_projects'
+  | 'cad_library'
+  | 'procedures';
+
+export interface OrganizationModule {
   id: string;
+  organizationId: string;
+  moduleType: ModuleType;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface ComponentEntry {
+  id: string;
+  organizationId: string;
   name: string;
-  category: ComponentCategory;
-  oem_id: string;
-  description: string;
-  step_url?: string;
-  pdf_url?: string;
-  dwg_url?: string;
-  image_url?: string;
+  description?: string;
+  application?: string;
   revision: string;
-  status: 'active' | 'obsolete' | 'in_review';
-  created_at: string;
+  status: 'active' | 'inactive';
+  stepFileUrl?: string;
+  pdfFileUrl?: string;
+  dwgFileUrl?: string;
+  imageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Legacy aliases
+  oemId?: string;
+  techCategory?: string;
+  stepUrl?: string;
+  pdfUrl?: string;
+  dwgUrl?: string;
 }
 
-export interface Project {
+export type DocumentType =
+  | 'Caderno de Encargos'
+  | 'Manual'
+  | 'Norma'
+  | 'Procedimento'
+  | 'Apresentação'
+  | 'Boletim Técnico';
+
+export interface DocumentEntry {
   id: string;
+  organizationId: string;
+  title: string;
+  description?: string;
+  documentType: DocumentType;
+  revision: string;
+  status: 'active' | 'inactive';
+  fileUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StandardEntry {
+  id: string;
+  organizationId: string;
+  title: string;
+  description?: string;
+  revision: string;
+  status: 'active' | 'inactive';
+  referenceDocument?: string;
+  fileUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  checklistId: string;
+  category: 
+    | 'Estrutura'
+    | 'Empilhamento'
+    | 'Ergonomia'
+    | 'AGV'
+    | 'Identificação'
+    | 'Segurança'
+    | 'Logística'
+    | 'Documentação';
+  description: string;
+  required: boolean;
+  reference?: string;
+  sortOrder: number;
+  createdAt: string;
+  // Legacy aliases
+  order?: number;
+  isMandatory?: boolean;
+  techRef?: string;
+}
+
+export interface ChecklistEntry {
+  id: string;
+  organizationId: string;
   name: string;
-  client: string;
-  oem_id: string;
-  responsible_id: string;
-  status: ProjectStatus;
-  checklist_id: string;
-  created_at: string;
+  revision: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+  updatedAt: string;
+  items: ChecklistItem[];
+  // Legacy aliases
+  oemId?: string;
+}
+
+export interface ReferenceProjectEntry {
+  id: string;
+  organizationId: string;
+  name: string;
+  description?: string;
+  application?: string;
+  imageUrl?: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+  updatedAt: string;
+  // Legacy aliases
+  oemId?: string;
+  packagingType?: string;
+  linkedDocIds?: string[];
+}
+
+export interface User {
+  email: string;
+  role: 'master' | 'user';
 }

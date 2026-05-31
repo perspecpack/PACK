@@ -23,13 +23,9 @@ export function MasterLayout() {
   const { logout, setViewingAsUser, user } = useApp();
 
   const navigation = [
-    { name: 'Visão Geral', href: '/master', icon: Box },
     { name: 'Organizações', href: '/master/oems', icon: Building2 },
-    { name: 'Categorias', href: '/master/categories', icon: Tags },
-    { name: 'Arquivos', href: '/master/files', icon: FileText },
-    { name: 'Componentes', href: '/master/components', icon: Layers },
-    { name: 'Checklists', href: '/master/checklists', icon: CheckSquare },
-    { name: 'Projetos de Referência', href: '/master/projects', icon: FolderKanban },
+    { name: 'Conteúdo', href: '/master/content', icon: Layers },
+    { name: 'Uploads', href: '/master/uploads', icon: FileText },
   ];
 
   const handleViewPlatform = () => {
@@ -63,7 +59,7 @@ export function MasterLayout() {
         
         <nav className="flex-1 space-y-1 overflow-y-auto px-2">
           {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
+            const isActive = location.pathname === item.href || (item.href === '/master/content' && location.pathname.startsWith('/master/content'));
             return (
               <Link
                 key={item.name}
@@ -133,13 +129,10 @@ export function MasterLayout() {
           <div>
             <span className="text-xs font-semibold text-teal-600 uppercase tracking-wider">Área Master</span>
             <h1 className="text-[18px] font-bold text-[#0F172A] tracking-tight">
-              {location.pathname === '/master' && 'Visão Geral'}
-              {location.pathname.startsWith('/master/oems') && 'Gestão de Organizações e Padrões'}
-              {location.pathname.startsWith('/master/categories') && 'Gestão de Categorias'}
-              {location.pathname.startsWith('/master/files') && 'Gestão de Arquivos e Documentação'}
-              {location.pathname.startsWith('/master/components') && 'Gestão de Componentes Homologados'}
-              {location.pathname.startsWith('/master/checklists') && 'Gestão de Checklists Técnicos'}
-              {location.pathname.startsWith('/master/projects') && 'Gestão de Projetos de Referência'}
+              {location.pathname === '/master' && 'Gestão de Organizações'}
+              {location.pathname.startsWith('/master/oems') && 'Gestão de Organizações'}
+              {location.pathname.startsWith('/master/content') && 'Gestão de Conteúdo por Organização'}
+              {location.pathname.startsWith('/master/uploads') && 'Central de Uploads'}
               {location.pathname.startsWith('/master/settings') && 'Configurações'}
             </h1>
           </div>

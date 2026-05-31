@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit2, Trash2, X, AlertTriangle } from 'lucide-react';
+import { ModuleType } from '@/src/types';
 
 const ORG_TYPE_OPTIONS: { value: OrganizationType; label: string }[] = [
   { value: 'oem', label: 'Montadora / OEM' },
@@ -25,7 +26,7 @@ const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
 };
 
 export default function Organizations() {
-  const { oems, addOEM, updateOEM, deleteOEM } = useApp();
+  const { oems, addOrganization, updateOrganization, deleteOrganization, organizationModules } = useApp();
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,6 +39,15 @@ export default function Organizations() {
   const [logoUrl, setLogoUrl] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [modules, setModules] = useState<Record<ModuleType, boolean>>({
+    components: true,
+    documentation: true,
+    standards: true,
+    checklists: true,
+    reference_projects: true,
+    cad_library: false,
+    procedures: false
+  });
 
   // Delete confirm state
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -50,6 +60,15 @@ export default function Organizations() {
     setLogoUrl('');
     setDescription('');
     setStatus('active');
+    setModules({
+      components: true,
+      documentation: true,
+      standards: true,
+      checklists: true,
+      reference_projects: true,
+      cad_library: false,
+      procedures: false
+    });
     setIsModalOpen(true);
   };
 
@@ -61,6 +80,23 @@ export default function Organizations() {
     setLogoUrl(oem.logoUrl || '');
     setDescription(oem.description || '');
     setStatus(oem.status);
+    
+    // Load modules
+    const orgMods = organizationModules.filter(m => m.organizationId === oem.id);
+    const modMap: Record<ModuleType, boolean> = {
+      components: false,
+      documentation: false,
+      standards: false,
+      checklists: false,
+      reference_projects: false,
+      cad_library: false,
+      procedures: false
+    };
+    orgMods.forEach(m => {
+      modMap[m.moduleType] = m.enabled;
+    });
+    setModules(modMap);
+    
     setIsModalOpen(true);
   };
 
@@ -90,15 +126,15 @@ export default function Organizations() {
     };
 
     if (editingOEM) {
-      updateOEM(editingOEM.id, oemData);
+      updateOrganization(editingOEM.id, oemData, modules);
     } else {
-      addOEM(oemData);
+      addOrganization(oemData, modules);
     }
     setIsModalOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    deleteOEM(id);
+    deleteOrganization(id);
     setDeletingId(null);
   };
 
@@ -207,7 +243,7 @@ export default function Organizations() {
               </button>
             </header>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
               <div className="space-y-1.5">
                 <Label htmlFor="org-name" className="text-xs font-bold text-slate-700">Nome da Organização</Label>
                 <Input 
@@ -280,6 +316,31 @@ export default function Organizations() {
                   <option value="active">Ativa</option>
                   <option value="inactive">Inativa</option>
                 </select>
+              </div>
+
+              <div className="space-y-2 border-t border-slate-100 pt-4">
+                <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Módulos Habilitados</Label>
+                <div className="grid grid-cols-2 gap-3 mt-1.5">
+                  {[
+                    { id: 'components', label: 'Componentes Homologados' },
+                    { id: 'documentation', label: 'Documentação Técnica' },
+                    { id: 'standards', label: 'Normas e Padrões' },
+                    { id: 'checklists', label: 'Checklist de Validação' },
+                    { id: 'reference_projects', label: 'Projetos de Referência' },
+                    { id: 'cad_library', label: 'Biblioteca CAD' },
+                    { id: 'procedures', label: 'Procedimentos' }
+                  ].map((mod) => (
+                    <label key={mod.id} className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200/50 p-2.5 rounded-lg hover:bg-slate-100/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={modules[mod.id as ModuleType] || false}
+                        onChange={(e) => setModules(prev => ({ ...prev, [mod.id]: e.target.checked }))}
+                        className="rounded border-slate-300 text-[#00a86b] focus:ring-[#00a86b] w-4 h-4"
+                      />
+                      <span>{mod.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <footer className="pt-4 border-t border-slate-100 flex justify-end gap-2.5">
