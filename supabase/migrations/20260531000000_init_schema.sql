@@ -51,6 +51,8 @@ create table if not exists public.documents (
     revision text not null default 'A',
     status text not null default 'active',
     file_url text,
+    file_name text,
+    file_type text,
     created_at timestamptz default now() not null,
     updated_at timestamptz default now() not null
 );
@@ -65,6 +67,8 @@ create table if not exists public.standards (
     status text not null default 'active',
     reference_document text,
     file_url text,
+    file_name text,
+    file_type text,
     created_at timestamptz default now() not null,
     updated_at timestamptz default now() not null
 );
@@ -76,6 +80,9 @@ create table if not exists public.checklists (
     name text not null,
     revision text not null default '01',
     status text not null default 'active',
+    file_url text,
+    file_name text,
+    file_type text,
     created_at timestamptz default now() not null,
     updated_at timestamptz default now() not null
 );
@@ -100,6 +107,9 @@ create table if not exists public.reference_projects (
     description text,
     application text,
     image_url text,
+    attachment_url text,
+    attachment_name text,
+    attachment_type text,
     status text not null default 'active',
     created_at timestamptz default now() not null,
     updated_at timestamptz default now() not null
@@ -130,5 +140,7 @@ insert into storage.buckets (id, name, public) values ('organization-logos', 'or
 insert into storage.buckets (id, name, public) values ('components', 'components', true) on conflict (id) do nothing;
 insert into storage.buckets (id, name, public) values ('documents', 'documents', true) on conflict (id) do nothing;
 insert into storage.buckets (id, name, public) values ('standards', 'standards', true) on conflict (id) do nothing;
+insert into storage.buckets (id, name, public) values ('checklists', 'checklists', true) on conflict (id) do nothing;
 insert into storage.buckets (id, name, public) values ('reference-projects', 'reference-projects', true) on conflict (id) do nothing;
 insert into storage.buckets (id, name, public) values ('images', 'images', true) on conflict (id) do nothing;
+

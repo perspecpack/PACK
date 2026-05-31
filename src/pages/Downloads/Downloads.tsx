@@ -364,7 +364,7 @@ export default function Downloads() {
                         <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12">Checklist</TableHead>
                         <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12">Critérios de Inspeção</TableHead>
                         <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12 w-[100px]">Rev.</TableHead>
-                        <TableHead className="text-right text-[12px] font-bold text-gray-600 uppercase h-12 pr-6 w-[120px]">Estrutura</TableHead>
+                        <TableHead className="text-right text-[12px] font-bold text-gray-600 uppercase h-12 pr-6">Opções / Arquivos</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -380,7 +380,14 @@ export default function Downloads() {
                             <TableCell className="font-bold text-[13px] text-gray-900">{chk.name}</TableCell>
                             <TableCell className="text-[13px] text-gray-600 font-medium">{chk.items?.length || 0} regras de validação</TableCell>
                             <TableCell className="text-[13px] text-gray-700 font-semibold font-mono">{chk.revision}</TableCell>
-                            <TableCell className="text-right pr-6">
+                            <TableCell className="text-right pr-6 space-x-1.5 flex justify-end items-center h-[72px]">
+                              {chk.fileUrl && (
+                                <a href={chk.fileUrl} target="_blank" rel="noreferrer" title={chk.fileName}>
+                                  <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white h-7.5 px-2 rounded-md shadow-sm text-xs font-bold gap-1">
+                                    <Download className="w-3.5 h-3.5" /> Anexo
+                                  </Button>
+                                </a>
+                              )}
                               <span className="text-[11px] bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold font-mono">
                                 DINÂMICO
                               </span>
@@ -401,12 +408,13 @@ export default function Downloads() {
                         <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12">Projeto</TableHead>
                         <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12">Aplicação Recomendada</TableHead>
                         <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12">Descrição</TableHead>
+                        <TableHead className="text-[12px] font-bold text-gray-600 uppercase h-12">Anexos de Projeto</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {referenceProjects.filter(p => p.organizationId === selectedOEM && p.status === 'active').length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="h-28 text-center text-gray-400 font-medium">
+                          <TableCell colSpan={5} className="h-28 text-center text-gray-400 font-medium">
                             Nenhum projeto de referência cadastrado ou publicado para esta organização.
                           </TableCell>
                         </TableRow>
@@ -425,6 +433,22 @@ export default function Downloads() {
                             <TableCell className="align-middle font-bold text-[13px] text-gray-900">{proj.name}</TableCell>
                             <TableCell className="align-middle text-[13px] text-gray-600">{proj.application || '-'}</TableCell>
                             <TableCell className="align-middle text-[13px] text-gray-500">{proj.description || '-'}</TableCell>
+                            <TableCell className="align-middle">
+                              {proj.attachmentUrl ? (
+                                <a 
+                                  href={proj.attachmentUrl} 
+                                  target="_blank" 
+                                  rel="noreferrer" 
+                                  title={proj.attachmentName}
+                                  className="inline-flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-100 text-teal-700 text-[11px] px-2.5 py-1 rounded-md font-bold transition-colors w-fit"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span className="max-w-[120px] truncate">{proj.attachmentType || 'ANEXO'}</span>
+                                </a>
+                              ) : (
+                                <span className="text-xs text-gray-400 italic">Nenhum anexo</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))
                       )}

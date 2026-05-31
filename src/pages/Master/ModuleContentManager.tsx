@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { FileUploadField } from '@/components/ui/FileUploadField';
 import { 
   ArrowLeft, 
   Plus, 
@@ -20,7 +21,8 @@ import {
   CheckSquare,
   ShieldCheck,
   FolderKanban,
-  FileDown
+  FileDown,
+  Paperclip
 } from 'lucide-react';
 import { ModuleType, DocumentType } from '@/src/types';
 
@@ -77,15 +79,24 @@ export default function ModuleContentManager() {
   const [dwgFileUrl, setDwgFileUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
 
+  // Document / Standard / Checklist Shared File States
+  const [fileUrl, setFileUrl] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [fileTypeState, setFileTypeState] = useState('');
+
   // Document Specific States
   const [documentType, setDocumentType] = useState<DocumentType>('Manual');
-  const [fileUrl, setFileUrl] = useState('');
 
   // Standard Specific States
   const [referenceDocument, setReferenceDocument] = useState('');
 
   // Checklist Specific States
   const [checklistItems, setChecklistItems] = useState<{ id?: string; category: string; description: string; required: boolean; reference?: string; sortOrder: number }[]>([]);
+
+  // Project Specific States
+  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [attachmentName, setAttachmentName] = useState('');
+  const [attachmentType, setAttachmentType] = useState('');
 
   if (!org) {
     return (
@@ -145,7 +156,12 @@ export default function ModuleContentManager() {
     setImageUrl('');
     setDocumentType('Manual');
     setFileUrl('');
+    setFileName('');
+    setFileTypeState('');
     setReferenceDocument('');
+    setAttachmentUrl('');
+    setAttachmentName('');
+    setAttachmentType('');
     setChecklistItems([
       { category: 'Estrutura', description: '', required: true, sortOrder: 1 }
     ]);
@@ -168,7 +184,12 @@ export default function ModuleContentManager() {
     setImageUrl(rec.imageUrl || '');
     setDocumentType(rec.documentType || 'Manual');
     setFileUrl(rec.fileUrl || '');
+    setFileName(rec.fileName || '');
+    setFileTypeState(rec.fileType || '');
     setReferenceDocument(rec.referenceDocument || '');
+    setAttachmentUrl(rec.attachmentUrl || '');
+    setAttachmentName(rec.attachmentName || '');
+    setAttachmentType(rec.attachmentType || '');
     setChecklistItems(rec.items ? [...rec.items] : []);
 
     setIsModalOpen(true);
@@ -205,7 +226,9 @@ export default function ModuleContentManager() {
         documentType,
         revision,
         status,
-        fileUrl: fileUrl || undefined
+        fileUrl: fileUrl || undefined,
+        fileName: fileName || undefined,
+        fileType: fileTypeState || undefined
       };
 
       if (editingId) {
@@ -221,7 +244,9 @@ export default function ModuleContentManager() {
         revision,
         status,
         referenceDocument: referenceDocument || undefined,
-        fileUrl: fileUrl || undefined
+        fileUrl: fileUrl || undefined,
+        fileName: fileName || undefined,
+        fileType: fileTypeState || undefined
       };
 
       if (editingId) {
@@ -234,7 +259,10 @@ export default function ModuleContentManager() {
         organizationId: orgId!,
         name,
         revision,
-        status
+        status,
+        fileUrl: fileUrl || undefined,
+        fileName: fileName || undefined,
+        fileType: fileTypeState || undefined
       };
 
       // Map dynamic items
@@ -259,6 +287,9 @@ export default function ModuleContentManager() {
         description: description || undefined,
         application: application || undefined,
         imageUrl: imageUrl || undefined,
+        attachmentUrl: attachmentUrl || undefined,
+        attachmentName: attachmentName || undefined,
+        attachmentType: attachmentType || undefined,
         status
       };
 
@@ -301,7 +332,7 @@ export default function ModuleContentManager() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto">
+    <div className="space-y-6 max-w-[1200px] mx-auto font-sans">
       {/* Back Link */}
       <Link 
         to={`/master/content/${orgId}`} 
@@ -347,7 +378,7 @@ export default function ModuleContentManager() {
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Título / Tipo</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Descrição</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[100px]">Revisão</TableHead>
-                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[100px]">Anexo</TableHead>
+                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Anexo</TableHead>
                 </>
               )}
               {moduleType === 'standards' && (
@@ -355,7 +386,7 @@ export default function ModuleContentManager() {
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Título</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Doc. de Referência</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[100px]">Revisão</TableHead>
-                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[100px]">Anexo</TableHead>
+                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Anexo</TableHead>
                 </>
               )}
               {moduleType === 'checklists' && (
@@ -363,6 +394,7 @@ export default function ModuleContentManager() {
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Nome do Checklist</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[100px]">Itens</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[100px]">Revisão</TableHead>
+                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Template Anexo</TableHead>
                 </>
               )}
               {moduleType === 'reference_projects' && (
@@ -370,6 +402,7 @@ export default function ModuleContentManager() {
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[80px]">Imagem</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Nome do Projeto</TableHead>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Aplicação / Uso</TableHead>
+                  <TableHead className="text-[12px] font-bold text-slate-600 uppercase">Anexos de Projeto</TableHead>
                 </>
               )}
               <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[120px]">Status</TableHead>
@@ -411,9 +444,9 @@ export default function ModuleContentManager() {
                       </TableCell>
                       <TableCell className="align-middle">
                         <div className="flex gap-1.5">
-                          {rec.stepFileUrl && <span className="bg-blue-50 border border-blue-100 text-blue-700 text-[9px] px-1 py-0.5 rounded font-bold font-mono">STEP</span>}
-                          {rec.pdfFileUrl && <span className="bg-red-50 border border-red-100 text-red-700 text-[9px] px-1 py-0.5 rounded font-bold font-mono">PDF</span>}
-                          {rec.dwgFileUrl && <span className="bg-amber-50 border border-amber-100 text-amber-700 text-[9px] px-1 py-0.5 rounded font-bold font-mono">DWG</span>}
+                          {rec.stepFileUrl && <a href={rec.stepFileUrl} target="_blank" rel="noreferrer" className="bg-blue-50 border border-blue-100 text-blue-700 text-[9px] px-1 py-0.5 rounded font-bold font-mono">STEP</a>}
+                          {rec.pdfFileUrl && <a href={rec.pdfFileUrl} target="_blank" rel="noreferrer" className="bg-red-50 border border-red-100 text-red-700 text-[9px] px-1 py-0.5 rounded font-bold font-mono">PDF</a>}
+                          {rec.dwgFileUrl && <a href={rec.dwgFileUrl} target="_blank" rel="noreferrer" className="bg-amber-50 border border-amber-100 text-amber-700 text-[9px] px-1 py-0.5 rounded font-bold font-mono">DWG</a>}
                           {!rec.stepFileUrl && !rec.pdfFileUrl && !rec.dwgFileUrl && <span className="text-xs text-slate-400 italic">Nenhum</span>}
                         </div>
                       </TableCell>
@@ -434,8 +467,9 @@ export default function ModuleContentManager() {
                       </TableCell>
                       <TableCell className="align-middle">
                         {rec.fileUrl ? (
-                          <a href={rec.fileUrl} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700 flex items-center gap-1 font-bold text-[12px]">
-                            <FileDown className="w-3.5 h-3.5" /> PDF
+                          <a href={rec.fileUrl} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700 flex items-center gap-1.5 font-bold text-[12px] bg-teal-50 border border-teal-100 px-2 py-1 rounded-md w-fit">
+                            <FileDown className="w-3.5 h-3.5" /> 
+                            <span className="max-w-[120px] truncate">{rec.fileName || 'Baixar'}</span>
                           </a>
                         ) : (
                           <span className="text-xs text-slate-400 italic">Nenhum</span>
@@ -457,8 +491,9 @@ export default function ModuleContentManager() {
                       </TableCell>
                       <TableCell className="align-middle">
                         {rec.fileUrl ? (
-                          <a href={rec.fileUrl} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700 flex items-center gap-1 font-bold text-[12px]">
-                            <FileDown className="w-3.5 h-3.5" /> PDF
+                          <a href={rec.fileUrl} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700 flex items-center gap-1.5 font-bold text-[12px] bg-teal-50 border border-teal-100 px-2 py-1 rounded-md w-fit">
+                            <FileDown className="w-3.5 h-3.5" /> 
+                            <span className="max-w-[120px] truncate">{rec.fileName || 'Baixar'}</span>
                           </a>
                         ) : (
                           <span className="text-xs text-slate-400 italic">Nenhum</span>
@@ -478,6 +513,16 @@ export default function ModuleContentManager() {
                       <TableCell className="align-middle font-mono font-bold text-[12px] text-slate-700">
                         {rec.revision}
                       </TableCell>
+                      <TableCell className="align-middle">
+                        {rec.fileUrl ? (
+                          <a href={rec.fileUrl} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700 flex items-center gap-1.5 font-bold text-[12px] bg-teal-50 border border-teal-100 px-2 py-1 rounded-md w-fit">
+                            <FileDown className="w-3.5 h-3.5" />
+                            <span className="max-w-[120px] truncate">{rec.fileName || 'Template'}</span>
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Nenhum</span>
+                        )}
+                      </TableCell>
                     </>
                   )}
 
@@ -495,8 +540,18 @@ export default function ModuleContentManager() {
                       <TableCell className="align-middle font-bold text-[13px] text-slate-900">
                         {rec.name}
                       </TableCell>
-                      <TableCell className="align-middle text-[13px] text-slate-500 max-w-[400px] truncate">
+                      <TableCell className="align-middle text-[13px] text-slate-500 max-w-[300px] truncate">
                         {rec.description || rec.application || <span className="text-slate-300 italic">Nenhuma</span>}
+                      </TableCell>
+                      <TableCell className="align-middle">
+                        {rec.attachmentUrl ? (
+                          <a href={rec.attachmentUrl} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700 flex items-center gap-1 font-bold text-[11px] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono truncate max-w-[150px]">
+                            <Paperclip className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{rec.attachmentName || 'Anexo'}</span>
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Nenhum</span>
+                        )}
                       </TableCell>
                     </>
                   )}
@@ -593,7 +648,7 @@ export default function ModuleContentManager() {
                   </select>
                 </div>
 
-                {/* Module-Specific Fields */}
+                {/* Module-Specific Fields with Supabase Storage File Uploads */}
                 {moduleType === 'components' && (
                   <>
                     <div className="space-y-1.5 col-span-2">
@@ -606,43 +661,59 @@ export default function ModuleContentManager() {
                       />
                     </div>
                     
-                    <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs font-bold text-slate-700">URL da Imagem (.png, .jpg)</Label>
-                      <Input 
-                        value={imageUrl} 
-                        onChange={(e) => setImageUrl(e.target.value)}
-                        placeholder="https://images.unsplash.com/..." 
-                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                    {/* Component Image Upload */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Imagem do Componente (.png, .jpg, .webp)"
+                        acceptedTypes="image/png,image/jpeg,image/webp"
+                        bucket="components"
+                        currentFileUrl={imageUrl}
+                        orgSlug={org.slug}
+                        moduleType="components"
+                        onUploadComplete={(url) => setImageUrl(url)}
+                        onRemove={() => setImageUrl('')}
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-700">Arquivo STEP (.step)</Label>
-                      <Input 
-                        value={stepFileUrl} 
-                        onChange={(e) => setStepFileUrl(e.target.value)}
-                        placeholder="https://example.com/file.step" 
-                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                    {/* CAD File STEP Upload */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Arquivo STEP (.step, .stp)"
+                        acceptedTypes=".step,.stp"
+                        bucket="components"
+                        currentFileUrl={stepFileUrl}
+                        orgSlug={org.slug}
+                        moduleType="components"
+                        onUploadComplete={(url) => setStepFileUrl(url)}
+                        onRemove={() => setStepFileUrl('')}
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-700">Desenho PDF (.pdf)</Label>
-                      <Input 
-                        value={pdfFileUrl} 
-                        onChange={(e) => setPdfFileUrl(e.target.value)}
-                        placeholder="https://example.com/file.pdf" 
-                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                    {/* PDF File Upload */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Arquivo PDF (.pdf)"
+                        acceptedTypes="application/pdf"
+                        bucket="components"
+                        currentFileUrl={pdfFileUrl}
+                        orgSlug={org.slug}
+                        moduleType="components"
+                        onUploadComplete={(url) => setPdfFileUrl(url)}
+                        onRemove={() => setPdfFileUrl('')}
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-700">Desenho DWG (.dwg)</Label>
-                      <Input 
-                        value={dwgFileUrl} 
-                        onChange={(e) => setDwgFileUrl(e.target.value)}
-                        placeholder="https://example.com/file.dwg" 
-                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                    {/* DWG File Upload */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Arquivo DWG (.dwg)"
+                        acceptedTypes=".dwg"
+                        bucket="components"
+                        currentFileUrl={dwgFileUrl}
+                        orgSlug={org.slug}
+                        moduleType="components"
+                        onUploadComplete={(url) => setDwgFileUrl(url)}
+                        onRemove={() => setDwgFileUrl('')}
                       />
                     </div>
                   </>
@@ -650,7 +721,7 @@ export default function ModuleContentManager() {
 
                 {moduleType === 'documentation' && (
                   <>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 col-span-2">
                       <Label className="text-xs font-bold text-slate-700">Tipo de Documento</Label>
                       <select 
                         value={documentType} 
@@ -663,13 +734,25 @@ export default function ModuleContentManager() {
                       </select>
                     </div>
 
-                    <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs font-bold text-slate-700">URL do Arquivo PDF/Anexo</Label>
-                      <Input 
-                        value={fileUrl} 
-                        onChange={(e) => setFileUrl(e.target.value)}
-                        placeholder="https://example.com/files/spec.pdf" 
-                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                    {/* Document Upload */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Arquivo Principal (.pdf, .docx, .xlsx, .zip)"
+                        acceptedTypes="application/pdf,.docx,.xlsx,application/zip,application/x-zip-compressed"
+                        bucket="documents"
+                        currentFileUrl={fileUrl}
+                        orgSlug={org.slug}
+                        moduleType="documentation"
+                        onUploadComplete={(url, name, ext) => {
+                          setFileUrl(url);
+                          setFileName(name);
+                          setFileTypeState(ext);
+                        }}
+                        onRemove={() => {
+                          setFileUrl('');
+                          setFileName('');
+                          setFileTypeState('');
+                        }}
                       />
                     </div>
                   </>
@@ -677,7 +760,7 @@ export default function ModuleContentManager() {
 
                 {moduleType === 'standards' && (
                   <>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 col-span-2">
                       <Label className="text-xs font-bold text-slate-700">Documento de Referência</Label>
                       <Input 
                         value={referenceDocument} 
@@ -687,13 +770,51 @@ export default function ModuleContentManager() {
                       />
                     </div>
 
-                    <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs font-bold text-slate-700">URL do Arquivo/Norma</Label>
-                      <Input 
-                        value={fileUrl} 
-                        onChange={(e) => setFileUrl(e.target.value)}
-                        placeholder="https://example.com/files/standard.pdf" 
-                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                    {/* Standard Upload */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Arquivo do Padrão (.pdf, .docx, .xlsx, .zip)"
+                        acceptedTypes="application/pdf,.docx,.xlsx,application/zip,application/x-zip-compressed"
+                        bucket="standards"
+                        currentFileUrl={fileUrl}
+                        orgSlug={org.slug}
+                        moduleType="standards"
+                        onUploadComplete={(url, name, ext) => {
+                          setFileUrl(url);
+                          setFileName(name);
+                          setFileTypeState(ext);
+                        }}
+                        onRemove={() => {
+                          setFileUrl('');
+                          setFileName('');
+                          setFileTypeState('');
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {moduleType === 'checklists' && (
+                  <>
+                    {/* Checklist Template Upload */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Modelo PDF, Planilha XLSX ou Documento DOCX de Apoio"
+                        acceptedTypes="application/pdf,.docx,.xlsx"
+                        bucket="checklists"
+                        currentFileUrl={fileUrl}
+                        orgSlug={org.slug}
+                        moduleType="checklists"
+                        onUploadComplete={(url, name, ext) => {
+                          setFileUrl(url);
+                          setFileName(name);
+                          setFileTypeState(ext);
+                        }}
+                        onRemove={() => {
+                          setFileUrl('');
+                          setFileName('');
+                          setFileTypeState('');
+                        }}
                       />
                     </div>
                   </>
@@ -706,18 +827,44 @@ export default function ModuleContentManager() {
                       <Input 
                         value={application} 
                         onChange={(e) => setApplication(e.target.value)}
-                        placeholder="Ex: Transporte de parachoques pintados,Skid de motores" 
+                        placeholder="Ex: Transporte de parachoques pintados, Skid de motores" 
                         className="h-10 text-[14px] rounded-lg border-slate-300"
                       />
                     </div>
                     
-                    <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs font-bold text-slate-700">URL da Imagem 3D</Label>
-                      <Input 
-                        value={imageUrl} 
-                        onChange={(e) => setImageUrl(e.target.value)}
-                        placeholder="https://images.unsplash.com/..." 
-                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                    {/* Project Image Upload */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Imagem Principal (.png, .jpg, .webp)"
+                        acceptedTypes="image/png,image/jpeg,image/webp"
+                        bucket="reference-projects"
+                        currentFileUrl={imageUrl}
+                        orgSlug={org.slug}
+                        moduleType="reference_projects"
+                        onUploadComplete={(url) => setImageUrl(url)}
+                        onRemove={() => setImageUrl('')}
+                      />
+                    </div>
+
+                    {/* Project Attachment File Upload */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Arquivos Anexos (.step, .pdf, .dwg, .zip)"
+                        acceptedTypes=".step,.stp,application/pdf,.dwg,application/zip,application/x-zip-compressed"
+                        bucket="reference-projects"
+                        currentFileUrl={attachmentUrl}
+                        orgSlug={org.slug}
+                        moduleType="reference_projects"
+                        onUploadComplete={(url, name, ext) => {
+                          setAttachmentUrl(url);
+                          setAttachmentName(name);
+                          setAttachmentType(ext);
+                        }}
+                        onRemove={() => {
+                          setAttachmentUrl('');
+                          setAttachmentName('');
+                          setAttachmentType('');
+                        }}
                       />
                     </div>
                   </>

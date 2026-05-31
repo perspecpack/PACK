@@ -75,6 +75,8 @@ export interface DocumentEntry {
   revision: string;
   status: 'active' | 'inactive';
   fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -88,6 +90,8 @@ export interface StandardEntry {
   status: 'active' | 'inactive';
   referenceDocument?: string;
   fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -124,6 +128,9 @@ export interface ChecklistEntry {
   createdAt: string;
   updatedAt: string;
   items: ChecklistItem[];
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
   // Legacy aliases
   oemId?: string;
 }
@@ -135,6 +142,9 @@ export interface ReferenceProjectEntry {
   description?: string;
   application?: string;
   imageUrl?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentType?: string;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
