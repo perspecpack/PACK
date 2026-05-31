@@ -35,7 +35,6 @@ export default function Dashboard() {
     documents,
     standards,
     checklists,
-    referenceProjects,
     downloadsLog,
     uploadsLog,
     pageAccessLog,
@@ -64,10 +63,6 @@ export default function Dashboard() {
     });
     standards.forEach(s => {
       if (s.fileUrl) urls.push(s.fileUrl);
-    });
-    referenceProjects.forEach(p => {
-      if (p.imageUrl) urls.push(p.imageUrl);
-      if (p.attachmentUrl) urls.push(p.attachmentUrl);
     });
     return urls;
   };
@@ -158,7 +153,6 @@ export default function Dashboard() {
       documentsCount: documents.filter(d => d.organizationId === org.id).length,
       componentsCount: components.filter(c => c.organizationId === org.id).length,
       checklistsCount: checklists.filter(c => c.organizationId === org.id).length,
-      projectsCount: referenceProjects.filter(p => p.organizationId === org.id).length,
     };
   }).sort((a, b) => b.accesses - a.accesses);
 
@@ -187,12 +181,10 @@ export default function Dashboard() {
         const comp = components.find(c => c.id === entry.item.content_id);
         const doc = documents.find(d => d.id === entry.item.content_id);
         const std = standards.find(s => s.id === entry.item.content_id);
-        const proj = referenceProjects.find(p => p.id === entry.item.content_id);
         
         if (comp) name = comp.name;
         else if (doc) name = doc.title;
         else if (std) name = std.title;
-        else if (proj) name = proj.name;
 
         return {
           name,
@@ -205,7 +197,6 @@ export default function Dashboard() {
 
   const topDocuments = getTopDownloads(l => ['Documentação Técnica', 'Normas e Padrões'].includes(l.content_type));
   const topComponents = getTopDownloads(l => l.content_type.startsWith('Componente'));
-  const topProjects = getTopDownloads(l => l.content_type === 'Projeto de Referência');
 
   // Format date helper
   const formatDate = (dateStr: string) => {
@@ -230,9 +221,8 @@ export default function Dashboard() {
     const docCount = documents.filter(d => d.organizationId === org.id).length;
     const stdCount = standards.filter(s => s.organizationId === org.id).length;
     const chkCount = checklists.filter(c => c.organizationId === org.id).length;
-    const projCount = referenceProjects.filter(p => p.organizationId === org.id).length;
 
-    const totalContent = compCount + docCount + stdCount + chkCount + projCount;
+    const totalContent = compCount + docCount + stdCount + chkCount;
     if (totalContent === 0) {
       systemAlerts.push({ type: 'error', message: `A Organização "${org.name}" não possui nenhum conteúdo cadastrado.`, module: 'Organizações' });
     } else if (docCount === 0) {
@@ -272,12 +262,7 @@ export default function Dashboard() {
     }
   });
 
-  referenceProjects.forEach(proj => {
-    if (!proj.imageUrl) {
-      const orgName = organizations.find(o => o.id === proj.organizationId)?.name || 'N/A';
-      systemAlerts.push({ type: 'info', message: `Projeto de referência "${proj.name}" (${orgName}) está sem imagem cadastrada.`, module: 'Projetos' });
-    }
-  });
+
 
   // Calculate completeness status per organization
   const getCompletenessStatus = (org: any) => {
@@ -285,13 +270,12 @@ export default function Dashboard() {
     const docCount = documents.filter(d => d.organizationId === org.id).length;
     const stdCount = standards.filter(s => s.organizationId === org.id).length;
     const chkCount = checklists.filter(c => c.organizationId === org.id).length;
-    const projCount = referenceProjects.filter(p => p.organizationId === org.id).length;
 
-    const totalContent = compCount + docCount + stdCount + chkCount + projCount;
+    const totalContent = compCount + docCount + stdCount + chkCount;
     if (totalContent === 0) return { label: 'SEM CONTEÚDO', color: 'bg-red-50 text-red-700 border-red-200' };
     
     // If it has at least one in each category
-    const hasAll = compCount > 0 && docCount > 0 && stdCount > 0 && chkCount > 0 && projCount > 0;
+    const hasAll = compCount > 0 && docCount > 0 && stdCount > 0 && chkCount > 0;
     if (hasAll) return { label: 'COMPLETO', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
     
     return { label: 'EM DESENVOLVIMENTO', color: 'bg-amber-50 text-amber-700 border-amber-200' };
@@ -390,11 +374,11 @@ export default function Dashboard() {
 
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4">
             <div className="p-3 bg-sky-50 text-sky-700 rounded-xl">
-              <FolderKanban className="w-6 h-6" />
+              <Download className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-slate-500 text-xs font-semibold">Projetos de Referência</p>
-              <h4 className="text-2xl font-extrabold text-slate-850 mt-1">{referenceProjects.length}</h4>
+              <p className="text-slate-500 text-xs font-semibold">Downloads Realizados</p>
+              <h4 className="text-2xl font-extrabold text-slate-850 mt-1">{downloadsLog.length}</h4>
             </div>
           </div>
 
@@ -537,28 +521,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div>
-              <Label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Top Projetos de Referência</Label>
-              {topProjects.length === 0 ? (
-                <p className="text-xs text-slate-400 italic mt-1">Nenhum download registrado.</p>
-              ) : (
-                <div className="space-y-2 mt-2">
-                  {topProjects.map((proj, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-xs p-2.5 bg-slate-50 border border-slate-100 rounded-lg">
-                      <div className="truncate pr-3">
-                        <span className="font-bold font-mono text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded mr-1.5">{idx + 1}</span>
-                        <span className="font-semibold text-slate-800">{proj.name}</span>
-                        <span className="text-[10px] text-slate-400 ml-2">({proj.organization})</span>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="font-bold text-amber-700">{proj.downloads} downloads</span>
-                        <span className="block text-[9px] text-slate-400 font-medium">Último: {proj.lastDownload}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+
 
           </div>
         </section>
@@ -692,7 +655,6 @@ export default function Dashboard() {
               const docCount = documents.filter(d => d.organizationId === org.id).length;
               const stdCount = standards.filter(s => s.organizationId === org.id).length;
               const chkCount = checklists.filter(c => c.organizationId === org.id).length;
-              const projCount = referenceProjects.filter(p => p.organizationId === org.id).length;
               const statusObj = getCompletenessStatus(org);
 
               return (
@@ -704,7 +666,7 @@ export default function Dashboard() {
                         {statusObj.label}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-5 gap-2 mt-4 text-center">
+                    <div className="grid grid-cols-4 gap-2 mt-4 text-center">
                       <div className="bg-white border border-slate-100 p-2 rounded-lg">
                         <span className="block text-[10px] text-slate-400 font-bold uppercase">Comp</span>
                         <span className="text-[13px] font-extrabold text-slate-700">{compCount}</span>
@@ -721,14 +683,10 @@ export default function Dashboard() {
                         <span className="block text-[10px] text-slate-400 font-bold uppercase">Check</span>
                         <span className="text-[13px] font-extrabold text-slate-700">{chkCount}</span>
                       </div>
-                      <div className="bg-white border border-slate-100 p-2 rounded-lg">
-                        <span className="block text-[10px] text-slate-400 font-bold uppercase">Proj</span>
-                        <span className="text-[13px] font-extrabold text-slate-700">{projCount}</span>
-                      </div>
                     </div>
                   </div>
                   <div className="text-right text-[10px] text-slate-400 font-medium">
-                    Total de Itens: {compCount + docCount + stdCount + chkCount + projCount}
+                    Total de Itens: {compCount + docCount + stdCount + chkCount}
                   </div>
                 </div>
               );
