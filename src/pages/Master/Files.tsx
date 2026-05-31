@@ -192,10 +192,11 @@ export default function Files() {
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto">
       {/* Header section */}
-      <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <h2 className="text-[16px] font-bold text-slate-900">Central de Uploads</h2>
-          <p className="text-[13px] text-slate-500 mt-1">
+      <div className="bg-gradient-to-r from-[#06242c] to-[#0b3b47] text-white p-8 rounded-2xl border border-teal-950 shadow-md relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
+        <div className="relative z-10">
+          <h2 className="text-[26px] font-extrabold tracking-tight">Central de Uploads</h2>
+          <p className="text-slate-300 mt-2 text-[14px] max-w-[650px] leading-relaxed">
             Histórico e consulta rápida dos últimos 30 arquivos enviados para os módulos habilitados de cada cliente.
           </p>
         </div>

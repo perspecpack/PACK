@@ -131,9 +131,10 @@ export default function OrganizationDetail() {
       </Link>
 
       {/* Organization Info Card */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-start md:items-center gap-4">
-          <div className="w-28 h-16 bg-white border border-slate-200 rounded-xl flex items-center justify-center font-black text-slate-400 shadow-sm text-lg uppercase shrink-0 overflow-hidden p-2">
+      <div className="bg-gradient-to-r from-[#06242c] to-[#0b3b47] text-white border border-teal-950 rounded-2xl p-6 shadow-md relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
+        <div className="relative z-10 flex items-start md:items-center gap-4">
+          <div className="w-28 h-16 bg-white border border-slate-200/10 rounded-xl flex items-center justify-center font-black text-slate-400 shadow-sm text-lg uppercase shrink-0 overflow-hidden p-2">
             {org.logoUrl ? (
               <img src={org.logoUrl} alt={org.name} className="max-w-full max-h-full object-contain" />
             ) : (
@@ -141,13 +142,13 @@ export default function OrganizationDetail() {
             )}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-[20px] font-extrabold text-slate-900 tracking-tight">{org.name}</h2>
-              <Badge className="bg-slate-50 text-slate-600 border border-slate-200/80 text-[11px] font-bold px-2 py-0.5">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-[24px] font-extrabold text-white tracking-tight">{org.name}</h2>
+              <Badge className="bg-teal-500/20 text-[#00F59B] border border-teal-500/30 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                 {ORG_TYPE_LABELS[org.organizationType] || org.organizationType}
               </Badge>
             </div>
-            <p className="text-[13px] text-slate-500 mt-1 max-w-[700px] leading-relaxed">
+            <p className="text-slate-300 mt-2 text-[14px] max-w-[700px] leading-relaxed">
               {org.description || 'Nenhuma descrição detalhada informada.'}
             </p>
           </div>

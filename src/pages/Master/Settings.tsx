@@ -20,11 +20,18 @@ export default function Settings() {
 
   return (
     <div className="space-y-6 max-w-[800px] mx-auto">
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
-        <div>
-          <h2 className="text-[16px] font-bold text-slate-900">Configurações do Master</h2>
-          <p className="text-[13px] text-slate-500 mt-1">Gerencie credenciais administrativas e manutenção do banco de dados local.</p>
+      {/* Header section */}
+      <div className="bg-gradient-to-r from-[#06242c] to-[#0b3b47] text-white p-8 rounded-2xl border border-teal-950 shadow-md relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
+        <div className="relative z-10">
+          <h2 className="text-[26px] font-extrabold tracking-tight">Configurações do Master</h2>
+          <p className="text-slate-300 mt-2 text-[14px] max-w-[650px] leading-relaxed">
+            Gerencie credenciais administrativas e manutenção do banco de dados local.
+          </p>
         </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
 
         <div className="border-t border-slate-100 pt-6 space-y-4">
           <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">

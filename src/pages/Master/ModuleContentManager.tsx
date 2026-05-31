@@ -343,15 +343,18 @@ export default function ModuleContentManager() {
       </Link>
 
       {/* Header Panel */}
-      <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <span className="text-[12px] font-extrabold text-teal-600 uppercase tracking-wider">{org.name}</span>
-          <h2 className="text-[18px] font-black text-slate-900 mt-0.5">{getModuleTitle()}</h2>
-          <p className="text-[13px] text-slate-500 mt-1">Gerencie os registros do módulo específico para esta organização.</p>
+      <div className="bg-gradient-to-r from-[#06242c] to-[#0b3b47] text-white p-8 rounded-2xl border border-teal-950 shadow-md relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
+        <div className="relative z-10">
+          <span className="text-xs font-bold text-[#00F59B] uppercase tracking-wider">{org.name}</span>
+          <h2 className="text-[26px] font-extrabold tracking-tight mt-1">{getModuleTitle()}</h2>
+          <p className="text-slate-300 mt-2 text-[14px] max-w-[650px] leading-relaxed">
+            Gerencie os registros do módulo específico para esta organização.
+          </p>
         </div>
         <Button 
           onClick={openAddModal}
-          className="bg-teal-600 hover:bg-teal-700 text-white font-semibold h-10 px-4 rounded-lg flex items-center gap-2 transition-colors shadow-sm shadow-teal-500/10"
+          className="relative z-10 bg-teal-600 hover:bg-teal-700 text-white font-semibold h-10 px-4 rounded-lg flex items-center gap-2 transition-colors shadow-sm shadow-teal-500/10 shrink-0 self-start sm:self-center"
         >
           <Plus className="w-4 h-4" />
           Adicionar Registro
