@@ -128,12 +128,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Seed Data definition
 const INITIAL_ORGANIZATIONS: Organization[] = [
-  { id: 'org-vw', name: 'Volkswagen', slug: 'volkswagen', organizationType: 'oem', description: 'Diretrizes e normas de embalagens para a rede de fornecedores Volkswagen.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'org-hyundai', name: 'Hyundai', slug: 'hyundai', organizationType: 'oem', description: 'Especificações técnicas da montadora Hyundai.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'org-nissan', name: 'Nissan', slug: 'nissan', organizationType: 'oem', description: 'Requisitos de embalagens Nissan.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'org-renault', name: 'Renault', slug: 'renault', organizationType: 'oem', description: 'Especificações de rack e logísticas Renault.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'org-scania', name: 'Scania', slug: 'scania', organizationType: 'oem', description: 'Caderno de encargos e embalagens pesadas Scania.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'org-gestamp', name: 'Gestamp', slug: 'gestamp', organizationType: 'tier1', description: 'Padrões logísticos da multinacional Gestamp.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: '897455d3-82ff-4b13-94c6-4c4897f2617f', name: 'Volkswagen', slug: 'volkswagen', organizationType: 'oem', description: 'Diretrizes e normas de embalagens para a rede de fornecedores Volkswagen.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: '2ea10e42-7cf6-42d7-9cb2-9d3326ebde9e', name: 'Hyundai', slug: 'hyundai', organizationType: 'oem', description: 'Especificações técnicas da montadora Hyundai.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'b60c2eb7-7f30-410a-ba92-f2ad30018f2d', name: 'Nissan', slug: 'nissan', organizationType: 'oem', description: 'Requisitos de embalagens Nissan.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'fa80459a-14d2-43bb-a15d-852a4ef99dfb', name: 'Renault', slug: 'renault', organizationType: 'oem', description: 'Especificações de rack e logísticas Renault.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: '0f898394-bb9e-4a6c-9477-70be0e2e28a5', name: 'Scania', slug: 'scania', organizationType: 'oem', description: 'Caderno de encargos e embalagens pesadas Scania.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: '9689e472-8889-4e78-95ef-fce678b8a5cf', name: 'Gestamp', slug: 'gestamp', organizationType: 'tier1', description: 'Padrões logísticos da multinacional Gestamp.', status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
 ];
 
 const MODULE_TYPES: ModuleType[] = ['components', 'documentation', 'standards', 'checklists', 'reference_projects', 'cad_library', 'procedures'];
@@ -156,8 +156,8 @@ INITIAL_ORGANIZATIONS.forEach(org => {
 
 const INITIAL_COMPONENTS: ComponentEntry[] = [
   {
-    id: 'comp-1',
-    organizationId: 'org-vw',
+    id: '15eb24a7-8f5b-4d43-8ce8-72410a719c8f',
+    organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     name: 'Rodízio Fixo Poliuretano 150mm',
     description: 'Rodízio de alta performance para fluxo rebocado (AGV).',
     application: 'Racks metálicos de autopeças pesadas.',
@@ -171,8 +171,8 @@ const INITIAL_COMPONENTS: ComponentEntry[] = [
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'comp-2',
-    organizationId: 'org-vw',
+    id: '177a458f-2877-4b10-85f0-bd4460f1ad92',
+    organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     name: 'Porta Etiqueta Metálico A4',
     description: 'Porta etiqueta com proteção acrílica contra poeira e intempéries.',
     application: 'Identificação frontal de racks e caixas paletes.',
@@ -184,8 +184,8 @@ const INITIAL_COMPONENTS: ComponentEntry[] = [
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'comp-3',
-    organizationId: 'org-hyundai',
+    id: '3bc9c65a-0ebf-4f24-954a-a719ea5d506d',
+    organizationId: '2ea10e42-7cf6-42d7-9cb2-9d3326ebde9e',
     name: 'Trava Canhão Standard H1',
     description: 'Dispositivo mecânico para travamento de portas pivotantes de rack.',
     application: 'Racks de para-lamas e laterais.',
@@ -199,8 +199,8 @@ const INITIAL_COMPONENTS: ComponentEntry[] = [
 
 const INITIAL_DOCUMENTS: DocumentEntry[] = [
   {
-    id: 'doc-1',
-    organizationId: 'org-vw',
+    id: '231d667c-9b8c-47bc-8be0-b99f8e40df83',
+    organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     title: 'Caderno de Encargos Geral 2026',
     description: 'Caderno de encargos gerais de embalagens VW 2026.',
     documentType: 'Caderno de Encargos',
@@ -211,8 +211,8 @@ const INITIAL_DOCUMENTS: DocumentEntry[] = [
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'doc-2',
-    organizationId: 'org-vw',
+    id: '362b537d-2b7e-417d-8067-27bfe5b6efc4',
+    organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     title: 'Manual de Identificação Visual de Logística',
     description: 'Diretrizes para colagem de etiquetas e tags de rastreabilidade.',
     documentType: 'Manual',
@@ -223,8 +223,8 @@ const INITIAL_DOCUMENTS: DocumentEntry[] = [
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'doc-3',
-    organizationId: 'org-hyundai',
+    id: '6e2e0ee3-6b7c-47f9-8db2-2fbfe5e6bfb5',
+    organizationId: '2ea10e42-7cf6-42d7-9cb2-9d3326ebde9e',
     title: 'Especificações Técnicas de Racks HMC-2025',
     description: 'Instruções para fornecedores tier-1 desenvolvendo racks novos.',
     documentType: 'Norma',
@@ -238,8 +238,8 @@ const INITIAL_DOCUMENTS: DocumentEntry[] = [
 
 const INITIAL_STANDARDS: StandardEntry[] = [
   {
-    id: 'std-1',
-    organizationId: 'org-vw',
+    id: 'b38d6de4-47b2-4d2c-8067-160de4e5bf56',
+    organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     title: 'VDI 2300 - Embalagens Metálicas',
     description: 'Norma alemã regulatória para estruturação de embalagens metálicas.',
     revision: '2024',
@@ -250,8 +250,8 @@ const INITIAL_STANDARDS: StandardEntry[] = [
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'std-2',
-    organizationId: 'org-vw',
+    id: 'c48b2de4-47b2-4d2c-8067-160de4e5bf56',
+    organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     title: 'Padrão Ergonômico de Levantamento de Carga',
     description: 'Limites de força para manuseio manual de peças no rack.',
     revision: 'Rev. B',
@@ -262,8 +262,8 @@ const INITIAL_STANDARDS: StandardEntry[] = [
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'std-3',
-    organizationId: 'org-hyundai',
+    id: 'd58b2de4-47b2-4d2c-8067-160de4e5bf56',
+    organizationId: '2ea10e42-7cf6-42d7-9cb2-9d3326ebde9e',
     title: 'Padrão de Empilhamento HMC-STD-8',
     description: 'Requisitos de segurança e encaixe de cantoneiras para empilhamento.',
     revision: '01',
@@ -276,40 +276,40 @@ const INITIAL_STANDARDS: StandardEntry[] = [
 
 const INITIAL_CHECKLISTS: ChecklistEntry[] = [
   {
-    id: 'chk-1',
-    organizationId: 'org-vw',
+    id: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b',
+    organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     name: 'Checklist Padrão Embalagens VW',
     revision: '01',
     status: 'active',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     items: [
-      { id: 'item-1', checklistId: 'chk-1', category: 'Estrutura', description: 'A estrutura tubular atende à especificação VDI 2300?', required: true, reference: 'VDI 2300 Sec. 4', sortOrder: 1, createdAt: new Date().toISOString() },
-      { id: 'item-2', checklistId: 'chk-1', category: 'Empilhamento', description: 'Possui cantoneiras de empilhamento homologadas?', required: true, reference: 'Norma VW 39D 120', sortOrder: 2, createdAt: new Date().toISOString() },
-      { id: 'item-3', checklistId: 'chk-1', category: 'AGV', description: 'A altura do rodízio está compatível com o sistema AGV (Mínimo 150mm)?', required: true, reference: 'Manual Requisitos AGV', sortOrder: 3, createdAt: new Date().toISOString() },
-      { id: 'item-4', checklistId: 'chk-1', category: 'Ergonomia', description: 'A força de extração da peça é inferior a 15kg?', required: true, reference: 'ISO 11228-1', sortOrder: 4, createdAt: new Date().toISOString() },
-      { id: 'item-5', checklistId: 'chk-1', category: 'Identificação', description: 'O porta-etiquetas está afixado em local visível no painel frontal?', required: true, reference: 'VW GLW 2026', sortOrder: 5, createdAt: new Date().toISOString() },
+      { id: 'aa7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Estrutura', description: 'A estrutura tubular atende à especificação VDI 2300?', required: true, reference: 'VDI 2300 Sec. 4', sortOrder: 1, createdAt: new Date().toISOString() },
+      { id: 'bb7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Empilhamento', description: 'Possui cantoneiras de empilhamento homologadas?', required: true, reference: 'Norma VW 39D 120', sortOrder: 2, createdAt: new Date().toISOString() },
+      { id: 'cc7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'AGV', description: 'A altura do rodízio está compatível com o sistema AGV (Mínimo 150mm)?', required: true, reference: 'Manual Requisitos AGV', sortOrder: 3, createdAt: new Date().toISOString() },
+      { id: 'dd7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Ergonomia', description: 'A força de extração da peça é inferior a 15kg?', required: true, reference: 'ISO 11228-1', sortOrder: 4, createdAt: new Date().toISOString() },
+      { id: 'ee7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: 'f78e0ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Identificação', description: 'O porta-etiquetas está afixado em local visível no painel frontal?', required: true, reference: 'VW GLW 2026', sortOrder: 5, createdAt: new Date().toISOString() },
     ]
   },
   {
-    id: 'chk-2',
-    organizationId: 'org-hyundai',
+    id: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b',
+    organizationId: '2ea10e42-7cf6-42d7-9cb2-9d3326ebde9e',
     name: 'Validação Geral de Embalagem Hyundai',
     revision: '02',
     status: 'active',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     items: [
-      { id: 'item-6', checklistId: 'chk-2', category: 'Estrutura', description: 'Solda de acordo com o padrão Hyundai Weld-Spec?', required: true, reference: 'HMC-W-201', sortOrder: 1, createdAt: new Date().toISOString() },
-      { id: 'item-7', checklistId: 'chk-2', category: 'Segurança', description: 'Dispositivos de trava funcionais e sem cantos vivos?', required: true, reference: 'Safety Manual HMC', sortOrder: 2, createdAt: new Date().toISOString() }
+      { id: 'ff7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Estrutura', description: 'Solda de acordo com o padrão Hyundai Weld-Spec?', required: true, reference: 'HMC-W-201', sortOrder: 1, createdAt: new Date().toISOString() },
+      { id: '0a7e0ea5-d142-4fdf-9730-1c0b3fe0b56b', checklistId: '1d3e2ea5-d142-4fdf-9730-1c0b3fe0b56b', category: 'Segurança', description: 'Dispositivos de trava funcionais e sem cantos vivos?', required: true, reference: 'Safety Manual HMC', sortOrder: 2, createdAt: new Date().toISOString() }
     ]
   }
 ];
 
 const INITIAL_REFERENCE_PROJECTS: ReferenceProjectEntry[] = [
   {
-    id: 'proj-1',
-    organizationId: 'org-vw',
+    id: '10ee2d1a-8f5b-4c43-8ce8-72410a719c8f',
+    organizationId: '897455d3-82ff-4b13-94c6-4c4897f2617f',
     name: 'Rack Metálico Taos Parachoque',
     description: 'Estrutura customizada para transporte de parachoques pintados do VW Taos.',
     application: 'Transporte entre planta de pintura e linha de montagem final.',
@@ -319,8 +319,8 @@ const INITIAL_REFERENCE_PROJECTS: ReferenceProjectEntry[] = [
     updatedAt: new Date().toISOString()
   },
   {
-    id: 'proj-2',
-    organizationId: 'org-hyundai',
+    id: '20ee2d1a-8f5b-4c43-8ce8-72410a719c8f',
+    organizationId: '2ea10e42-7cf6-42d7-9cb2-9d3326ebde9e',
     name: 'Skid Metálico Motor Gamma 1.6',
     description: 'Skid de precisão para alimentação de linha automatizada de motores.',
     application: 'Alimentação de células robóticas de montagem.',
@@ -333,11 +333,11 @@ const INITIAL_REFERENCE_PROJECTS: ReferenceProjectEntry[] = [
 
 // Compatibility raw files
 const INITIAL_FILES: FileEntry[] = [
-  { id: 'file-1', name: 'Suporte_Porta_Etiqueta_REV03.step', oemId: 'org-vw', categoryId: 'cat-comp', fileType: 'STEP', revision: '03', description: 'Modelo 3D do porta-etiquetas padrão VW.', status: 'published', fileUrl: 'https://example.com/files/suporte_porta_etiqueta_rev03.step', createdAt: new Date().toISOString() },
-  { id: 'file-2', name: 'VDI_2300_Embalagens_Metalicas.pdf', oemId: 'org-vw', categoryId: 'cat-normas', fileType: 'PDF', revision: '2024', description: 'Norma alemã para estruturação de embalagens metálicas.', status: 'published', fileUrl: 'https://example.com/files/vdi_2300.pdf', createdAt: new Date().toISOString() },
-  { id: 'file-3', name: 'Caderno_Encargos_Geral_2026.pdf', oemId: 'org-vw', categoryId: 'cat-doc', fileType: 'PDF', revision: '04', description: 'Caderno de encargos gerais de embalagens VW 2026.', status: 'published', fileUrl: 'https://example.com/files/caderno_encargos_2026.pdf', createdAt: new Date().toISOString() },
-  { id: 'file-4', name: 'Checklist_Inspecao_Rodizio_AGV.xlsx', oemId: 'org-vw', categoryId: 'cat-checks', fileType: 'XLSX', revision: '01', description: 'Planilha auxiliar para checagem de rodízios compatíveis com AGV.', status: 'published', fileUrl: 'https://example.com/files/checklist_rodizio_agv.xlsx', createdAt: new Date().toISOString() },
-  { id: 'file-5', name: 'Rack_Referencia_Taos_Desenho.dwg', oemId: 'org-vw', categoryId: 'cat-proj', fileType: 'DWG', revision: '02', description: 'Desenho 2D de referência do rack metálico do VW Taos.', status: 'published', fileUrl: 'https://example.com/files/rack_taos_desenho.dwg', createdAt: new Date().toISOString() },
+  { id: '30ee2d1a-8f5b-4c43-8ce8-72410a719c8f', name: 'Suporte_Porta_Etiqueta_REV03.step', oemId: '897455d3-82ff-4b13-94c6-4c4897f2617f', categoryId: 'cat-comp', fileType: 'STEP', revision: '03', description: 'Modelo 3D do porta-etiquetas padrão VW.', status: 'published', fileUrl: 'https://example.com/files/suporte_porta_etiqueta_rev03.step', createdAt: new Date().toISOString() },
+  { id: '40ee2d1a-8f5b-4c43-8ce8-72410a719c8f', name: 'VDI_2300_Embalagens_Metalicas.pdf', oemId: '897455d3-82ff-4b13-94c6-4c4897f2617f', categoryId: 'cat-normas', fileType: 'PDF', revision: '2024', description: 'Norma alemã para estruturação de embalagens metálicas.', status: 'published', fileUrl: 'https://example.com/files/vdi_2300.pdf', createdAt: new Date().toISOString() },
+  { id: '50ee2d1a-8f5b-4c43-8ce8-72410a719c8f', name: 'Caderno_Encargos_Geral_2026.pdf', oemId: '897455d3-82ff-4b13-94c6-4c4897f2617f', categoryId: 'cat-doc', fileType: 'PDF', revision: '04', description: 'Caderno de encargos gerais de embalagens VW 2026.', status: 'published', fileUrl: 'https://example.com/files/caderno_encargos_2026.pdf', createdAt: new Date().toISOString() },
+  { id: '60ee2d1a-8f5b-4c43-8ce8-72410a719c8f', name: 'Checklist_Inspecao_Rodizio_AGV.xlsx', oemId: '897455d3-82ff-4b13-94c6-4c4897f2617f', categoryId: 'cat-checks', fileType: 'XLSX', revision: '01', description: 'Planilha auxiliar para checagem de rodízios compatíveis com AGV.', status: 'published', fileUrl: 'https://example.com/files/checklist_rodizio_agv.xlsx', createdAt: new Date().toISOString() },
+  { id: '70ee2d1a-8f5b-4c43-8ce8-72410a719c8f', name: 'Rack_Referencia_Taos_Desenho.dwg', oemId: '897455d3-82ff-4b13-94c6-4c4897f2617f', categoryId: 'cat-proj', fileType: 'DWG', revision: '02', description: 'Desenho 2D de referência do rack metálico do VW Taos.', status: 'published', fileUrl: 'https://example.com/files/rack_taos_desenho.dwg', createdAt: new Date().toISOString() },
 ];
 
 // --- Supabase Mapping Helpers ---
@@ -582,6 +582,138 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [syncError, setSyncError] = useState<string | null>(null);
 
+  const seedDatabaseToSupabase = async () => {
+    if (!supabase) return;
+    try {
+      console.log('[Supabase Seed] Seeding default organizations...');
+      
+      // Seed Organizations
+      const dbOrgs = INITIAL_ORGANIZATIONS.map(org => ({
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        organization_type: org.organizationType,
+        logo_url: org.logoUrl || null,
+        description: org.description || null,
+        status: org.status
+      }));
+      const { error: orgsErr } = await supabase.from('organizations').insert(dbOrgs);
+      if (orgsErr) throw orgsErr;
+
+      // Seed Modules
+      const dbModules = INITIAL_MODULES.map(m => ({
+        id: m.id,
+        organization_id: m.organizationId,
+        module_type: m.moduleType,
+        enabled: m.enabled
+      }));
+      const { error: modsErr } = await supabase.from('organization_modules').insert(dbModules);
+      if (modsErr) throw modsErr;
+
+      // Seed Components
+      const dbComps = INITIAL_COMPONENTS.map(c => ({
+        id: c.id,
+        organization_id: c.organizationId,
+        name: c.name,
+        description: c.description || null,
+        application: c.application || null,
+        revision: c.revision,
+        status: c.status,
+        image_url: c.imageUrl || null,
+        step_file_url: c.stepFileUrl || null,
+        pdf_file_url: c.pdfFileUrl || null,
+        dwg_file_url: c.dwgFileUrl || null
+      }));
+      const { error: compsErr } = await supabase.from('components').insert(dbComps);
+      if (compsErr) throw compsErr;
+
+      // Seed Documents
+      const dbDocs = INITIAL_DOCUMENTS.map(d => ({
+        id: d.id,
+        organization_id: d.organizationId,
+        title: d.title,
+        description: d.description || null,
+        document_type: d.documentType,
+        revision: d.revision,
+        status: d.status,
+        file_url: d.fileUrl || null
+      }));
+      const { error: docsErr } = await supabase.from('documents').insert(dbDocs);
+      if (docsErr) throw docsErr;
+
+      // Seed Standards
+      const dbStds = INITIAL_STANDARDS.map(s => ({
+        id: s.id,
+        organization_id: s.organizationId,
+        title: s.title,
+        description: s.description || null,
+        revision: s.revision,
+        status: s.status,
+        reference_document: s.referenceDocument || null,
+        file_url: s.fileUrl || null
+      }));
+      const { error: stdsErr } = await supabase.from('standards').insert(dbStds);
+      if (stdsErr) throw stdsErr;
+
+      // Seed Checklists
+      const dbChecklists = INITIAL_CHECKLISTS.map(chk => ({
+        id: chk.id,
+        organization_id: chk.organizationId,
+        name: chk.name,
+        revision: chk.revision,
+        status: chk.status,
+        file_url: chk.fileUrl || null,
+        file_name: chk.fileName || null,
+        file_type: chk.fileType || null
+      }));
+      const { error: chksErr } = await supabase.from('checklists').insert(dbChecklists);
+      if (chksErr) throw chksErr;
+
+      // Seed Checklist Items
+      const dbItems = INITIAL_CHECKLISTS.flatMap(chk => 
+        chk.items.map(item => ({
+          id: item.id,
+          checklist_id: item.checklistId,
+          category: item.category,
+          description: item.description,
+          required: item.required,
+          reference: item.reference || null,
+          sort_order: item.sortOrder
+        }))
+      );
+      const { error: itemsErr } = await supabase.from('checklist_items').insert(dbItems);
+      if (itemsErr) throw itemsErr;
+
+      // Seed Projects
+      const dbProjects = INITIAL_REFERENCE_PROJECTS.map(p => ({
+        id: p.id,
+        organization_id: p.organizationId,
+        name: p.name,
+        description: p.description || null,
+        application: p.application || null,
+        image_url: p.imageUrl || null,
+        status: p.status
+      }));
+      const { error: projsErr } = await supabase.from('reference_projects').insert(dbProjects);
+      if (projsErr) throw projsErr;
+
+      console.log('[Supabase Seed] Seeding completed successfully!');
+      setSyncError(null);
+
+      // Force update context state to mock seed data to prevent loading an empty state
+      setOrganizations(INITIAL_ORGANIZATIONS);
+      setOrganizationModules(INITIAL_MODULES);
+      setComponents(INITIAL_COMPONENTS);
+      setDocuments(INITIAL_DOCUMENTS);
+      setStandards(INITIAL_STANDARDS);
+      setChecklists(INITIAL_CHECKLISTS);
+      setReferenceProjects(INITIAL_REFERENCE_PROJECTS);
+    } catch (seedErr: any) {
+      console.error('[Supabase Seed] Error seeding database:', seedErr);
+      setSyncError(`Erro ao semear o banco de dados Supabase: ${seedErr?.message || String(seedErr)}`);
+    }
+  };
+
   // Fetch initial data from Supabase DB on load
   useEffect(() => {
     const fetchFromSupabase = async () => {
@@ -599,6 +731,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .select('*')
           .order('name', { ascending: true });
         if (orgsErr) throw orgsErr;
+
+        // If the database has no organizations, seed it!
+        if (!orgsData || orgsData.length === 0) {
+          console.log('[Supabase Sync] Database is empty. Seeding initial data...');
+          await seedDatabaseToSupabase();
+          return;
+        }
+
         setOrganizations((orgsData || []).map(mapOrgFromDb));
 
         // Fetch Modules
