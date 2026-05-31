@@ -160,7 +160,7 @@ export default function Organizations() {
           <TableHeader className="bg-slate-50 border-b border-slate-200">
             <TableRow>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[80px]">Logo</TableHead>
-              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12">Nome / Slug</TableHead>
+              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[350px] min-w-[280px]">Nome</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12">Tipo</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 hidden md:table-cell">Descrição</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[120px]">Status</TableHead>
@@ -187,8 +187,7 @@ export default function Organizations() {
                     </div>
                   </TableCell>
                   <TableCell className="align-middle">
-                    <div className="font-bold text-[14px] text-slate-900">{oem.name}</div>
-                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">{oem.slug}</div>
+                    <div className="font-bold text-[14px] text-slate-900 truncate max-w-[330px]" title={oem.name}>{oem.name}</div>
                   </TableCell>
                   <TableCell className="align-middle">
                     <span className="text-[12px] font-semibold text-slate-600 bg-slate-100 border border-slate-200/60 px-2.5 py-0.5 rounded-full">
