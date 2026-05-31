@@ -145,7 +145,7 @@ INITIAL_ORGANIZATIONS.forEach(org => {
     // components, documentation (standards in spec as 'standards'), checklists, reference_projects are active by default
     const isDefaultEnabled = ['components', 'documentation', 'standards', 'checklists', 'reference_projects'].includes(mod);
     INITIAL_MODULES.push({
-      id: `mod-${org.id}-${mod}`,
+      id: crypto.randomUUID(),
       organizationId: org.id,
       moduleType: mod,
       enabled: isDefaultEnabled,
@@ -867,7 +867,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     
     const newModules: OrganizationModule[] = MODULE_TYPES.map(mod => ({
-      id: `mod-${newOrgId}-${mod}`,
+      id: crypto.randomUUID(),
       organizationId: newOrgId,
       moduleType: mod,
       enabled: !!modules[mod],
@@ -916,7 +916,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let updatedModules: OrganizationModule[] = [];
     if (modules) {
       updatedModules = MODULE_TYPES.map(mod => ({
-        id: `mod-${id}-${mod}`,
+        id: crypto.randomUUID(),
         organizationId: id,
         moduleType: mod,
         enabled: !!modules[mod],
