@@ -30,9 +30,9 @@ import { ModuleType, ChecklistTemplate, ComponentEntry, DocumentEntry, StandardE
 
 const MODULE_INFO: Record<ModuleType, { title: string; desc: string; icon: React.ComponentType<any> }> = {
   components: { title: 'Componentes Homologados', desc: 'Biblioteca de partes técnicas e acoplamentos aprovados', icon: Layers },
-  documentation: { title: 'Documentação Técnica', desc: 'Manuais técnicos, cadernos de encargos e anexos da engenharia', icon: FileText },
-  standards: { title: 'Normas e Padrões', desc: 'Normas de empilhamento, skids, diretrizes de AGV e ergonomia', icon: ShieldCheck },
-  checklists: { title: 'Checklists de Validação', desc: 'Templates de inspeção física e conformidade técnica', icon: CheckSquare },
+  documentation: { title: 'Caderno de Encargos', desc: 'Cadernos de encargos, manuais e anexos da engenharia', icon: FileText },
+  standards: { title: 'Documentação Técnica', desc: 'Normas de empilhamento, skids, diretrizes de AGV e ergonomia', icon: ShieldCheck },
+  checklists: { title: 'Checklist de Validação', desc: 'Templates de inspeção e conformidade física', icon: CheckSquare },
   reference_projects: { title: 'Projetos de Referência', desc: 'Estruturas homologadas e desenhos 3D para consulta', icon: FolderKanban },
   cad_library: { title: 'Biblioteca CAD', desc: 'Arquivos brutos em STEP, DWG e modelagens paramétricas', icon: HardDrive },
   procedures: { title: 'Procedimentos', desc: 'Manuais operacionais de montagem e logística', icon: Box }
@@ -77,8 +77,8 @@ const MODULE_CONFIGS: Record<string, {
     futureThumbnailType: 'component'
   },
   documentation: {
-    title: 'Documentação Técnica',
-    desc: 'Cadernos de encargos, manuais e documentos oficiais.',
+    title: 'Caderno de Encargos',
+    desc: 'Cadernos de encargos, manuais e anexos da engenharia.',
     emoji: '📄',
     labelSingular: 'Documento',
     labelPlural: 'Documentos',
@@ -96,8 +96,8 @@ const MODULE_CONFIGS: Record<string, {
     futureThumbnailType: 'document'
   },
   standards: {
-    title: 'Normas e Padrões',
-    desc: 'Critérios de projeto, empilhamento, AGV e logística.',
+    title: 'Documentação Técnica',
+    desc: 'Normas de empilhamento, skids, diretrizes de AGV e ergonomia.',
     emoji: '🛡️',
     labelSingular: 'Norma',
     labelPlural: 'Normas',
@@ -115,8 +115,8 @@ const MODULE_CONFIGS: Record<string, {
     futureThumbnailType: 'standard'
   },
   checklists: {
-    title: 'Checklists de Validação',
-    desc: 'Validação de conformidade e geração de relatórios.',
+    title: 'Checklist de Validação',
+    desc: 'Templates de inspeção e conformidade física.',
     emoji: '✅',
     labelSingular: 'Checklist',
     labelPlural: 'Checklists',
