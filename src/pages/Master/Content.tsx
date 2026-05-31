@@ -57,9 +57,9 @@ export default function Content() {
               >
                 <div>
                   <div className="flex justify-between items-start">
-                    <div className="w-12 h-12 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-700 shadow-sm text-sm uppercase">
+                    <div className="w-20 h-12 bg-white border border-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-400 shadow-sm text-sm uppercase overflow-hidden p-1.5 shrink-0">
                       {org.logoUrl ? (
-                        <img src={org.logoUrl} alt={org.name} className="w-9 h-9 object-contain rounded" />
+                        <img src={org.logoUrl} alt={org.name} className="max-w-full max-h-full object-contain" />
                       ) : (
                         org.name.substring(0, 2)
                       )}

@@ -133,9 +133,9 @@ export default function OrganizationDetail() {
       {/* Organization Info Card */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-start md:items-center gap-4">
-          <div className="w-16 h-16 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center font-black text-slate-700 shadow-sm text-lg uppercase shrink-0">
+          <div className="w-28 h-16 bg-white border border-slate-200 rounded-xl flex items-center justify-center font-black text-slate-400 shadow-sm text-lg uppercase shrink-0 overflow-hidden p-2">
             {org.logoUrl ? (
-              <img src={org.logoUrl} alt={org.name} className="w-12 h-12 object-contain rounded" />
+              <img src={org.logoUrl} alt={org.name} className="max-w-full max-h-full object-contain" />
             ) : (
               org.name.substring(0, 2)
             )}

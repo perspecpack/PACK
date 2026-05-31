@@ -159,7 +159,7 @@ export default function Organizations() {
         <Table>
           <TableHeader className="bg-slate-50 border-b border-slate-200">
             <TableRow>
-              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[80px]">Logo</TableHead>
+              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[110px]">Logo</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[350px] min-w-[280px]">Nome</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12">Tipo</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 hidden md:table-cell">Descrição</TableHead>
@@ -178,9 +178,9 @@ export default function Organizations() {
               oems.map((oem) => (
                 <TableRow key={oem.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                   <TableCell className="align-middle">
-                    <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-700 shadow-sm text-sm uppercase">
+                    <div className="w-20 h-12 bg-white border border-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-400 shadow-sm text-sm uppercase overflow-hidden p-1.5">
                       {oem.logoUrl ? (
-                        <img src={oem.logoUrl} alt={oem.name} className="w-8 h-8 object-contain rounded" />
+                        <img src={oem.logoUrl} alt={oem.name} className="max-w-full max-h-full object-contain" />
                       ) : (
                         oem.name.substring(0, 2)
                       )}
