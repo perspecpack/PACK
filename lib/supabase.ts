@@ -1,11 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = 
+const sanitizeEnvVal = (val: string) => {
+  if (!val) return '';
+  return val.replace(/^["']|["']$/g, '').trim();
+};
+
+const supabaseUrl = sanitizeEnvVal(import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || '');
+const supabaseAnonKey = sanitizeEnvVal(
   import.meta.env.VITE_SUPABASE_ANON_KEY || 
   import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
   import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 
-  '';
+  ''
+);
 
 console.log('[Supabase Config] URL Status:', supabaseUrl ? 'LOADED' : 'MISSING');
 console.log('[Supabase Config] Key Status:', supabaseAnonKey ? 'LOADED' : 'MISSING');
