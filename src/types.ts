@@ -164,3 +164,30 @@ export interface User {
   email: string;
   role: 'master' | 'user';
 }
+
+export interface DownloadLog {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  content_type: string;
+  content_id: string;
+  file_name: string;
+  download_date: string;
+}
+
+export interface UploadLog {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  content_type: string;
+  file_name: string;
+  upload_date: string;
+}
+
+export interface PageAccessLog {
+  id: string;
+  user_id: string;
+  page: string;
+  access_date: string;
+}
+

@@ -75,10 +75,19 @@ export default function ModuleContentManager() {
     documents, addDocument, updateDocument, deleteDocument,
     standards, addStandard, updateStandard, deleteStandard,
     checklists, addChecklist, updateChecklist, deleteChecklist,
-    referenceProjects, addReferenceProject, updateReferenceProject, deleteReferenceProject
+    referenceProjects, addReferenceProject, updateReferenceProject, deleteReferenceProject,
+    logUpload,
+    logPageAccess
   } = useApp();
 
   const org = organizations.find(o => o.id === orgId);
+
+  // Log page access on component mount/update
+  React.useEffect(() => {
+    if (org && moduleType) {
+      logPageAccess(`Master - Módulo: ${getModuleTitle()} (${org.name})`);
+    }
+  }, [orgId, moduleType, logPageAccess]);
 
   // States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -734,7 +743,10 @@ export default function ModuleContentManager() {
                         currentFileUrl={imageUrl}
                         orgSlug={org.slug}
                         moduleType="components"
-                        onUploadComplete={(url) => setImageUrl(url)}
+                        onUploadComplete={(url) => {
+                          setImageUrl(url);
+                          logUpload(orgId!, 'Componente (Imagem)', url.split('/').pop() || 'imagem.png');
+                        }}
                         onRemove={() => setImageUrl('')}
                       />
                     </div>
@@ -748,7 +760,10 @@ export default function ModuleContentManager() {
                         currentFileUrl={stepFileUrl}
                         orgSlug={org.slug}
                         moduleType="components"
-                        onUploadComplete={(url) => setStepFileUrl(url)}
+                        onUploadComplete={(url) => {
+                          setStepFileUrl(url);
+                          logUpload(orgId!, 'Componente (STEP)', url.split('/').pop() || 'arquivo.step');
+                        }}
                         onRemove={() => setStepFileUrl('')}
                       />
                     </div>
@@ -762,7 +777,10 @@ export default function ModuleContentManager() {
                         currentFileUrl={pdfFileUrl}
                         orgSlug={org.slug}
                         moduleType="components"
-                        onUploadComplete={(url) => setPdfFileUrl(url)}
+                        onUploadComplete={(url) => {
+                          setPdfFileUrl(url);
+                          logUpload(orgId!, 'Componente (PDF)', url.split('/').pop() || 'arquivo.pdf');
+                        }}
                         onRemove={() => setPdfFileUrl('')}
                       />
                     </div>
@@ -776,7 +794,10 @@ export default function ModuleContentManager() {
                         currentFileUrl={dwgFileUrl}
                         orgSlug={org.slug}
                         moduleType="components"
-                        onUploadComplete={(url) => setDwgFileUrl(url)}
+                        onUploadComplete={(url) => {
+                          setDwgFileUrl(url);
+                          logUpload(orgId!, 'Componente (DWG)', url.split('/').pop() || 'arquivo.dwg');
+                        }}
                         onRemove={() => setDwgFileUrl('')}
                       />
                     </div>
@@ -811,6 +832,7 @@ export default function ModuleContentManager() {
                           setFileUrl(url);
                           setFileName(name);
                           setFileTypeState(ext);
+                          logUpload(orgId!, 'Documentação Técnica', name);
                         }}
                         onRemove={() => {
                           setFileUrl('');
@@ -860,6 +882,7 @@ export default function ModuleContentManager() {
                           setFileUrl(url);
                           setFileName(name);
                           setFileTypeState(ext);
+                          logUpload(orgId!, 'Normas e Padrões', name);
                         }}
                         onRemove={() => {
                           setFileUrl('');
@@ -894,7 +917,10 @@ export default function ModuleContentManager() {
                         currentFileUrl={imageUrl}
                         orgSlug={org.slug}
                         moduleType="reference_projects"
-                        onUploadComplete={(url) => setImageUrl(url)}
+                        onUploadComplete={(url) => {
+                          setImageUrl(url);
+                          logUpload(orgId!, 'Projeto de Referência (Imagem)', url.split('/').pop() || 'imagem.png');
+                        }}
                         onRemove={() => setImageUrl('')}
                       />
                     </div>
@@ -912,6 +938,7 @@ export default function ModuleContentManager() {
                           setAttachmentUrl(url);
                           setAttachmentName(name);
                           setAttachmentType(ext);
+                          logUpload(orgId!, 'Projeto de Referência (Anexo)', name);
                         }}
                         onRemove={() => {
                           setAttachmentUrl('');

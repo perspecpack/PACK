@@ -25,6 +25,7 @@ export function MasterLayout() {
   const { logout, setViewingAsUser, user, syncError } = useApp();
 
   const navigation = [
+    { name: 'Visualizar Plataforma', href: '/master/dashboard', icon: Eye },
     { name: 'Organizações', href: '/master/oems', icon: Building2 },
     { name: 'Conteúdo', href: '/master/content', icon: Layers },
     { name: 'Uploads', href: '/master/uploads', icon: FileText },
@@ -90,9 +91,9 @@ export function MasterLayout() {
               onClick={handleViewPlatform}
               className="w-full text-left text-slate-400 hover:bg-white/5 hover:text-white border-l-4 border-transparent group flex items-center gap-3.5 px-4 py-3 text-[14px] transition-all duration-200 rounded-r-md"
             >
-              <Eye className="flex-shrink-0 h-[18px] w-[18px] text-slate-400 group-hover:text-white" />
-              <span className="truncate flex-1">Visualizar Plataforma</span>
-              <span className="text-[10px] bg-teal-900 text-[#00F59B] px-1.5 py-0.5 rounded font-mono font-bold">LIVE</span>
+              <UserIcon className="flex-shrink-0 h-[18px] w-[18px] text-slate-400 group-hover:text-white" />
+              <span className="truncate flex-1">Simular Área do Fornecedor</span>
+              <span className="text-[10px] bg-teal-900 text-[#00F59B] px-1.5 py-0.5 rounded font-mono font-bold">SIMULAR</span>
             </button>
 
             <Link
@@ -131,7 +132,8 @@ export function MasterLayout() {
           <div>
             <span className="text-xs font-semibold text-teal-600 uppercase tracking-wider">Área Master</span>
             <h1 className="text-[18px] font-bold text-[#0F172A] tracking-tight">
-              {location.pathname === '/master' && 'Gestão de Organizações'}
+              {location.pathname === '/master' && 'Centro de Controle'}
+              {location.pathname.startsWith('/master/dashboard') && 'Centro de Controle'}
               {location.pathname.startsWith('/master/oems') && 'Gestão de Organizações'}
               {location.pathname.startsWith('/master/content') && 'Gestão de Conteúdo por Organização'}
               {location.pathname.startsWith('/master/uploads') && 'Central de Uploads'}

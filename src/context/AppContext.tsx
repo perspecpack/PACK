@@ -14,7 +14,10 @@ import {
   OrganizationType,
   ModuleType,
   DocumentType,
-  StandardType
+  StandardType,
+  DownloadLog,
+  UploadLog,
+  PageAccessLog
 } from '../types';
 
 export type {
@@ -31,7 +34,10 @@ export type {
   OrganizationType,
   ModuleType,
   DocumentType,
-  StandardType
+  StandardType,
+  DownloadLog,
+  UploadLog,
+  PageAccessLog
 };
 
 export type OEM = Organization;
@@ -71,6 +77,10 @@ interface AppContextType {
   checklists: ChecklistTemplate[];
   referenceProjects: ReferenceProjectEntry[];
   
+  downloadsLog: DownloadLog[];
+  uploadsLog: UploadLog[];
+  pageAccessLog: PageAccessLog[];
+  
   // Backward compatibility fields
   oems: Organization[];
   categories: { id: string; name: string; slug: string; icon: string; status: 'active' }[];
@@ -86,6 +96,11 @@ interface AppContextType {
   login: (email: string, role: 'master' | 'user') => void;
   logout: () => void;
   setViewingAsUser: (val: boolean) => void;
+
+  // Logging actions
+  logDownload: (orgId: string, contentType: string, contentId: string, fileName: string) => Promise<void>;
+  logUpload: (orgId: string, contentType: string, fileName: string) => Promise<void>;
+  logPageAccess: (page: string) => Promise<void>;
 
   // Organization actions
   addOrganization: (org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>, modules: Record<ModuleType, boolean>) => void;
@@ -681,6 +696,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_FILES;
   });
 
+  const [downloadsLog, setDownloadsLog] = useState<DownloadLog[]>(() => {
+    const saved = localStorage.getItem('pp_downloads_log_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [uploadsLog, setUploadsLog] = useState<UploadLog[]>(() => {
+    const saved = localStorage.getItem('pp_uploads_log_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [pageAccessLog, setPageAccessLog] = useState<PageAccessLog[]>(() => {
+    const saved = localStorage.getItem('pp_page_access_log_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // User auth state
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('pp_session');
@@ -923,6 +953,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
         setChecklists(tsChecklists);
 
+        // Fetch Downloads Log
+        const { data: dlData, error: dlErr } = await supabase
+          .from('downloads_log')
+          .select('*')
+          .order('download_date', { ascending: false });
+        if (!dlErr && dlData) {
+          setDownloadsLog(dlData.map((d: any) => ({
+            id: d.id,
+            user_id: d.user_id,
+            organization_id: d.organization_id,
+            content_type: d.content_type,
+            content_id: d.content_id,
+            file_name: d.file_name,
+            download_date: d.download_date
+          })));
+        }
+
+        // Fetch Uploads Log
+        const { data: ulData, error: ulErr } = await supabase
+          .from('uploads_log')
+          .select('*')
+          .order('upload_date', { ascending: false });
+        if (!ulErr && ulData) {
+          setUploadsLog(ulData.map((u: any) => ({
+            id: u.id,
+            user_id: u.user_id,
+            organization_id: u.organization_id,
+            content_type: u.content_type,
+            file_name: u.file_name,
+            upload_date: u.upload_date
+          })));
+        }
+
+        // Fetch Page Access Log
+        const { data: paData, error: paErr } = await supabase
+          .from('page_access_log')
+          .select('*')
+          .order('access_date', { ascending: false });
+        if (!paErr && paData) {
+          setPageAccessLog(paData.map((p: any) => ({
+            id: p.id,
+            user_id: p.user_id,
+            page: p.page,
+            access_date: p.access_date
+          })));
+        }
+
         console.log('[Supabase Sync] Fetched successfully from Supabase!');
       } catch (err: any) {
         console.error('[Supabase Sync] Error during loading:', err);
@@ -960,6 +1037,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('pp_reference_projects_v2', JSON.stringify(referenceProjects));
   }, [referenceProjects]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_downloads_log_v1', JSON.stringify(downloadsLog));
+  }, [downloadsLog]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_uploads_log_v1', JSON.stringify(uploadsLog));
+  }, [uploadsLog]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_page_access_log_v1', JSON.stringify(pageAccessLog));
+  }, [pageAccessLog]);
 
   useEffect(() => {
     localStorage.setItem('pp_files_v2', JSON.stringify(files));
@@ -1624,6 +1713,82 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setFiles(prev => prev.filter(item => item.id !== id));
   };
 
+  const logDownload = async (orgId: string, contentType: string, contentId: string, fileName: string) => {
+    const userEmail = user?.email || 'anonimo@perspecpack.com';
+    const newLog: DownloadLog = {
+      id: crypto.randomUUID(),
+      user_id: userEmail,
+      organization_id: orgId,
+      content_type: contentType,
+      content_id: contentId,
+      file_name: fileName,
+      download_date: new Date().toISOString()
+    };
+    
+    setDownloadsLog(prev => [newLog, ...prev]);
+    
+    if (supabase) {
+      const { error } = await supabase.from('downloads_log').insert({
+        id: newLog.id,
+        user_id: newLog.user_id,
+        organization_id: newLog.organization_id,
+        content_type: newLog.content_type,
+        content_id: newLog.content_id,
+        file_name: newLog.file_name,
+        download_date: newLog.download_date
+      });
+      if (error) console.error('Error logging download to Supabase:', error);
+    }
+  };
+
+  const logUpload = async (orgId: string, contentType: string, fileName: string) => {
+    const userEmail = user?.email || 'anonimo@perspecpack.com';
+    const newLog: UploadLog = {
+      id: crypto.randomUUID(),
+      user_id: userEmail,
+      organization_id: orgId,
+      content_type: contentType,
+      file_name: fileName,
+      upload_date: new Date().toISOString()
+    };
+    
+    setUploadsLog(prev => [newLog, ...prev]);
+    
+    if (supabase) {
+      const { error } = await supabase.from('uploads_log').insert({
+        id: newLog.id,
+        user_id: newLog.user_id,
+        organization_id: newLog.organization_id,
+        content_type: newLog.content_type,
+        file_name: newLog.file_name,
+        upload_date: newLog.upload_date
+      });
+      if (error) console.error('Error logging upload to Supabase:', error);
+    }
+  };
+
+  const logPageAccess = async (page: string) => {
+    const userEmail = user?.email || 'anonimo@perspecpack.com';
+    const newLog: PageAccessLog = {
+      id: crypto.randomUUID(),
+      user_id: userEmail,
+      page: page,
+      access_date: new Date().toISOString()
+    };
+    
+    setPageAccessLog(prev => [newLog, ...prev]);
+    
+    if (supabase) {
+      const { error } = await supabase.from('page_access_log').insert({
+        id: newLog.id,
+        user_id: newLog.user_id,
+        page: newLog.page,
+        access_date: newLog.access_date
+      });
+      if (error) console.error('Error logging page access to Supabase:', error);
+    }
+  };
+
   // Compatibility fields mapping
   const activeOems = organizations.filter(o => o.status === 'active');
   const dummyCategories = [
@@ -1645,6 +1810,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         checklists,
         referenceProjects,
         
+        downloadsLog,
+        uploadsLog,
+        pageAccessLog,
+        
         oems: organizations,
         categories: dummyCategories,
         files,
@@ -1656,6 +1825,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         login,
         logout,
         setViewingAsUser,
+
+        logDownload,
+        logUpload,
+        logPageAccess,
 
         addOrganization,
         updateOrganization,

@@ -7,6 +7,7 @@ import Login from './pages/Auth/Login';
 import Downloads from './pages/Downloads/Downloads';
 
 // Master Pages
+import Dashboard from './pages/Master/Dashboard';
 import Organizations from './pages/Master/Organizations';
 import Files from './pages/Master/Files';
 import Settings from './pages/Master/Settings';
@@ -27,8 +28,8 @@ function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
   }
 
   if (allowedRole && user.role !== allowedRole) {
-    // Redirect if role doesn't match: Master goes to /master, User goes to /
-    return <Navigate to={user.role === 'master' ? '/master' : '/'} replace />;
+    // Redirect if role doesn't match: Master goes to /master/dashboard, User goes to /
+    return <Navigate to={user.role === 'master' ? '/master/dashboard' : '/'} replace />;
   }
 
   return <>{children}</>;
@@ -61,7 +62,8 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path="/master" element={<Navigate to="/master/oems" replace />} />
+          <Route path="/master" element={<Navigate to="/master/dashboard" replace />} />
+          <Route path="/master/dashboard" element={<Dashboard />} />
           <Route path="/master/oems" element={<Organizations />} />
           <Route path="/master/content" element={<Content />} />
           <Route path="/master/content/:orgId" element={<OrganizationDetail />} />
@@ -75,7 +77,7 @@ function AppRoutes() {
           path="*" 
           element={
             <Navigate 
-              to={user ? (user.role === 'master' ? '/master/oems' : '/') : '/login'} 
+              to={user ? (user.role === 'master' ? '/master/dashboard' : '/') : '/login'} 
               replace 
             />
           } 

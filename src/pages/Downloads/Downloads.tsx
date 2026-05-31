@@ -44,7 +44,9 @@ export default function Downloads() {
     documents, 
     standards, 
     checklists, 
-    referenceProjects 
+    referenceProjects,
+    logDownload,
+    logPageAccess 
   } = useApp();
 
   const [selectedOEM, setSelectedOEM] = useState<string>('');
@@ -59,6 +61,11 @@ export default function Downloads() {
       setSelectedOEM(activeOems[0].id);
     }
   }, [activeOems, selectedOEM]);
+
+  // Log page access on component mount
+  useEffect(() => {
+    logPageAccess('Fornecedor - Portal de Downloads');
+  }, [logPageAccess]);
 
   // Set default module based on organization's enabled modules
   useEffect(() => {
@@ -257,17 +264,35 @@ export default function Downloads() {
                             <TableCell className="align-middle">
                               <div className="flex gap-1.5">
                                 {comp.stepFileUrl && (
-                                  <a href={comp.stepFileUrl} target="_blank" rel="noreferrer" className="bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded font-bold font-mono">
+                                  <a 
+                                    href={comp.stepFileUrl} 
+                                    onClick={() => logDownload(comp.organizationId, 'Componente (STEP)', comp.id, comp.stepFileUrl?.split('/').pop() || 'arquivo.step')}
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded font-bold font-mono"
+                                  >
                                     STEP
                                   </a>
                                 )}
                                 {comp.pdfFileUrl && (
-                                  <a href={comp.pdfFileUrl} target="_blank" rel="noreferrer" className="bg-red-50 hover:bg-red-100 border border-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded font-bold font-mono">
+                                  <a 
+                                    href={comp.pdfFileUrl} 
+                                    onClick={() => logDownload(comp.organizationId, 'Componente (PDF)', comp.id, comp.pdfFileUrl?.split('/').pop() || 'arquivo.pdf')}
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="bg-red-50 hover:bg-red-100 border border-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded font-bold font-mono"
+                                  >
                                     PDF
                                   </a>
                                 )}
                                 {comp.dwgFileUrl && (
-                                  <a href={comp.dwgFileUrl} target="_blank" rel="noreferrer" className="bg-amber-50 hover:bg-amber-100 border border-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded font-bold font-mono">
+                                  <a 
+                                    href={comp.dwgFileUrl} 
+                                    onClick={() => logDownload(comp.organizationId, 'Componente (DWG)', comp.id, comp.dwgFileUrl?.split('/').pop() || 'arquivo.dwg')}
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="bg-amber-50 hover:bg-amber-100 border border-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded font-bold font-mono"
+                                  >
                                     DWG
                                   </a>
                                 )}
@@ -309,7 +334,12 @@ export default function Downloads() {
                             <TableCell className="text-[13px] text-gray-700 font-semibold font-mono">{doc.revision}</TableCell>
                             <TableCell className="text-right pr-6">
                               {doc.fileUrl ? (
-                                <a href={doc.fileUrl} target="_blank" rel="noreferrer">
+                                <a 
+                                  href={doc.fileUrl} 
+                                  onClick={() => logDownload(doc.organizationId, 'Documentação Técnica', doc.id, doc.fileName || doc.fileUrl?.split('/').pop() || 'documento.pdf')}
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                >
                                   <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white h-8 w-8 p-0 rounded-md shadow-sm">
                                     <Download className="w-[15px] h-[15px]" />
                                   </Button>
@@ -356,7 +386,12 @@ export default function Downloads() {
                             <TableCell className="text-[13px] text-gray-700 font-semibold font-mono">{std.revision}</TableCell>
                             <TableCell className="text-right pr-6">
                               {std.fileUrl ? (
-                                <a href={std.fileUrl} target="_blank" rel="noreferrer">
+                                <a 
+                                  href={std.fileUrl} 
+                                  onClick={() => logDownload(std.organizationId, 'Normas e Padrões', std.id, std.fileName || std.fileUrl?.split('/').pop() || 'norma.pdf')}
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                >
                                   <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white h-8 w-8 p-0 rounded-md shadow-sm">
                                     <Download className="w-[15px] h-[15px]" />
                                   </Button>
@@ -400,7 +435,10 @@ export default function Downloads() {
                             <TableCell className="text-[13px] text-gray-700 font-semibold font-mono">{chk.revision}</TableCell>
                             <TableCell className="text-right pr-6">
                               <Button 
-                                onClick={() => setViewingChecklist(chk)}
+                                onClick={() => {
+                                  setViewingChecklist(chk);
+                                  logPageAccess(`Fornecedor - Visualizar Checklist: ${chk.name}`);
+                                }}
                                 size="sm" 
                                 className="bg-teal-600 hover:bg-teal-700 text-white h-8 px-3 rounded-md shadow-sm text-xs font-bold gap-1"
                               >
@@ -452,6 +490,7 @@ export default function Downloads() {
                               {proj.attachmentUrl ? (
                                 <a 
                                   href={proj.attachmentUrl} 
+                                  onClick={() => logDownload(proj.organizationId, 'Projeto de Referência', proj.id, proj.attachmentName || proj.attachmentUrl?.split('/').pop() || 'anexo.zip')}
                                   target="_blank" 
                                   rel="noreferrer" 
                                   title={proj.attachmentName}
