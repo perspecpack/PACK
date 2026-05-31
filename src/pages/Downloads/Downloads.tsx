@@ -37,6 +37,103 @@ const MODULE_INFO: Record<ModuleType, { title: string; desc: string; icon: React
   procedures: { title: 'Procedimentos', desc: 'Manuais operacionais de montagem e logística', icon: Box }
 };
 
+const MODULE_CONFIGS: Record<string, {
+  title: string;
+  desc: string;
+  emoji: string;
+  labelSingular: string;
+  labelPlural: string;
+  colorClasses: {
+    border: string;
+    borderHover: string;
+    bgIcon: string;
+    textIcon: string;
+    textTitleHover: string;
+    bgCounter: string;
+    textCounter: string;
+    shadowHover: string;
+    glowBg: string;
+  };
+  futureThumbnailType: 'component' | 'document' | 'standard' | 'checklist';
+}> = {
+  components: {
+    title: 'Componentes Homologados',
+    desc: 'Peças, rodízios, engates, travas e componentes aprovados.',
+    emoji: '📦',
+    labelSingular: 'Componente',
+    labelPlural: 'Componentes',
+    colorClasses: {
+      border: 'border-orange-100/70',
+      borderHover: 'hover:border-orange-400',
+      bgIcon: 'bg-orange-50 border-orange-200/50',
+      textIcon: 'text-orange-600',
+      textTitleHover: 'group-hover:text-orange-600',
+      bgCounter: 'bg-orange-50/70 border-orange-100',
+      textCounter: 'text-orange-700',
+      shadowHover: 'hover:shadow-[0_12px_30px_rgba(249,115,22,0.08)]',
+      glowBg: 'bg-orange-500',
+    },
+    futureThumbnailType: 'component'
+  },
+  documentation: {
+    title: 'Documentação Técnica',
+    desc: 'Cadernos de encargos, manuais e documentos oficiais.',
+    emoji: '📄',
+    labelSingular: 'Documento',
+    labelPlural: 'Documentos',
+    colorClasses: {
+      border: 'border-blue-100/70',
+      borderHover: 'hover:border-blue-400',
+      bgIcon: 'bg-blue-50 border-blue-200/50',
+      textIcon: 'text-blue-600',
+      textTitleHover: 'group-hover:text-blue-600',
+      bgCounter: 'bg-blue-50/70 border-blue-100',
+      textCounter: 'text-blue-700',
+      shadowHover: 'hover:shadow-[0_12px_30px_rgba(59,130,246,0.08)]',
+      glowBg: 'bg-blue-500',
+    },
+    futureThumbnailType: 'document'
+  },
+  standards: {
+    title: 'Normas e Padrões',
+    desc: 'Critérios de projeto, empilhamento, AGV e logística.',
+    emoji: '🛡️',
+    labelSingular: 'Norma',
+    labelPlural: 'Normas',
+    colorClasses: {
+      border: 'border-purple-100/70',
+      borderHover: 'hover:border-purple-400',
+      bgIcon: 'bg-purple-50 border-purple-200/50',
+      textIcon: 'text-purple-600',
+      textTitleHover: 'group-hover:text-purple-600',
+      bgCounter: 'bg-purple-50/70 border-purple-100',
+      textCounter: 'text-purple-700',
+      shadowHover: 'hover:shadow-[0_12px_30px_rgba(168,85,247,0.08)]',
+      glowBg: 'bg-purple-500',
+    },
+    futureThumbnailType: 'standard'
+  },
+  checklists: {
+    title: 'Checklists de Validação',
+    desc: 'Validação de conformidade e geração de relatórios.',
+    emoji: '✅',
+    labelSingular: 'Checklist',
+    labelPlural: 'Checklists',
+    colorClasses: {
+      border: 'border-emerald-100/70',
+      borderHover: 'hover:border-emerald-400',
+      bgIcon: 'bg-emerald-50 border-emerald-200/50',
+      textIcon: 'text-emerald-600',
+      textTitleHover: 'group-hover:text-emerald-600',
+      bgCounter: 'bg-emerald-50/70 border-emerald-100',
+      textCounter: 'text-emerald-700',
+      shadowHover: 'hover:shadow-[0_12px_30px_rgba(16,185,129,0.08)]',
+      glowBg: 'bg-emerald-500',
+    },
+    futureThumbnailType: 'checklist'
+  }
+};
+
 const ORG_TYPE_LABELS: Record<string, string> = {
   oem: 'Montadora OEM',
   component_manufacturer: 'Fabricante de Componentes',
@@ -120,8 +217,8 @@ export default function Downloads() {
   const selectedOEMObj = activeOems.find(o => o.id === selectedOEM);
   const selectedOEMName = selectedOEMObj?.name || '';
 
-  // Get active modules for selected OEM (only components, documentation, standards, checklists, reference_projects if has items)
-  const allowedModules = ['components', 'documentation', 'standards', 'checklists', 'reference_projects'];
+  // Get active modules for selected OEM (only components, documentation, standards, checklists)
+  const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
   const activeModules = organizationModules.filter(m => 
     m.organizationId === selectedOEM && 
     m.enabled && 
@@ -555,7 +652,7 @@ export default function Downloads() {
               {selectedOEMName}
             </h2>
             <p className="text-slate-500 text-sm">
-              {selectedOEMObj.description || `Diretrizes e padrões da rede de fornecedores ${selectedOEMName}.`}
+              Biblioteca oficial de padrões, componentes homologados, documentação técnica e critérios de validação.
             </p>
           </div>
 
@@ -568,33 +665,53 @@ export default function Downloads() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {activeModules.map((mod) => {
-                const info = MODULE_INFO[mod.moduleType];
-                if (!info) return null;
+                const config = MODULE_CONFIGS[mod.moduleType as keyof typeof MODULE_CONFIGS];
+                if (!config) return null;
 
-                const IconComponent = info.icon;
                 const recordCount = getRecordCount(mod.moduleType);
+                const counterText = `${recordCount} ${recordCount === 1 ? config.labelSingular : config.labelPlural}`;
 
                 return (
                   <button
                     key={mod.id}
                     onClick={() => handleModuleClick(mod.moduleType)}
-                    className="bg-white border border-slate-200 hover:border-teal-400 rounded-2xl p-6 flex flex-col justify-between text-left transition-all duration-200 hover:scale-[1.02] hover:shadow-lg shadow-sm cursor-pointer group h-52"
+                    className={cn(
+                      "bg-white border rounded-2xl p-8 flex flex-col justify-between text-left transition-all duration-300 hover:-translate-y-1.5 shadow-sm hover:shadow-md cursor-pointer group h-[260px] relative overflow-hidden",
+                      config.colorClasses.border,
+                      config.colorClasses.borderHover,
+                      config.colorClasses.shadowHover
+                    )}
                   >
-                    <div className="space-y-3">
-                      <div className="w-12 h-12 bg-teal-50 border border-teal-100 rounded-xl flex items-center justify-center text-teal-600 group-hover:bg-[#00F59B]/10 group-hover:text-teal-700 transition-colors">
-                        <IconComponent className="w-6 h-6" />
+                    {/* PREPARAÇÃO PARA O FUTURO: Estrutura para imagem de fundo discreta */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-[0.015] transition-opacity duration-300 pointer-events-none bg-gradient-to-br from-transparent to-black" />
+                    <div className={cn("absolute -right-12 -top-12 w-28 h-28 rounded-full blur-2xl opacity-0 group-hover:opacity-[0.06] transition-opacity duration-300 pointer-events-none", config.colorClasses.glowBg)} />
+
+                    {/* PREPARAÇÃO PARA O FUTURO: Espaço reservado para Thumbnails (Componente, Documento ou Checklist) */}
+                    {/* 
+                    <div className="absolute right-4 top-4 w-16 h-16 opacity-10 group-hover:opacity-20 transition-opacity duration-300 pointer-events-none">
+                      {config.futureThumbnailType === 'component' && <div className="border border-dashed border-slate-300 w-full h-full rounded" />}
+                      {config.futureThumbnailType === 'document' && <div className="border border-dashed border-slate-300 w-full h-full rounded" />}
+                      {config.futureThumbnailType === 'standard' && <div className="border border-dashed border-slate-300 w-full h-full rounded" />}
+                      {config.futureThumbnailType === 'checklist' && <div className="border border-dashed border-slate-300 w-full h-full rounded" />}
+                    </div> 
+                    */}
+
+                    <div className="space-y-4 relative z-10">
+                      <div className={cn("w-14 h-14 border rounded-2xl flex items-center justify-center text-[26px] shadow-sm group-hover:scale-105 transition-transform duration-300 shrink-0", config.colorClasses.bgIcon)}>
+                        {config.emoji}
                       </div>
-                      <div className="space-y-1">
-                        <h4 className="font-extrabold text-[15px] text-slate-900 group-hover:text-teal-600 transition-colors">
-                          {info.title}
+                      <div className="space-y-2">
+                        <h4 className={cn("font-extrabold text-[17px] text-slate-900 transition-colors duration-250", config.colorClasses.textTitleHover)}>
+                          {config.title}
                         </h4>
-                        <p className="text-[11px] text-slate-400 font-medium leading-tight">
-                          {info.desc}
+                        <p className="text-[12px] text-slate-500 font-medium leading-relaxed">
+                          {config.desc}
                         </p>
                       </div>
                     </div>
-                    <span className="text-[12px] font-bold text-teal-600 bg-teal-50 px-2.5 py-0.5 rounded-full w-fit">
-                      {recordCount} {recordCount === 1 ? 'item' : 'itens'}
+                    
+                    <span className={cn("text-[11.5px] font-bold px-3 py-1 rounded-full w-fit border relative z-10 transition-colors shadow-inner", config.colorClasses.bgCounter, config.colorClasses.textCounter)}>
+                      {counterText}
                     </span>
                   </button>
                 );
@@ -1016,72 +1133,6 @@ export default function Downloads() {
                             <ClipboardCheck className="w-4 h-4" />
                             <span>Executar Inspeção</span>
                           </Button>
-                        </TableCell>
-                      </TableRow>
-                    ));
-                  })()}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {/* MODULE: PROJETOS DE REFERÊNCIA */}
-          {selectedModule === 'reference_projects' && (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              <Table>
-                <TableHeader className="bg-slate-50 border-b border-slate-200">
-                  <TableRow>
-                    <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px]">Imagem</TableHead>
-                    <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Projeto</TableHead>
-                    <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Descrição</TableHead>
-                    <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[150px]">Arquivos Disponíveis</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    const filteredList = referenceProjects.filter(p => 
-                      p.organizationId === selectedOEM && 
-                      p.status === 'active'
-                    );
-
-                    if (filteredList.length === 0) {
-                      return (
-                        <TableRow>
-                          <TableCell colSpan={4} className="h-28 text-center text-slate-400 font-medium italic">
-                            Nenhum projeto de referência cadastrado.
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }
-
-                    return filteredList.map(proj => (
-                      <TableRow key={proj.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                        <TableCell className="align-middle">
-                          <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center">
-                            {proj.imageUrl ? (
-                              <img src={proj.imageUrl} alt={proj.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <FolderKanban className="w-5 h-5 text-slate-400" />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="align-middle font-bold text-[13px] text-slate-900">{proj.name}</TableCell>
-                        <TableCell className="align-middle text-[13px] text-slate-500">{proj.description || '-'}</TableCell>
-                        <TableCell className="align-middle">
-                          {proj.attachmentUrl ? (
-                            <a 
-                              href={proj.attachmentUrl}
-                              onClick={() => logDownload(proj.organizationId, 'Projeto de Referência', proj.id, proj.attachmentName || 'anexo.zip')}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 bg-teal-55 hover:bg-teal-100 text-teal-700 text-[10px] px-2.5 py-1 rounded font-bold border border-teal-100 transition-colors"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              <span>{proj.attachmentType || 'ANEXO'}</span>
-                            </a>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">Nenhum anexo</span>
-                          )}
                         </TableCell>
                       </TableRow>
                     ));
