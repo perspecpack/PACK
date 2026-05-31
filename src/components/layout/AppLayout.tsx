@@ -64,8 +64,9 @@ export function AppLayout() {
         <div className="w-[260px] bg-[#0c3944] text-gray-300 flex flex-col shrink-0 px-0 py-8 z-20 shadow-md">
           <div className="mb-10 flex items-center gap-3 px-6">
             <img src={logoImage} alt="Perspecpack Logo" className="h-10 w-auto object-contain" />
-            <span className="font-extrabold text-[20px] tracking-tight text-white select-none">
-              PERSPEC<span className="text-[#00a86b]">PACK</span>
+            <span className="font-sans font-medium text-[20px] tracking-wider select-none">
+              <span className="text-[#c0c0c0]">PERSPEC</span>
+              <span className="text-[#00ff00]">PACK</span>
             </span>
           </div>
           
