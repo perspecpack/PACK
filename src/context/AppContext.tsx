@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import {
   Organization,
   OrganizationModule,
@@ -338,8 +339,195 @@ const INITIAL_FILES: FileEntry[] = [
   { id: 'file-5', name: 'Rack_Referencia_Taos_Desenho.dwg', oemId: 'org-vw', categoryId: 'cat-proj', fileType: 'DWG', revision: '02', description: 'Desenho 2D de referência do rack metálico do VW Taos.', status: 'published', fileUrl: 'https://example.com/files/rack_taos_desenho.dwg', createdAt: new Date().toISOString() },
 ];
 
+// --- Supabase Mapping Helpers ---
+const mapOrgFromDb = (db: any): Organization => ({
+  id: db.id,
+  name: db.name,
+  slug: db.slug,
+  organizationType: db.organization_type,
+  logoUrl: db.logo_url || undefined,
+  description: db.description || undefined,
+  status: db.status as 'active' | 'inactive',
+  createdAt: db.created_at,
+  updatedAt: db.updated_at
+});
+
+const mapOrgToDb = (ts: Partial<Organization>) => {
+  const db: any = {};
+  if (ts.name !== undefined) db.name = ts.name;
+  if (ts.slug !== undefined) db.slug = ts.slug;
+  if (ts.organizationType !== undefined) db.organization_type = ts.organizationType;
+  if (ts.logoUrl !== undefined) db.logo_url = ts.logoUrl;
+  if (ts.description !== undefined) db.description = ts.description;
+  if (ts.status !== undefined) db.status = ts.status;
+  return db;
+};
+
+const mapModFromDb = (db: any): OrganizationModule => ({
+  id: db.id,
+  organizationId: db.organization_id,
+  moduleType: db.module_type as any,
+  enabled: db.enabled,
+  createdAt: db.created_at
+});
+
+const mapCompFromDb = (db: any): ComponentEntry => ({
+  id: db.id,
+  organizationId: db.organization_id,
+  name: db.name,
+  description: db.description || undefined,
+  application: db.application || undefined,
+  revision: db.revision,
+  status: db.status as 'active' | 'inactive',
+  stepFileUrl: db.step_file_url || undefined,
+  pdfFileUrl: db.pdf_file_url || undefined,
+  dwgFileUrl: db.dwg_file_url || undefined,
+  imageUrl: db.image_url || undefined,
+  createdAt: db.created_at,
+  updatedAt: db.updated_at
+});
+
+const mapCompToDb = (ts: Partial<ComponentEntry>) => {
+  const db: any = {};
+  if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.name !== undefined) db.name = ts.name;
+  if (ts.description !== undefined) db.description = ts.description;
+  if (ts.application !== undefined) db.application = ts.application;
+  if (ts.revision !== undefined) db.revision = ts.revision;
+  if (ts.status !== undefined) db.status = ts.status;
+  if (ts.stepFileUrl !== undefined) db.step_file_url = ts.stepFileUrl;
+  if (ts.pdfFileUrl !== undefined) db.pdf_file_url = ts.pdfFileUrl;
+  if (ts.dwgFileUrl !== undefined) db.dwg_file_url = ts.dwgFileUrl;
+  if (ts.imageUrl !== undefined) db.image_url = ts.imageUrl;
+  return db;
+};
+
+const mapDocFromDb = (db: any): DocumentEntry => ({
+  id: db.id,
+  organizationId: db.organization_id,
+  title: db.title,
+  description: db.description || undefined,
+  documentType: db.document_type as any,
+  revision: db.revision,
+  status: db.status as 'active' | 'inactive',
+  fileUrl: db.file_url || undefined,
+  fileName: db.file_name || undefined,
+  fileType: db.file_type || undefined,
+  createdAt: db.created_at,
+  updatedAt: db.updated_at
+});
+
+const mapDocToDb = (ts: Partial<DocumentEntry>) => {
+  const db: any = {};
+  if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.title !== undefined) db.title = ts.title;
+  if (ts.description !== undefined) db.description = ts.description;
+  if (ts.documentType !== undefined) db.document_type = ts.documentType;
+  if (ts.revision !== undefined) db.revision = ts.revision;
+  if (ts.status !== undefined) db.status = ts.status;
+  if (ts.fileUrl !== undefined) db.file_url = ts.fileUrl;
+  if (ts.fileName !== undefined) db.file_name = ts.fileName;
+  if (ts.fileType !== undefined) db.file_type = ts.fileType;
+  return db;
+};
+
+const mapStdFromDb = (db: any): StandardEntry => ({
+  id: db.id,
+  organizationId: db.organization_id,
+  title: db.title,
+  description: db.description || undefined,
+  revision: db.revision,
+  status: db.status as 'active' | 'inactive',
+  referenceDocument: db.reference_document || undefined,
+  fileUrl: db.file_url || undefined,
+  fileName: db.file_name || undefined,
+  fileType: db.file_type || undefined,
+  createdAt: db.created_at,
+  updatedAt: db.updated_at
+});
+
+const mapStdToDb = (ts: Partial<StandardEntry>) => {
+  const db: any = {};
+  if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.title !== undefined) db.title = ts.title;
+  if (ts.description !== undefined) db.description = ts.description;
+  if (ts.revision !== undefined) db.revision = ts.revision;
+  if (ts.status !== undefined) db.status = ts.status;
+  if (ts.referenceDocument !== undefined) db.reference_document = ts.referenceDocument;
+  if (ts.fileUrl !== undefined) db.file_url = ts.fileUrl;
+  if (ts.fileName !== undefined) db.file_name = ts.fileName;
+  if (ts.fileType !== undefined) db.file_type = ts.fileType;
+  return db;
+};
+
+const mapChecklistItemFromDb = (db: any): ChecklistItem => ({
+  id: db.id,
+  checklistId: db.checklist_id,
+  category: db.category as any,
+  description: db.description,
+  required: db.required,
+  reference: db.reference || undefined,
+  sortOrder: db.sort_order,
+  createdAt: db.created_at
+});
+
+const mapChecklistFromDb = (db: any, items: any[] = []): ChecklistEntry => ({
+  id: db.id,
+  organizationId: db.organization_id,
+  name: db.name,
+  revision: db.revision,
+  status: db.status as 'active' | 'inactive',
+  createdAt: db.created_at,
+  updatedAt: db.updated_at,
+  items: items.map(mapChecklistItemFromDb),
+  fileUrl: db.file_url || undefined,
+  fileName: db.file_name || undefined,
+  fileType: db.file_type || undefined
+});
+
+const mapChecklistToDb = (ts: Partial<ChecklistEntry>) => {
+  const db: any = {};
+  if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.name !== undefined) db.name = ts.name;
+  if (ts.revision !== undefined) db.revision = ts.revision;
+  if (ts.status !== undefined) db.status = ts.status;
+  if (ts.fileUrl !== undefined) db.file_url = ts.fileUrl;
+  if (ts.fileName !== undefined) db.file_name = ts.fileName;
+  if (ts.fileType !== undefined) db.file_type = ts.fileType;
+  return db;
+};
+
+const mapProjFromDb = (db: any): ReferenceProjectEntry => ({
+  id: db.id,
+  organizationId: db.organization_id,
+  name: db.name,
+  description: db.description || undefined,
+  application: db.application || undefined,
+  imageUrl: db.image_url || undefined,
+  attachmentUrl: db.attachment_url || undefined,
+  attachmentName: db.attachment_name || undefined,
+  attachmentType: db.attachment_type || undefined,
+  status: db.status as 'active' | 'inactive',
+  createdAt: db.created_at,
+  updatedAt: db.updated_at
+});
+
+const mapProjToDb = (ts: Partial<ReferenceProjectEntry>) => {
+  const db: any = {};
+  if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.name !== undefined) db.name = ts.name;
+  if (ts.description !== undefined) db.description = ts.description;
+  if (ts.application !== undefined) db.application = ts.application;
+  if (ts.imageUrl !== undefined) db.image_url = ts.imageUrl;
+  if (ts.attachmentUrl !== undefined) db.attachment_url = ts.attachmentUrl;
+  if (ts.attachmentName !== undefined) db.attachment_name = ts.attachmentName;
+  if (ts.attachmentType !== undefined) db.attachment_type = ts.attachmentType;
+  if (ts.status !== undefined) db.status = ts.status;
+  return db;
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load State from LocalStorage or Seed
+  // Load State from LocalStorage or Seed as fallback
   const [organizations, setOrganizations] = useState<Organization[]>(() => {
     const saved = localStorage.getItem('pp_organizations_v2');
     return saved ? JSON.parse(saved) : INITIAL_ORGANIZATIONS;
@@ -390,6 +578,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [viewingAsUser, setViewingAsUser] = useState<boolean>(() => {
     return localStorage.getItem('pp_viewing_as_user') === 'true';
   });
+
+  // Fetch initial data from Supabase DB on load
+  useEffect(() => {
+    const fetchFromSupabase = async () => {
+      if (!supabase) return;
+      try {
+        console.log('[Supabase Sync] Fetching initial data from database...');
+        
+        // Fetch Organizations
+        const { data: orgsData, error: orgsErr } = await supabase
+          .from('organizations')
+          .select('*')
+          .order('name', { ascending: true });
+        if (orgsErr) throw orgsErr;
+        setOrganizations((orgsData || []).map(mapOrgFromDb));
+
+        // Fetch Modules
+        const { data: modsData, error: modsErr } = await supabase
+          .from('organization_modules')
+          .select('*');
+        if (modsErr) throw modsErr;
+        setOrganizationModules((modsData || []).map(mapModFromDb));
+
+        // Fetch Components
+        const { data: compsData, error: compsErr } = await supabase
+          .from('components')
+          .select('*')
+          .order('name', { ascending: true });
+        if (compsErr) throw compsErr;
+        setComponents((compsData || []).map(mapCompFromDb));
+
+        // Fetch Documents
+        const { data: docsData, error: docsErr } = await supabase
+          .from('documents')
+          .select('*')
+          .order('title', { ascending: true });
+        if (docsErr) throw docsErr;
+        setDocuments((docsData || []).map(mapDocFromDb));
+
+        // Fetch Standards
+        const { data: stdsData, error: stdsErr } = await supabase
+          .from('standards')
+          .select('*')
+          .order('title', { ascending: true });
+        if (stdsErr) throw stdsErr;
+        setStandards((stdsData || []).map(mapStdFromDb));
+
+        // Fetch Projects
+        const { data: projsData, error: projsErr } = await supabase
+          .from('reference_projects')
+          .select('*')
+          .order('name', { ascending: true });
+        if (projsErr) throw projsErr;
+        setReferenceProjects((projsData || []).map(mapProjFromDb));
+
+        // Fetch Checklists with Items
+        const { data: chksData, error: chksErr } = await supabase
+          .from('checklists')
+          .select('*, items:checklist_items(*)');
+        if (chksErr) throw chksErr;
+        
+        const tsChecklists = (chksData || []).map((chk: any) => {
+          return mapChecklistFromDb(chk, chk.items || []);
+        });
+        setChecklists(tsChecklists);
+
+        console.log('[Supabase Sync] Fetched successfully from Supabase!');
+      } catch (err) {
+        console.error('[Supabase Sync] Error during loading:', err);
+      }
+    };
+    fetchFromSupabase();
+  }, []);
 
   // Sync to localStorage
   useEffect(() => {
@@ -449,7 +710,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Organization Actions
   const addOrganization = (org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>, modules: Record<ModuleType, boolean>) => {
-    const newOrgId = `org-${Math.random().toString(36).substring(2, 9)}`;
+    const newOrgId = crypto.randomUUID();
     const newOrg: Organization = {
       ...org,
       id: newOrgId,
@@ -457,7 +718,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: new Date().toISOString()
     };
     
-    // Create module associations
     const newModules: OrganizationModule[] = MODULE_TYPES.map(mod => ({
       id: `mod-${newOrgId}-${mod}`,
       organizationId: newOrgId,
@@ -468,24 +728,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setOrganizations(prev => [newOrg, ...prev]);
     setOrganizationModules(prev => [...prev, ...newModules]);
+
+    if (supabase) {
+      supabase
+        .from('organizations')
+        .insert({
+          id: newOrgId,
+          name: org.name,
+          slug: org.slug,
+          organization_type: org.organizationType,
+          logo_url: org.logoUrl || null,
+          description: org.description || null,
+          status: org.status
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error adding organization to Supabase:', error);
+            return;
+          }
+          const dbModules = newModules.map(m => ({
+            id: m.id,
+            organization_id: newOrgId,
+            module_type: m.moduleType,
+            enabled: m.enabled
+          }));
+          supabase
+            .from('organization_modules')
+            .insert(dbModules)
+            .then(({ error: modErr }) => {
+              if (modErr) console.error('Error adding organization modules to Supabase:', modErr);
+            });
+        });
+    }
   };
 
   const updateOrganization = (id: string, updatedFields: Partial<Organization>, modules?: Record<ModuleType, boolean>) => {
     setOrganizations(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields, updatedAt: new Date().toISOString() } : item));
     
+    let updatedModules: OrganizationModule[] = [];
     if (modules) {
+      updatedModules = MODULE_TYPES.map(mod => ({
+        id: `mod-${id}-${mod}`,
+        organizationId: id,
+        moduleType: mod,
+        enabled: !!modules[mod],
+        createdAt: new Date().toISOString()
+      }));
       setOrganizationModules(prev => {
-        // Remove old modules for this organization
         const filtered = prev.filter(m => m.organizationId !== id);
-        // Add updated modules
-        const updatedModules: OrganizationModule[] = MODULE_TYPES.map(mod => ({
-          id: `mod-${id}-${mod}`,
-          organizationId: id,
-          moduleType: mod,
-          enabled: !!modules[mod],
-          createdAt: new Date().toISOString()
-        }));
         return [...filtered, ...updatedModules];
+      });
+    }
+
+    if (supabase) {
+      const dbFields = mapOrgToDb(updatedFields);
+      const updatePromise = Object.keys(dbFields).length > 0
+        ? supabase.from('organizations').update(dbFields).eq('id', id)
+        : Promise.resolve({ error: null });
+
+      updatePromise.then(({ error }) => {
+        if (error) {
+          console.error('Error updating organization in Supabase:', error);
+          return;
+        }
+
+        if (modules) {
+          supabase
+            .from('organization_modules')
+            .delete()
+            .eq('organization_id', id)
+            .then(({ error: delErr }) => {
+              if (delErr) {
+                console.error('Error deleting organization modules in Supabase:', delErr);
+                return;
+              }
+              const dbModules = updatedModules.map(m => ({
+                id: m.id,
+                organization_id: id,
+                module_type: m.moduleType,
+                enabled: m.enabled
+              }));
+              supabase
+                .from('organization_modules')
+                .insert(dbModules)
+                .then(({ error: insErr }) => {
+                  if (insErr) console.error('Error inserting organization modules in Supabase:', insErr);
+                });
+            });
+        }
       });
     }
   };
@@ -498,6 +828,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStandards(prev => prev.filter(item => item.organizationId !== id));
     setChecklists(prev => prev.filter(item => item.organizationId !== id));
     setReferenceProjects(prev => prev.filter(item => item.organizationId !== id));
+
+    if (supabase) {
+      supabase
+        .from('organizations')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error deleting organization in Supabase:', error);
+        });
+    }
   };
 
   // Compatibility aliases for OEM
@@ -532,59 +872,186 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Component Actions
   const addComponent = (comp: Omit<ComponentEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newCompId = crypto.randomUUID();
     const newComp: ComponentEntry = {
       ...comp,
-      id: `comp-${Math.random().toString(36).substring(2, 9)}`,
+      id: newCompId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     setComponents(prev => [newComp, ...prev]);
+
+    if (supabase) {
+      supabase
+        .from('components')
+        .insert({
+          id: newCompId,
+          organization_id: comp.organizationId,
+          name: comp.name,
+          description: comp.description || null,
+          application: comp.application || null,
+          revision: comp.revision,
+          status: comp.status,
+          step_file_url: comp.stepFileUrl || null,
+          pdf_file_url: comp.pdfFileUrl || null,
+          dwg_file_url: comp.dwgFileUrl || null,
+          image_url: comp.imageUrl || null
+        })
+        .then(({ error }) => {
+          if (error) console.error('Error adding component to Supabase:', error);
+        });
+    }
   };
 
   const updateComponent = (id: string, updatedFields: Partial<ComponentEntry>) => {
     setComponents(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields, updatedAt: new Date().toISOString() } : item));
+
+    if (supabase) {
+      const dbFields = mapCompToDb(updatedFields);
+      supabase
+        .from('components')
+        .update(dbFields)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error updating component in Supabase:', error);
+        });
+    }
   };
 
   const deleteComponent = (id: string) => {
     setComponents(prev => prev.filter(item => item.id !== id));
+
+    if (supabase) {
+      supabase
+        .from('components')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error deleting component in Supabase:', error);
+        });
+    }
   };
 
   // Document Actions
   const addDocument = (doc: Omit<DocumentEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newDocId = crypto.randomUUID();
     const newDoc: DocumentEntry = {
       ...doc,
-      id: `doc-${Math.random().toString(36).substring(2, 9)}`,
+      id: newDocId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     setDocuments(prev => [newDoc, ...prev]);
+
+    if (supabase) {
+      supabase
+        .from('documents')
+        .insert({
+          id: newDocId,
+          organization_id: doc.organizationId,
+          title: doc.title,
+          description: doc.description || null,
+          document_type: doc.documentType,
+          revision: doc.revision,
+          status: doc.status,
+          file_url: doc.fileUrl || null,
+          file_name: doc.fileName || null,
+          file_type: doc.fileType || null
+        })
+        .then(({ error }) => {
+          if (error) console.error('Error adding document to Supabase:', error);
+        });
+    }
   };
 
   const updateDocument = (id: string, updatedFields: Partial<DocumentEntry>) => {
     setDocuments(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields, updatedAt: new Date().toISOString() } : item));
+
+    if (supabase) {
+      const dbFields = mapDocToDb(updatedFields);
+      supabase
+        .from('documents')
+        .update(dbFields)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error updating document in Supabase:', error);
+        });
+    }
   };
 
   const deleteDocument = (id: string) => {
     setDocuments(prev => prev.filter(item => item.id !== id));
+
+    if (supabase) {
+      supabase
+        .from('documents')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error deleting document in Supabase:', error);
+        });
+    }
   };
 
   // Standard Actions
   const addStandard = (std: Omit<StandardEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newStdId = crypto.randomUUID();
     const newStd: StandardEntry = {
       ...std,
-      id: `std-${Math.random().toString(36).substring(2, 9)}`,
+      id: newStdId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     setStandards(prev => [newStd, ...prev]);
+
+    if (supabase) {
+      supabase
+        .from('standards')
+        .insert({
+          id: newStdId,
+          organization_id: std.organizationId,
+          title: std.title,
+          description: std.description || null,
+          revision: std.revision,
+          status: std.status,
+          reference_document: std.referenceDocument || null,
+          file_url: std.fileUrl || null,
+          file_name: std.fileName || null,
+          file_type: std.fileType || null
+        })
+        .then(({ error }) => {
+          if (error) console.error('Error adding standard to Supabase:', error);
+        });
+    }
   };
 
   const updateStandard = (id: string, updatedFields: Partial<StandardEntry>) => {
     setStandards(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields, updatedAt: new Date().toISOString() } : item));
+
+    if (supabase) {
+      const dbFields = mapStdToDb(updatedFields);
+      supabase
+        .from('standards')
+        .update(dbFields)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error updating standard in Supabase:', error);
+        });
+    }
   };
 
   const deleteStandard = (id: string) => {
     setStandards(prev => prev.filter(item => item.id !== id));
+
+    if (supabase) {
+      supabase
+        .from('standards')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error deleting standard in Supabase:', error);
+        });
+    }
   };
 
   // Checklist Actions
@@ -592,10 +1059,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     checklist: Omit<ChecklistEntry, 'id' | 'createdAt' | 'updatedAt' | 'items'>,
     items: Omit<ChecklistItem, 'id' | 'checklistId' | 'createdAt'>[]
   ) => {
-    const newChecklistId = `chk-${Math.random().toString(36).substring(2, 9)}`;
+    const newChecklistId = crypto.randomUUID();
     const mappedItems: ChecklistItem[] = items.map((item, idx) => ({
       ...item,
-      id: `item-${Math.random().toString(36).substring(2, 9)}-${idx}`,
+      id: crypto.randomUUID(),
       checklistId: newChecklistId,
       createdAt: new Date().toISOString()
     }));
@@ -608,6 +1075,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       items: mappedItems,
     };
     setChecklists(prev => [newChecklist, ...prev]);
+
+    if (supabase) {
+      supabase
+        .from('checklists')
+        .insert({
+          id: newChecklistId,
+          organization_id: checklist.organizationId,
+          name: checklist.name,
+          revision: checklist.revision,
+          status: checklist.status,
+          file_url: checklist.fileUrl || null,
+          file_name: checklist.fileName || null,
+          file_type: checklist.fileType || null
+        })
+        .then(({ error: chkErr }) => {
+          if (chkErr) {
+            console.error('Error adding checklist to Supabase:', chkErr);
+            return;
+          }
+          const dbItems = mappedItems.map(itm => ({
+            id: itm.id,
+            checklist_id: itm.checklistId,
+            category: itm.category,
+            description: itm.description,
+            required: itm.required,
+            reference: itm.reference || null,
+            sort_order: itm.sortOrder
+          }));
+          supabase
+            .from('checklist_items')
+            .insert(dbItems)
+            .then(({ error: itemsErr }) => {
+              if (itemsErr) console.error('Error adding checklist items to Supabase:', itemsErr);
+            });
+        });
+    }
   };
 
   const updateChecklist = (
@@ -615,47 +1118,144 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     checklistFields: Partial<Omit<ChecklistEntry, 'items'>>,
     itemsList?: Omit<ChecklistItem, 'checklistId' | 'createdAt'>[]
   ) => {
+    let finalItems: ChecklistItem[] = [];
     setChecklists(prev => prev.map(item => {
       if (item.id === id) {
         const updatedChecklist = { ...item, ...checklistFields, updatedAt: new Date().toISOString() };
         if (itemsList) {
-          updatedChecklist.items = itemsList.map((itm, idx) => ({
+          finalItems = itemsList.map((itm, idx) => ({
             ...itm,
-            id: itm.id || `item-${Math.random().toString(36).substring(2, 9)}-${idx}`,
+            id: itm.id || crypto.randomUUID(),
             checklistId: id,
             createdAt: (itm as any).createdAt || new Date().toISOString()
           }));
+          updatedChecklist.items = finalItems;
         }
         return updatedChecklist;
       }
       return item;
     }));
+
+    if (supabase) {
+      const dbFields = mapChecklistToDb(checklistFields);
+      
+      const updatePromise = Object.keys(dbFields).length > 0
+        ? supabase.from('checklists').update(dbFields).eq('id', id)
+        : Promise.resolve({ error: null });
+
+      updatePromise.then(({ error }) => {
+        if (error) {
+          console.error('Error updating checklist in Supabase:', error);
+          return;
+        }
+
+        if (itemsList) {
+          supabase
+            .from('checklist_items')
+            .delete()
+            .eq('checklist_id', id)
+            .then(({ error: delErr }) => {
+              if (delErr) {
+                console.error('Error removing old checklist items in Supabase:', delErr);
+                return;
+              }
+              const dbItems = finalItems.map((itm, idx) => ({
+                id: itm.id,
+                checklist_id: id,
+                category: itm.category,
+                description: itm.description,
+                required: itm.required,
+                reference: itm.reference || null,
+                sort_order: itm.sortOrder || (idx + 1)
+              }));
+              supabase
+                .from('checklist_items')
+                .insert(dbItems)
+                .then(({ error: insErr }) => {
+                  if (insErr) console.error('Error inserting new checklist items in Supabase:', insErr);
+                });
+            });
+        }
+      });
+    }
   };
 
   const deleteChecklist = (id: string) => {
     setChecklists(prev => prev.filter(item => item.id !== id));
+
+    if (supabase) {
+      supabase
+        .from('checklists')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error deleting checklist in Supabase:', error);
+        });
+    }
   };
 
   // Reference Project Actions
   const addReferenceProject = (proj: Omit<ReferenceProjectEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newProjId = crypto.randomUUID();
     const newProj: ReferenceProjectEntry = {
       ...proj,
-      id: `proj-${Math.random().toString(36).substring(2, 9)}`,
+      id: newProjId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     setReferenceProjects(prev => [newProj, ...prev]);
+
+    if (supabase) {
+      supabase
+        .from('reference_projects')
+        .insert({
+          id: newProjId,
+          organization_id: proj.organizationId,
+          name: proj.name,
+          description: proj.description || null,
+          application: proj.application || null,
+          image_url: proj.imageUrl || null,
+          attachment_url: proj.attachmentUrl || null,
+          attachment_name: proj.attachmentName || null,
+          attachment_type: proj.attachmentType || null,
+          status: proj.status
+        })
+        .then(({ error }) => {
+          if (error) console.error('Error adding reference project to Supabase:', error);
+        });
+    }
   };
 
   const updateReferenceProject = (id: string, updatedFields: Partial<ReferenceProjectEntry>) => {
     setReferenceProjects(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields, updatedAt: new Date().toISOString() } : item));
+
+    if (supabase) {
+      const dbFields = mapProjToDb(updatedFields);
+      supabase
+        .from('reference_projects')
+        .update(dbFields)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error updating reference project in Supabase:', error);
+        });
+    }
   };
 
   const deleteReferenceProject = (id: string) => {
     setReferenceProjects(prev => prev.filter(item => item.id !== id));
+
+    if (supabase) {
+      supabase
+        .from('reference_projects')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error deleting reference project in Supabase:', error);
+        });
+    }
   };
 
-  // Raw Files actions
+  // Raw Files actions (Local state only)
   const addFile = (file: Omit<FileEntry, 'id' | 'createdAt'>) => {
     const newFile: FileEntry = {
       ...file,
