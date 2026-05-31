@@ -223,32 +223,32 @@ export default function Downloads() {
   };
 
   // Helper to render static vector logos or abbreviations
-  const renderOEMLogo = (name: string, logoUrl?: string) => {
+  const renderOEMLogo = (name: string, logoUrl?: string, large?: boolean) => {
     if (logoUrl) {
-      return <img src={logoUrl} alt={name} className="h-16 w-32 object-contain" />;
+      return <img src={logoUrl} alt={name} className={large ? "h-28 w-56 object-contain" : "h-16 w-32 object-contain"} />;
     }
 
     const n = name.toLowerCase();
     if (n.includes('volkswagen') || n === 'vw') {
-      return <div className="text-3xl font-bold font-serif text-blue-900 border-4 border-blue-900 rounded-full w-16 h-16 flex items-center justify-center bg-blue-50/50">W</div>;
+      return <div className={cn("font-bold font-serif text-blue-900 border-4 border-blue-900 rounded-full flex items-center justify-center bg-blue-50/50", large ? "text-5xl w-24 h-24 border-[5px]" : "text-3xl w-16 h-16")}>W</div>;
     }
     if (n.includes('hyundai')) {
-      return <div className="text-3xl font-bold font-serif italic text-blue-800 font-black">H</div>;
+      return <div className={cn("font-serif italic text-blue-800 font-black", large ? "text-6xl" : "text-3xl")}>H</div>;
     }
     if (n.includes('nissan')) {
-      return <div className="text-[14px] font-bold border-2 border-gray-800 rounded-full px-3 py-1 bg-slate-50 tracking-wider">NISSAN</div>;
+      return <div className={cn("font-bold border-2 border-gray-800 rounded-full bg-slate-50 tracking-wider text-center", large ? "text-2xl px-6 py-2 border-[3px]" : "text-[14px] px-3 py-1")}>NISSAN</div>;
     }
     if (n.includes('renault')) {
-      return <div className="w-8 h-12 border-4 border-yellow-500 transform rotate-45 bg-yellow-50/20 shrink-0"></div>;
+      return <div className={cn("border-4 border-yellow-500 transform rotate-45 bg-yellow-50/20 shrink-0", large ? "w-12 h-18 border-[5px]" : "w-8 h-12")}></div>;
     }
     if (n.includes('scania')) {
-      return <div className="text-lg font-black text-red-600 tracking-wide border-b-2 border-red-600">SCANIA</div>;
+      return <div className={cn("font-black text-red-600 tracking-wide border-b-2 border-red-600", large ? "text-3xl border-b-[3px]" : "text-lg")}>SCANIA</div>;
     }
     if (n.includes('gestamp')) {
-      return <div className="text-lg font-bold text-blue-700 tracking-tighter uppercase">Gestamp</div>;
+      return <div className={cn("font-bold text-blue-700 tracking-tighter uppercase", large ? "text-3xl" : "text-lg")}>Gestamp</div>;
     }
 
-    return <div className="text-2xl font-black text-slate-700 uppercase bg-slate-100 rounded px-4 py-2">{name.substring(0, 2)}</div>;
+    return <div className={cn("font-black text-slate-700 uppercase bg-slate-100 rounded", large ? "text-4xl px-6 py-3" : "text-2xl px-4 py-2")}>{name.substring(0, 2)}</div>;
   };
 
   // Global search compiler
@@ -506,23 +506,19 @@ export default function Downloads() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeOems.map((org) => {
-                const typeLabel = ORG_TYPE_LABELS[org.organizationType] || org.organizationType;
                 return (
                   <button
                     key={org.id}
                     onClick={() => handleOrgClick(org.id)}
-                    className="bg-white border border-slate-200 hover:border-teal-400 rounded-2xl p-8 flex flex-col items-center justify-between text-center transition-all duration-200 hover:scale-[1.02] hover:shadow-lg shadow-sm cursor-pointer group h-56"
+                    className="bg-white border border-slate-200 hover:border-teal-400 rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all duration-200 hover:scale-[1.02] hover:shadow-lg shadow-sm cursor-pointer group min-h-[260px] gap-6"
                   >
-                    <div className="h-20 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity">
-                      {renderOEMLogo(org.name, org.logoUrl)}
+                    <div className="h-32 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity">
+                      {renderOEMLogo(org.name, org.logoUrl, true)}
                     </div>
-                    <div className="space-y-1 mt-4">
-                      <h3 className="font-extrabold text-[16px] text-slate-900 group-hover:text-teal-600 transition-colors">
+                    <div>
+                      <h3 className="font-bold text-[13px] text-slate-700 group-hover:text-teal-600 transition-colors">
                         {org.name}
                       </h3>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                        {typeLabel}
-                      </span>
                     </div>
                   </button>
                 );

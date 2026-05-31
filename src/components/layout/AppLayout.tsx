@@ -73,12 +73,12 @@ export function AppLayout() {
         <Link to="/" className="flex items-center gap-3 shrink-0" onClick={() => setSearchQuery('')}>
           <img src={logoImage} alt="Perspecpack Logo" className="h-10 w-auto object-contain" />
           <div className="flex flex-col text-left">
-            <div className="font-sans font-black text-[20px] tracking-wider leading-none">
+            <div className="font-sans font-bold text-[20px] tracking-wider leading-none select-none">
               <span className="text-[#c0c0c0]">PERSPEC</span>
-              <span className="text-[#00F59B]">PACK</span>
+              <span className="text-[#00ff00]">PACK</span>
             </div>
             <span className="text-[10px] text-slate-400 font-medium tracking-tight mt-0.5">
-              Biblioteca de Padrões para Embalagens Industriais
+              Plataforma de Conformidade para Embalagens Industriais
             </span>
           </div>
         </Link>
