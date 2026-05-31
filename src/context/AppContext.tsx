@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   Organization,
@@ -1713,7 +1713,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setFiles(prev => prev.filter(item => item.id !== id));
   };
 
-  const logDownload = async (orgId: string, contentType: string, contentId: string, fileName: string) => {
+  const logDownload = useCallback(async (orgId: string, contentType: string, contentId: string, fileName: string) => {
     const userEmail = user?.email || 'anonimo@perspecpack.com';
     const newLog: DownloadLog = {
       id: crypto.randomUUID(),
@@ -1739,9 +1739,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (error) console.error('Error logging download to Supabase:', error);
     }
-  };
+  }, [user]);
 
-  const logUpload = async (orgId: string, contentType: string, fileName: string) => {
+  const logUpload = useCallback(async (orgId: string, contentType: string, fileName: string) => {
     const userEmail = user?.email || 'anonimo@perspecpack.com';
     const newLog: UploadLog = {
       id: crypto.randomUUID(),
@@ -1765,9 +1765,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (error) console.error('Error logging upload to Supabase:', error);
     }
-  };
+  }, [user]);
 
-  const logPageAccess = async (page: string) => {
+  const logPageAccess = useCallback(async (page: string) => {
     const userEmail = user?.email || 'anonimo@perspecpack.com';
     const newLog: PageAccessLog = {
       id: crypto.randomUUID(),
@@ -1787,7 +1787,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (error) console.error('Error logging page access to Supabase:', error);
     }
-  };
+  }, [user]);
 
   // Compatibility fields mapping
   const activeOems = organizations.filter(o => o.status === 'active');
