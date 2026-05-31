@@ -73,9 +73,9 @@ export function AppLayout() {
         <Link to="/" className="flex items-center gap-3 shrink-0" onClick={() => setSearchQuery('')}>
           <img src={logoImage} alt="Perspecpack Logo" className="h-10 w-auto object-contain" />
           <div className="flex flex-col text-left">
-            <div className="font-sans font-bold text-[20px] tracking-wider leading-none select-none">
-              <span className="text-[#c0c0c0]">PERSPEC</span>
-              <span className="text-[#00ff00]">PACK</span>
+            <div className="font-sans text-[20px] tracking-wider leading-none select-none">
+              <span className="font-bold text-[#c0c0c0]">PERSPEC</span>
+              <span className="font-normal text-[#00ff00]">PACK</span>
             </div>
             <span className="text-[10px] text-slate-400 font-medium tracking-tight mt-0.5">
               Plataforma de Conformidade para Embalagens Industriais
@@ -108,11 +108,8 @@ export function AppLayout() {
                 {userInitials}
               </div>
               <div className="flex flex-col text-left hidden sm:block">
-                <span className="text-[12px] font-bold text-slate-200 leading-tight">
+                <span className="text-[13px] font-bold text-slate-200 leading-none">
                   {user?.role === 'master' ? 'Master Admin' : 'Fornecedor'}
-                </span>
-                <span className="text-[9px] text-slate-400 leading-none">
-                  {user?.email || 'fornecedor@perspecpack.com'}
                 </span>
               </div>
               <ChevronDown className="w-4 h-4 text-slate-400" />
