@@ -90,7 +90,7 @@ export default function Login() {
     try {
       await loginWithEmail(email, password);
       
-      const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+      const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
       const isMaster = masterEmail && email.toLowerCase() === masterEmail;
       
       if (isMaster) {

@@ -273,7 +273,7 @@ export default function Users() {
 
   const filteredUsers = users.filter(u => {
     // Exclude master admin from users list
-    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
     if (masterEmail && u.corporate_email?.toLowerCase() === masterEmail) {
       return false;
     }

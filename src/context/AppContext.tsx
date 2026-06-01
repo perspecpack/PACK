@@ -1132,7 +1132,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const handleAuthUser = async (authUser: any) => {
     const email = authUser.email || '';
-    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
     const isMaster = masterEmail && email.toLowerCase() === masterEmail;
     const role = isMaster ? 'master' : 'user';
     
@@ -1208,7 +1208,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setUser(parsed);
           
           if (parsed.role === 'master') {
-            const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+            const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
             const masterPassword = cleanEnvVar(import.meta.env.MASTER_PASSWORD || import.meta.env.VITE_MASTER_PASSWORD);
             if (masterEmail && masterPassword) {
               supabase.auth.signInWithPassword({
@@ -1239,7 +1239,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (parsed.role === 'master') {
             setUser(parsed);
             
-            const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+            const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
             const masterPassword = cleanEnvVar(import.meta.env.MASTER_PASSWORD || import.meta.env.VITE_MASTER_PASSWORD);
             if (masterEmail && masterPassword) {
               supabase.auth.signInWithPassword({
@@ -1263,7 +1263,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const login = async (email: string, role: 'master' | 'user') => {
-    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
     const masterPassword = cleanEnvVar(import.meta.env.MASTER_PASSWORD || import.meta.env.VITE_MASTER_PASSWORD);
 
     if (role === 'master' && masterEmail && masterPassword) {
@@ -1336,7 +1336,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loginWithEmail = async (emailInput: string, passwordInput: string) => {
-    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
     const masterPassword = cleanEnvVar(import.meta.env.MASTER_PASSWORD || import.meta.env.VITE_MASTER_PASSWORD);
 
     if (masterEmail && masterPassword && 

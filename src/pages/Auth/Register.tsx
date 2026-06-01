@@ -28,7 +28,7 @@ export default function Register() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
     if (masterEmail && email.trim().toLowerCase() === masterEmail) {
       setErrorMsg('Este e-mail está reservado e não pode ser utilizado para cadastro público.');
       return;
