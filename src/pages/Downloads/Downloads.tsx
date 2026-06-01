@@ -1135,13 +1135,8 @@ export default function Downloads() {
                           {std.fileUrl && (
                             <a 
                               href={std.fileUrl}
-                              onClick={(e) => {
-                                if (!(user?.role === 'master' || profile?.planType === 'premium')) {
-                                  e.preventDefault();
-                                  setShowUpgradeModal(true);
-                                } else {
-                                  logDownload(std.organizationId, 'Normas e Padrões', std.id, std.fileName || 'norma.pdf');
-                                }
+                              onClick={() => {
+                                logDownload(std.organizationId, 'Normas e Padrões', std.id, std.fileName || 'norma.pdf');
                               }}
                               className="bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] px-2 py-1.5 rounded font-bold shrink-0 border border-teal-100"
                             >
@@ -2282,18 +2277,13 @@ export default function Downloads() {
                     {selectedItemForModal.data.fileUrl ? (
                       <a 
                         href={selectedItemForModal.data.fileUrl}
-                        onClick={(e) => {
-                          if (selectedItemForModal.type === 'standard' && !(user?.role === 'master' || profile?.planType === 'premium')) {
-                            e.preventDefault();
-                            setShowUpgradeModal(true);
-                          } else {
-                            logDownload(
-                              selectedItemForModal.data.organizationId, 
-                              selectedItemForModal.type === 'document' ? 'Documentação Técnica' : 'Normas e Padrões', 
-                              selectedItemForModal.data.id, 
-                              selectedItemForModal.data.fileName || 'file.pdf'
-                            );
-                          }
+                        onClick={() => {
+                          logDownload(
+                            selectedItemForModal.data.organizationId, 
+                            selectedItemForModal.type === 'document' ? 'Documentação Técnica' : 'Normas e Padrões', 
+                            selectedItemForModal.data.id, 
+                            selectedItemForModal.data.fileName || 'file.pdf'
+                          );
                         }}
                         target="_blank" 
                         rel="noreferrer"
