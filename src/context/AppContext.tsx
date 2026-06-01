@@ -1130,7 +1130,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const handleAuthUser = async (authUser: any) => {
     const email = authUser.email || '';
-    const masterEmail = import.meta.env.MASTER_EMAIL;
+    const masterEmail = import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL;
     const isMaster = masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
     const role = isMaster ? 'master' : 'user';
     
@@ -1231,7 +1231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const login = async (email: string, role: 'master' | 'user') => {
-    const masterEmail = import.meta.env.MASTER_EMAIL;
+    const masterEmail = import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL;
     if (role === 'master' && masterEmail) {
       const masterSession = {
         id: '00000000-0000-0000-0000-000000000000',
@@ -1277,8 +1277,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loginWithEmail = async (emailInput: string, passwordInput: string) => {
-    const masterEmail = import.meta.env.MASTER_EMAIL;
-    const masterPassword = import.meta.env.MASTER_PASSWORD;
+    const masterEmail = import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL;
+    const masterPassword = import.meta.env.MASTER_PASSWORD || import.meta.env.VITE_MASTER_PASSWORD;
 
     if (masterEmail && masterPassword && 
         emailInput.trim().toLowerCase() === masterEmail.trim().toLowerCase() && 

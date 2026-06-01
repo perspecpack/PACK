@@ -88,7 +88,7 @@ export default function Login() {
     try {
       await loginWithEmail(email, password);
       
-      const masterEmail = import.meta.env.MASTER_EMAIL;
+      const masterEmail = import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL;
       const isMaster = masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
       
       if (isMaster) {
@@ -109,7 +109,7 @@ export default function Login() {
     setLoginError(null);
     try {
       if (role === 'master') {
-        const masterEmail = import.meta.env.MASTER_EMAIL || 'master@perspecpack.com';
+        const masterEmail = import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com';
         await login(masterEmail, 'master');
         navigate('/master');
       } else {
