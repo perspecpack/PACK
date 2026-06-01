@@ -8,19 +8,27 @@ import {
   CheckCircle2, 
   MessageSquare,
   ShieldAlert,
-  Loader2
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  Clock,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useApp } from '@/src/context/AppContext';
+import { useApp, SupportRequest } from '@/src/context/AppContext';
 import { cn } from '@/lib/utils';
 
 type TabType = 'suporte' | 'termos' | 'sobre';
+type SupportSubTabType = 'novo' | 'acompanhar';
 
 export default function Help() {
-  const { user, profile, addSupportRequest, logPageAccess } = useApp();
+  const { user, profile, addSupportRequest, logPageAccess, supportRequests } = useApp();
   const [activeTab, setActiveTab] = useState<TabType>('suporte');
+  const [supportSubTab, setSupportSubTab] = useState<SupportSubTabType>('novo');
 
   // Support Form State
   const [subject, setSubject] = useState('');
@@ -29,6 +37,9 @@ export default function Help() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Expanded ticket ID state
+  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
 
   useEffect(() => {
     logPageAccess('Fornecedor - Ajuda');
@@ -63,12 +74,63 @@ export default function Help() {
       setSubject('');
       setCategory('');
       setMessage('');
+      // Automatically switch to Acompanhar Chamados after 3 seconds or keep form but show success
+      setTimeout(() => {
+        setSubmitSuccess(false);
+        setSupportSubTab('acompanhar');
+      }, 3500);
     } catch (err: any) {
       console.error('Error submitting support request:', err);
       setError('Ocorreu um erro ao enviar sua solicitação. Tente novamente.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Filter requests to show only current user's tickets
+  const myTickets = supportRequests.filter(r => r.user_id === user?.id);
+
+  const getStatusBadge = (status: SupportRequest['status']) => {
+    switch (status) {
+      case 'novo':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 border border-blue-200 text-blue-700">
+            <Clock className="w-3 h-3" />
+            <span>Pendente</span>
+          </span>
+        );
+      case 'em_analise':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-50 border border-amber-200 text-amber-700">
+            <AlertCircle className="w-3 h-3" />
+            <span>Em Análise</span>
+          </span>
+        );
+      case 'em_atendimento':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-50 border border-purple-200 text-purple-700">
+            <MessageSquare className="w-3 h-3" />
+            <span>Respondido</span>
+          </span>
+        );
+      case 'concluido':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 border border-emerald-200 text-emerald-700">
+            <CheckCircle className="w-3 h-3" />
+            <span>Concluído</span>
+          </span>
+        );
+      case 'arquivado':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 border border-slate-200 text-slate-600">
+            <span>Arquivado</span>
+          </span>
+        );
+    }
+  };
+
+  const toggleExpandTicket = (ticketId: string) => {
+    setExpandedTicketId(prev => prev === ticketId ? null : ticketId);
   };
 
   return (
@@ -134,7 +196,9 @@ export default function Help() {
           
           {/* TAB 1: SUPORTE TÉCNICO */}
           {activeTab === 'suporte' && (
-            <div className="space-y-6">
+            <div className="space-y-6 animate-in fade-in duration-150">
+              
+              {/* Header */}
               <div className="space-y-1">
                 <h3 className="text-lg font-bold text-slate-800">Suporte Técnico</h3>
                 <p className="text-slate-500 text-xs leading-normal">
@@ -142,93 +206,230 @@ export default function Help() {
                 </p>
               </div>
 
-              {submitSuccess ? (
-                <div className="bg-emerald-50/50 border border-emerald-100 p-6 rounded-2xl text-center space-y-4 py-8 animate-in fade-in duration-200">
-                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1.5 max-w-md mx-auto">
-                    <h4 className="font-extrabold text-[15px] text-slate-800">Solicitação enviada com sucesso!</h4>
-                    <p className="text-slate-600 text-xs leading-relaxed">
-                      Nossa equipe analisará sua solicitação e retornará em breve.
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={() => setSubmitSuccess(false)}
-                    variant="outline" 
-                    className="text-xs font-semibold h-9 px-4 rounded-lg"
-                  >
-                    Enviar Nova Mensagem
-                  </Button>
+              {/* Sub Tabs */}
+              <div className="flex border-b border-slate-100 pb-3 gap-6">
+                <button
+                  onClick={() => {
+                    setSupportSubTab('novo');
+                    setSubmitSuccess(false);
+                    setError(null);
+                  }}
+                  className={cn(
+                    "text-xs font-bold uppercase tracking-wider pb-1 transition-all border-b-2",
+                    supportSubTab === 'novo'
+                      ? "border-teal-650 text-teal-950"
+                      : "border-transparent text-slate-400 hover:text-slate-650"
+                  )}
+                >
+                  Novo Chamado
+                </button>
+                <button
+                  onClick={() => {
+                    setSupportSubTab('acompanhar');
+                    setSubmitSuccess(false);
+                    setError(null);
+                  }}
+                  className={cn(
+                    "text-xs font-bold uppercase tracking-wider pb-1 transition-all border-b-2 flex items-center gap-1.5",
+                    supportSubTab === 'acompanhar'
+                      ? "border-teal-650 text-teal-950"
+                      : "border-transparent text-slate-400 hover:text-slate-650"
+                  )}
+                >
+                  <span>Acompanhar Chamados</span>
+                  {myTickets.length > 0 && (
+                    <span className="bg-teal-50 text-teal-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold border border-teal-200">
+                      {myTickets.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* SUB TAB: NOVO CHAMADO */}
+              {supportSubTab === 'novo' && (
+                <div className="space-y-4">
+                  {submitSuccess ? (
+                    <div className="bg-emerald-50/50 border border-emerald-100 p-6 rounded-2xl text-center space-y-4 py-8 animate-in fade-in duration-200">
+                      <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1.5 max-w-md mx-auto">
+                        <h4 className="font-extrabold text-[15px] text-slate-800">Solicitação enviada com sucesso!</h4>
+                        <p className="text-slate-600 text-xs leading-relaxed">
+                          Nossa equipe analisará sua solicitação e retornará em breve.
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-semibold block animate-pulse">Redirecionando para acompanhamento...</span>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in duration-150">
+                      {error && (
+                        <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs font-semibold p-3.5 rounded-xl flex items-center gap-2">
+                          <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>{error}</span>
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="subject" className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">Assunto</Label>
+                        <Input 
+                          id="subject"
+                          value={subject}
+                          onChange={(e) => setSubject(e.target.value)}
+                          placeholder="Resumo da sua solicitação"
+                          className="h-10 text-xs rounded-lg border-slate-300 focus:ring-[#06242c] focus:border-[#06242c]"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="category" className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">Categoria</Label>
+                        <select
+                          id="category"
+                          value={category}
+                          onChange={(e) => setCategory(e.target.value)}
+                          className="w-full h-10 border border-slate-300 rounded-lg px-3 bg-white text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#06242c] focus:border-[#06242c] shadow-sm"
+                        >
+                          <option value="">Selecione uma categoria...</option>
+                          <option value="Dúvida Operacional">Dúvida Operacional</option>
+                          <option value="Problema Técnico">Problema Técnico</option>
+                          <option value="Sugestão de Melhoria">Sugestão de Melhoria</option>
+                          <option value="Solicitação Comercial">Solicitação Comercial</option>
+                          <option value="Solicitação de Conteúdo">Solicitação de Conteúdo</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="message" className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">Mensagem</Label>
+                        <textarea
+                          id="message"
+                          rows={5}
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          placeholder="Descreva detalhadamente sua dúvida, sugestão ou problema..."
+                          className="w-full border border-slate-300 rounded-lg p-3 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#06242c] focus:border-[#06242c] shadow-sm font-sans resize-none"
+                        />
+                      </div>
+
+                      <Button
+                        type="submit"
+                        className="w-full bg-[#06242c] hover:bg-teal-950 text-white font-bold h-10 rounded-xl flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors animate-in fade-in"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Processando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <MessageSquare className="w-4 h-4" />
+                            <span>Enviar Solicitação</span>
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  )}
                 </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {error && (
-                    <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs font-semibold p-3.5 rounded-xl flex items-center gap-2">
-                      <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span>{error}</span>
+              )}
+
+              {/* SUB TAB: ACOMPANHAR CHAMADOS */}
+              {supportSubTab === 'acompanhar' && (
+                <div className="space-y-4 animate-in fade-in duration-150">
+                  {myTickets.length === 0 ? (
+                    <div className="text-center py-12 text-slate-450 italic text-xs font-semibold bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      Você ainda não abriu nenhuma solicitação de suporte técnico.
+                    </div>
+                  ) : (
+                    <div className="space-y-3.5">
+                      {myTickets.map(t => {
+                        const isExpanded = expandedTicketId === t.id;
+                        return (
+                          <div 
+                            key={t.id} 
+                            className={cn(
+                              "border rounded-2xl overflow-hidden transition-all shadow-sm bg-white",
+                              isExpanded ? "border-teal-300 ring-1 ring-teal-300/30" : "border-slate-200 hover:border-slate-300"
+                            )}
+                          >
+                            {/* Card Header (clickable to expand) */}
+                            <div 
+                              onClick={() => toggleExpandTicket(t.id)}
+                              className="p-4 flex items-center justify-between gap-4 cursor-pointer select-none bg-slate-50/50 hover:bg-slate-50 transition-colors"
+                            >
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[10px] text-teal-650 font-bold uppercase tracking-wider bg-teal-50 border border-teal-100 px-2 py-0.5 rounded">
+                                    {t.category}
+                                  </span>
+                                  {getStatusBadge(t.status)}
+                                </div>
+                                <h4 className="text-xs font-bold text-slate-800 truncate pr-4">
+                                  {t.subject}
+                                </h4>
+                              </div>
+
+                              <div className="flex items-center gap-4 shrink-0">
+                                <div className="text-right hidden sm:block text-[10px] text-slate-400">
+                                  <div className="font-bold flex items-center gap-1 justify-end">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>{new Date(t.created_at).toLocaleDateString('pt-BR')}</span>
+                                  </div>
+                                </div>
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4 text-slate-500" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Card Body (Expanded view) */}
+                            {isExpanded && (
+                              <div className="p-4 border-t border-slate-100 bg-white space-y-4 text-xs animate-in slide-in-from-top-1 duration-150">
+                                
+                                {/* Original request */}
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center text-[10px] text-slate-400 border-b border-slate-100 pb-1">
+                                    <span className="font-bold uppercase">Minha Mensagem</span>
+                                    <span>Enviado em: {new Date(t.created_at).toLocaleString('pt-BR')}</span>
+                                  </div>
+                                  <div className="bg-slate-50 border border-slate-150 p-4 rounded-xl text-slate-700 whitespace-pre-wrap leading-relaxed">
+                                    {t.message}
+                                  </div>
+                                </div>
+
+                                {/* Support reply */}
+                                <div className="space-y-2 pt-2 border-t border-slate-100">
+                                  <div className="flex justify-between items-center text-[10px] uppercase border-b border-slate-100 pb-1">
+                                    <span className="font-bold text-teal-650">Equipe de Suporte PERSPECPACK</span>
+                                    {t.responded_at && (
+                                      <span className="text-slate-400">Respondido em: {new Date(t.responded_at).toLocaleString('pt-BR')}</span>
+                                    )}
+                                  </div>
+
+                                  {t.response ? (
+                                    <div className="bg-teal-50/20 border border-teal-100 p-4 rounded-xl text-teal-950 whitespace-pre-wrap leading-relaxed shadow-sm">
+                                      {t.response}
+                                    </div>
+                                  ) : (
+                                    <div className="bg-slate-50/50 border border-dashed border-slate-200 p-4 rounded-xl text-slate-450 italic flex items-center justify-center gap-1.5 py-6">
+                                      <Clock className="w-4 h-4 text-slate-400 animate-pulse" />
+                                      <span>Solicitação recebida. Aguardando retorno técnico.</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                              </div>
+                            )}
+
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="subject" className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">Assunto</Label>
-                    <Input 
-                      id="subject"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      placeholder="Resumo da sua solicitação"
-                      className="h-10 text-xs rounded-lg border-slate-300 focus:ring-[#06242c] focus:border-[#06242c]"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="category" className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">Categoria</Label>
-                    <select
-                      id="category"
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full h-10 border border-slate-300 rounded-lg px-3 bg-white text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#06242c] focus:border-[#06242c] shadow-sm"
-                    >
-                      <option value="">Selecione uma categoria...</option>
-                      <option value="Dúvida Operacional">Dúvida Operacional</option>
-                      <option value="Problema Técnico">Problema Técnico</option>
-                      <option value="Sugestão de Melhoria">Sugestão de Melhoria</option>
-                      <option value="Solicitação Comercial">Solicitação Comercial</option>
-                      <option value="Solicitação de Conteúdo">Solicitação de Conteúdo</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="message" className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">Mensagem</Label>
-                    <textarea
-                      id="message"
-                      rows={5}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Descreva detalhadamente sua dúvida, sugestão ou problema..."
-                      className="w-full border border-slate-300 rounded-lg p-3 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#06242c] focus:border-[#06242c] shadow-sm font-sans resize-none"
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full bg-[#06242c] hover:bg-teal-950 text-white font-bold h-10 rounded-xl flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Processando...</span>
-                      </>
-                    ) : (
-                      <>
-                        <MessageSquare className="w-4 h-4" />
-                        <span>Enviar Solicitação</span>
-                      </>
-                    )}
-                  </Button>
-                </form>
+                </div>
               )}
+
             </div>
           )}
 
