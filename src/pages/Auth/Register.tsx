@@ -9,6 +9,8 @@ import loginImage from '@/Imagem.png';
 import logoImage from '@/logo.png';
 import brandTextImg from '@/PERSPECPACK.png';
 
+const cleanEnvVar = (val?: string) => val ? val.replace(/^["']|["']$/g, '').trim() : '';
+
 export default function Register() {
   const navigate = useNavigate();
   const { signUpWithEmail } = useApp();
@@ -26,8 +28,8 @@ export default function Register() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const masterEmail = import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL;
-    if (masterEmail && email.trim().toLowerCase() === masterEmail.trim().toLowerCase()) {
+    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+    if (masterEmail && email.trim().toLowerCase() === masterEmail) {
       setErrorMsg('Este e-mail está reservado e não pode ser utilizado para cadastro público.');
       return;
     }

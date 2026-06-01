@@ -24,6 +24,8 @@ import { Label } from '@/components/ui/label';
 import { useApp } from '@/src/context/AppContext';
 import { cn } from '@/lib/utils';
 
+const cleanEnvVar = (val?: string) => val ? val.replace(/^["']|["']$/g, '').trim() : '';
+
 interface DbProfile {
   id: string;
   user_id: string;
@@ -271,8 +273,8 @@ export default function Users() {
 
   const filteredUsers = users.filter(u => {
     // Exclude master admin from users list
-    const masterEmail = import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL;
-    if (masterEmail && u.corporate_email?.toLowerCase() === masterEmail.toLowerCase()) {
+    const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+    if (masterEmail && u.corporate_email?.toLowerCase() === masterEmail) {
       return false;
     }
 

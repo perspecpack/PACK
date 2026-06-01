@@ -11,6 +11,8 @@ import loginImage from '@/Imagem.png';
 import logoImage from '@/logo.png';
 import brandTextImg from '@/PERSPECPACK.png';
 
+const cleanEnvVar = (val?: string) => val ? val.replace(/^["']|["']$/g, '').trim() : '';
+
 export default function Login() {
   const navigate = useNavigate();
   const { login, loginWithEmail } = useApp();
@@ -88,8 +90,8 @@ export default function Login() {
     try {
       await loginWithEmail(email, password);
       
-      const masterEmail = import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL;
-      const isMaster = masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
+      const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+      const isMaster = masterEmail && email.toLowerCase() === masterEmail;
       
       if (isMaster) {
         navigate('/master');
@@ -109,7 +111,7 @@ export default function Login() {
     setLoginError(null);
     try {
       if (role === 'master') {
-        const masterEmail = import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com';
+        const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
         await login(masterEmail, 'master');
         navigate('/master');
       } else {

@@ -19,6 +19,8 @@ import { useApp } from '@/src/context/AppContext';
 import logoImage from '@/logo.png';
 import brandTextImg from '@/PERSPECPACK.png';
 
+const cleanEnvVar = (val?: string) => val ? val.replace(/^["']|["']$/g, '').trim() : '';
+
 export function MasterLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -135,7 +137,7 @@ export function MasterLayout() {
               </div>
               <div className="flex flex-col text-left">
                 <span className="text-[13px] font-bold text-slate-800 leading-tight">Master Admin</span>
-                <span className="text-[10px] text-slate-500 font-medium">{user?.email || import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com'}</span>
+                <span className="text-[10px] text-slate-500 font-medium">{user?.email || cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL) || 'perspec03d@gmail.com'}</span>
               </div>
             </div>
           </div>
