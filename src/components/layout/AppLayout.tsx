@@ -51,7 +51,24 @@ export function AppLayout() {
   };
 
   const isSimulating = user?.role === 'master' || viewingAsUser;
-  const userInitials = user?.email ? user.email.substring(0, 2).toUpperCase() : 'US';
+
+  const displayName = user?.role === 'master' 
+    ? 'Master Admin' 
+    : (profile?.companyName || profile?.fullName || 'Fornecedor');
+
+  const getInitials = () => {
+    if (user?.role === 'master') return 'MA';
+    const name = profile?.companyName || profile?.fullName;
+    if (name) {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length > 1) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return name.substring(0, 2).toUpperCase();
+    }
+    return user?.email ? user.email.substring(0, 2).toUpperCase() : 'US';
+  };
+  const userInitials = getInitials();
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC]">
@@ -115,11 +132,11 @@ export function AppLayout() {
               <div className="h-8 w-8 rounded-full bg-[#00F59B]/20 text-[#00F59B] flex items-center justify-center font-bold text-xs uppercase shadow-inner border border-[#00F59B]/30">
                 {userInitials}
               </div>
-              <div className="flex flex-col text-left hidden sm:block">
-                <span className="text-[13px] font-bold text-slate-200 leading-none">
+              <div className="flex flex-col text-left hidden sm:block max-w-[180px]">
+                <span className="text-[13px] font-bold text-slate-200 leading-none truncate block">
                   {user?.role === 'master' 
                     ? 'Master Admin' 
-                    : `Fornecedor (${profile?.planType === 'premium' ? 'Premium' : 'Free'})`}
+                    : `${displayName} (${profile?.planType === 'premium' ? 'Premium' : 'Free'})`}
                 </span>
               </div>
               <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -131,7 +148,7 @@ export function AppLayout() {
                 <div className="px-4 py-2 border-b border-slate-100">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Usuário Logado</p>
                   <p className="text-sm font-bold text-slate-800 truncate mt-0.5">
-                    {user?.role === 'master' ? 'Master Admin (Simulado)' : 'Fornecedor'}
+                    {user?.role === 'master' ? 'Master Admin (Simulado)' : displayName}
                   </p>
                   <p className="text-xs text-slate-500 truncate">{user?.email || 'fornecedor@perspecpack.com'}</p>
                   {user?.role !== 'master' && profile && (
