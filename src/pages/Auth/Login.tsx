@@ -106,26 +106,6 @@ export default function Login() {
     }
   };
 
-  const handleQuickLogin = async (role: 'master' | 'user') => {
-    setIsSubmitting(true);
-    setLoginError(null);
-    try {
-      if (role === 'master') {
-        const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
-        await login(masterEmail, 'master');
-        navigate('/master');
-      } else {
-        await login('fornecedor@perspecpack.com', 'user');
-        navigate('/');
-      }
-    } catch (err: any) {
-      console.error('Quick login failed:', err);
-      setLoginError('Falha no acesso rápido: ' + err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
       <div className="flex-1 flex">
@@ -163,7 +143,7 @@ export default function Login() {
           <div className="w-full space-y-8">
             <div>
               <h2 className="text-[22px] font-extrabold text-gray-900">Entrar na plataforma</h2>
-              <p className="text-[13px] text-gray-500 mt-1">Insira suas credenciais ou utilize os atalhos rápidos abaixo.</p>
+              <p className="text-[13px] text-gray-500 mt-1">Insira suas credenciais para acessar a plataforma.</p>
             </div>
 
             {loginError && (
@@ -210,7 +190,7 @@ export default function Login() {
               </div>
 
               <div className="flex justify-end pt-1">
-                <Link to="#" className="text-[13px] font-semibold text-teal-600 hover:text-teal-700">
+                <Link to="#" className="text-[13px] font-semibold text-teal-650 hover:text-teal-700">
                   Esqueceu sua senha?
                 </Link>
               </div>
@@ -240,30 +220,6 @@ export default function Login() {
                 </Button>
               </div>
             </form>
-
-            {/* Quick Access / Shortcuts */}
-            <div className="space-y-3 pt-6 border-t border-slate-100">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block text-center">Acesso Rápido para Testes</span>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('master')}
-                  className="flex items-center justify-center gap-2 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-700 py-3 rounded-lg text-xs font-bold transition-all shadow-sm"
-                >
-                  <ShieldCheck className="w-4 h-4 shrink-0" />
-                  Perfil Master
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('user')}
-                  className="flex items-center justify-center gap-2 border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 text-blue-700 py-3 rounded-lg text-xs font-bold transition-all shadow-sm"
-                >
-                  <User className="w-4 h-4 shrink-0" />
-                  Fornecedor
-                </button>
-              </div>
-            </div>
 
             {/* Validar Relatório Box */}
             <div className="pt-6 border-t border-slate-100 space-y-3">
