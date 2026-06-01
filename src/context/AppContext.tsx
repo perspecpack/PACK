@@ -18,7 +18,8 @@ import {
   StandardType,
   DownloadLog,
   UploadLog,
-  PageAccessLog
+  PageAccessLog,
+  SupportRequest
 } from '../types';
 
 export type {
@@ -39,7 +40,8 @@ export type {
   StandardType,
   DownloadLog,
   UploadLog,
-  PageAccessLog
+  PageAccessLog,
+  SupportRequest
 };
 
 export type OEM = Organization;
@@ -94,6 +96,7 @@ interface AppContextType {
   profile: UserProfile | null;
   viewingAsUser: boolean;
   syncError: string | null;
+  supportRequests: SupportRequest[];
   
   // Auth actions
   login: (email: string, role: 'master' | 'user') => Promise<void>;
@@ -103,6 +106,8 @@ interface AppContextType {
   updateProfile: (updatedProfile: Partial<UserProfile>) => Promise<void>;
   loginWithEmail: (emailInput: string, passwordInput: string) => Promise<any>;
   signUpWithEmail: (emailInput: string, passwordInput: string) => Promise<any>;
+  addSupportRequest: (req: Omit<SupportRequest, 'id' | 'created_at' | 'updated_at' | 'status'>) => Promise<void>;
+  updateSupportRequest: (id: string, updatedFields: Partial<SupportRequest>) => Promise<void>;
 
   // Logging actions
   logDownload: (orgId: string, contentType: string, contentId: string, fileName: string) => Promise<void>;
@@ -661,6 +666,31 @@ const mapProjToDb = (ts: Partial<ReferenceProjectEntry>) => {
   return db;
 };
 
+const mapSupportRequestFromDb = (db: any): SupportRequest => ({
+  id: db.id,
+  user_id: db.user_id,
+  subject: db.subject,
+  category: db.category,
+  message: db.message,
+  status: db.status,
+  response: db.response || null,
+  responded_at: db.responded_at || null,
+  created_at: db.created_at,
+  updated_at: db.updated_at
+});
+
+const mapSupportRequestToDb = (ts: Partial<SupportRequest>) => {
+  const db: any = {};
+  if (ts.user_id !== undefined) db.user_id = ts.user_id;
+  if (ts.subject !== undefined) db.subject = ts.subject;
+  if (ts.category !== undefined) db.category = ts.category;
+  if (ts.message !== undefined) db.message = ts.message;
+  if (ts.status !== undefined) db.status = ts.status;
+  if (ts.response !== undefined) db.response = ts.response;
+  if (ts.responded_at !== undefined) db.responded_at = ts.responded_at;
+  return db;
+};
+
 const cleanEnvVar = (val?: string) => val ? val.replace(/^["']|["']$/g, '').trim() : '';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -717,6 +747,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [pageAccessLog, setPageAccessLog] = useState<PageAccessLog[]>(() => {
     const saved = localStorage.getItem('pp_page_access_log_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [supportRequests, setSupportRequests] = useState<SupportRequest[]>(() => {
+    const saved = localStorage.getItem('pp_support_requests_v1');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -1011,6 +1046,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           })));
         }
 
+        // Fetch Support Requests
+        const { data: srData, error: srErr } = await supabase
+          .from('support_requests')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!srErr && srData) {
+          setSupportRequests(srData.map(mapSupportRequestFromDb));
+        }
+
         console.log('[Supabase Sync] Fetched successfully from Supabase!');
       } catch (err: any) {
         console.error('[Supabase Sync] Error during loading:', err);
@@ -1060,6 +1104,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('pp_page_access_log_v1', JSON.stringify(pageAccessLog));
   }, [pageAccessLog]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_support_requests_v1', JSON.stringify(supportRequests));
+  }, [supportRequests]);
 
   useEffect(() => {
     localStorage.setItem('pp_files_v2', JSON.stringify(files));
@@ -2158,6 +2206,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [user]);
 
+  const addSupportRequest = async (req: Omit<SupportRequest, 'id' | 'created_at' | 'updated_at' | 'status'>) => {
+    const newReqId = crypto.randomUUID();
+    const newReq: SupportRequest = {
+      ...req,
+      id: newReqId,
+      status: 'novo',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    setSupportRequests(prev => [newReq, ...prev]);
+
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('support_requests')
+          .insert({
+            id: newReqId,
+            user_id: req.user_id,
+            subject: req.subject,
+            category: req.category,
+            message: req.message,
+            status: 'novo'
+          });
+        if (error) throw error;
+      } catch (err) {
+        console.error('Error adding support request to Supabase:', err);
+      }
+    }
+  };
+
+  const updateSupportRequest = async (id: string, updatedFields: Partial<SupportRequest>) => {
+    setSupportRequests(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields, updated_at: new Date().toISOString() } : item));
+
+    if (supabase) {
+      try {
+        const dbFields = mapSupportRequestToDb(updatedFields);
+        dbFields.updated_at = new Date().toISOString();
+        const { error } = await supabase
+          .from('support_requests')
+          .update(dbFields)
+          .eq('id', id);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Error updating support request in Supabase:', err);
+      }
+    }
+  };
+
   // Compatibility fields mapping
   const activeOems = organizations.filter(o => o.status === 'active');
   const dummyCategories = [
@@ -2234,7 +2331,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         addFile,
         updateFile,
-        deleteFile
+        deleteFile,
+        supportRequests,
+        addSupportRequest,
+        updateSupportRequest
       }}
     >
       {children}

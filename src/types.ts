@@ -221,3 +221,19 @@ export interface PageAccessLog {
   access_date: string;
 }
 
+export interface SupportRequest {
+  id: string;
+  user_id: string | null;
+  subject: string;
+  category: string;
+  message: string;
+  status: 'novo' | 'em_analise' | 'em_atendimento' | 'concluido' | 'arquivado';
+  response?: string | null;
+  responded_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  // For master UI joining
+  user_email?: string;
+  user_company_name?: string;
+}
+

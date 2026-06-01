@@ -10,6 +10,8 @@ import Downloads from './pages/Downloads/Downloads';
 import Profile from './pages/Auth/Profile';
 import MyPlan from './pages/Auth/MyPlan';
 import DownloadsHistory from './pages/Downloads/DownloadsHistory';
+import Help from './pages/Downloads/Help';
+import PolicyDocument from './pages/Downloads/PolicyDocument';
 
 // Master Pages
 import Dashboard from './pages/Master/Dashboard';
@@ -20,6 +22,7 @@ import Content from './pages/Master/Content';
 import OrganizationDetail from './pages/Master/OrganizationDetail';
 import ModuleContentManager from './pages/Master/ModuleContentManager';
 import Users from './pages/Master/Users';
+import SupportRequests from './pages/Master/SupportRequests';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -103,6 +106,11 @@ function AppRoutes() {
           <Route path="/perfil" element={<Profile />} />
           <Route path="/meu-plano" element={<MyPlan />} />
           <Route path="/historico-downloads" element={<DownloadsHistory />} />
+          <Route path="/ajuda" element={<Help />} />
+          <Route path="/ajuda/termos-de-uso" element={<PolicyDocument docType="termos" />} />
+          <Route path="/ajuda/politica-de-privacidade" element={<PolicyDocument docType="privacidade" />} />
+          <Route path="/ajuda/licenciamento-de-conteudo" element={<PolicyDocument docType="licenciamento" />} />
+          <Route path="/ajuda/responsabilidade-tecnica" element={<PolicyDocument docType="responsabilidade" />} />
         </Route>
 
         {/* Protected Master / Admin Routes */}
@@ -122,6 +130,7 @@ function AppRoutes() {
           <Route path="/master/content/:orgId/:moduleType" element={<ModuleContentManager />} />
           <Route path="/master/uploads" element={<Files />} />
           <Route path="/master/settings" element={<Settings />} />
+          <Route path="/master/suporte" element={<SupportRequests />} />
         </Route>
 
         {/* Catch-all redirection */}

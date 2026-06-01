@@ -11,7 +11,8 @@ import {
   Settings as SettingsIcon, 
   LogOut,
   Shield,
-  Users
+  Users,
+  HelpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ export function MasterLayout() {
     { name: 'Organizações', href: '/master/oems', icon: Building2 },
     { name: 'Conteúdo', href: '/master/content', icon: Layers },
     { name: 'Uploads', href: '/master/uploads', icon: FileText },
+    { name: 'Solicitações de Suporte', href: '/master/suporte', icon: HelpCircle },
   ];
 
   const handleLogout = () => {
@@ -128,6 +130,7 @@ export function MasterLayout() {
               {location.pathname.startsWith('/master/content') && 'Gestão de Conteúdo por Organização'}
               {location.pathname.startsWith('/master/uploads') && 'Central de Uploads'}
               {location.pathname.startsWith('/master/settings') && 'Configurações'}
+              {location.pathname.startsWith('/master/suporte') && 'Solicitações de Suporte'}
             </h1>
           </div>
           <div className="flex items-center gap-3">

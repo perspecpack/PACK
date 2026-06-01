@@ -193,13 +193,14 @@ export function AppLayout() {
                     <History className="w-4 h-4 text-slate-400" />
                     <span>Histórico de Downloads</span>
                   </Link>
-                  <button 
+                  <Link 
+                    to="/ajuda"
                     onClick={() => setUserDropdownOpen(false)}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors"
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-650 transition-colors cursor-pointer"
                   >
                     <HelpCircle className="w-4 h-4 text-slate-400" />
                     <span>Ajuda</span>
-                  </button>
+                  </Link>
                 </div>
 
                 <div className="border-t border-slate-100 mt-1 pt-1">
