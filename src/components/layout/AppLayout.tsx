@@ -69,6 +69,7 @@ export function AppLayout() {
     return user?.email ? user.email.substring(0, 2).toUpperCase() : 'US';
   };
   const userInitials = getInitials();
+  const companyLogo = (profile?.companyLogoUrl || user?.companyLogoUrl)?.trim();
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC]">
@@ -129,8 +130,12 @@ export function AppLayout() {
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
               className="flex items-center gap-2 bg-teal-950/40 border border-teal-900/50 py-1.5 pl-1.5 pr-2.5 rounded-full hover:bg-teal-950/80 transition-colors shadow-sm select-none"
             >
-              <div className="h-8 w-8 rounded-full bg-[#00F59B]/20 text-[#00F59B] flex items-center justify-center font-bold text-xs uppercase shadow-inner border border-[#00F59B]/30">
-                {userInitials}
+              <div className="h-8 w-8 rounded-full bg-[#00F59B]/20 text-[#00F59B] flex items-center justify-center font-bold text-xs uppercase shadow-inner border border-[#00F59B]/30 overflow-hidden">
+                {companyLogo ? (
+                  <img src={companyLogo} alt="Logo" className="h-full w-full object-contain p-0.5 bg-white" />
+                ) : (
+                  userInitials
+                )}
               </div>
               <div className="flex flex-col text-left hidden sm:block max-w-[180px]">
                 <span className="text-[13px] font-bold text-slate-200 leading-none truncate block">
