@@ -189,7 +189,7 @@ export default function Login() {
             </p>
 
             {/* Conceptual image */}
-            <div className="relative w-full h-[396px] flex items-start justify-center mt-4">
+            <div className="relative w-full h-[480px] flex items-start justify-center mt-4">
               <img 
                 src={loginImage} 
                 alt="Industrial Rack" 
