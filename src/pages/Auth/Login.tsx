@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -156,8 +157,31 @@ export default function Login() {
               <img src={brandTextImg} alt="PERSPECPACK" className="h-5.5 w-auto object-contain mix-blend-multiply" />
             </div>
             
-            <h1 className="text-[36px] font-extrabold text-gray-900 leading-[1.15] tracking-tight mb-6">
-              Reduza retrabalhos. Acelere aprovações. Padronize projetos.
+            <h1 className="text-[36px] font-extrabold text-gray-900 leading-[1.15] tracking-tight mb-6 flex flex-col gap-1 select-none">
+              <motion.span
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="block text-[#0c3944]"
+              >
+                Reduza retrabalhos.
+              </motion.span>
+              <motion.span
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                className="block text-teal-650"
+              >
+                Acelere aprovações.
+              </motion.span>
+              <motion.span
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="block text-gray-900"
+              >
+                Padronize projetos.
+              </motion.span>
             </h1>
             
             <p className="text-[16px] text-gray-600 leading-relaxed mb-2">
