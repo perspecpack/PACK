@@ -157,12 +157,12 @@ export default function Login() {
               <img src={brandTextImg} alt="PERSPECPACK" className="h-5.5 w-auto object-contain mix-blend-multiply" />
             </div>
             
-            <h1 className="text-[36px] font-extrabold text-gray-900 leading-[1.15] tracking-tight mb-6 flex flex-col gap-1 select-none">
+            <h1 className="text-[36px] font-extrabold text-gray-900 leading-[1.15] tracking-tight mb-3 flex flex-col gap-1 select-none">
               <motion.span
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="block text-[#0c3944]"
+                className="block text-slate-950"
               >
                 Reduza retrabalhos.
               </motion.span>
@@ -170,7 +170,7 @@ export default function Login() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                className="block text-teal-650"
+                className="block text-[#0c3944]"
               >
                 Acelere aprovações.
               </motion.span>
@@ -178,7 +178,7 @@ export default function Login() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="block text-gray-900"
+                className="block text-[#0d9488]"
               >
                 Padronize projetos.
               </motion.span>
@@ -189,11 +189,11 @@ export default function Login() {
             </p>
 
             {/* Conceptual image */}
-            <div className="relative w-full h-[520px] flex items-center justify-center -mt-10">
+            <div className="relative w-full h-[360px] flex items-start justify-center mt-4">
               <img 
                 src={loginImage} 
                 alt="Industrial Rack" 
-                className="w-full h-full object-contain mix-blend-multiply"
+                className="w-full h-full object-contain object-top mix-blend-multiply"
               />
             </div>
           </div>
