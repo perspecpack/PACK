@@ -270,6 +270,12 @@ export default function Users() {
   };
 
   const filteredUsers = users.filter(u => {
+    // Exclude master admin from users list
+    const masterEmail = import.meta.env.MASTER_EMAIL;
+    if (masterEmail && u.corporate_email?.toLowerCase() === masterEmail.toLowerCase()) {
+      return false;
+    }
+
     // Search filter
     const name = u.full_name?.toLowerCase() || '';
     const email = u.corporate_email?.toLowerCase() || '';

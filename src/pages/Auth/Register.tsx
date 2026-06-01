@@ -26,6 +26,12 @@ export default function Register() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    const masterEmail = import.meta.env.MASTER_EMAIL;
+    if (masterEmail && email.trim().toLowerCase() === masterEmail.trim().toLowerCase()) {
+      setErrorMsg('Este e-mail está reservado e não pode ser utilizado para cadastro público.');
+      return;
+    }
+
     // Validations
     if (!email) {
       setErrorMsg('O e-mail é obrigatório.');

@@ -1130,7 +1130,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const handleAuthUser = async (authUser: any) => {
     const email = authUser.email || '';
-    const role = (email.toLowerCase().includes('master') || email.toLowerCase().includes('admin')) ? 'master' : 'user';
+    const masterEmail = import.meta.env.MASTER_EMAIL;
+    const isMaster = masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
+    const role = isMaster ? 'master' : 'user';
     
     const userSession = {
       id: authUser.id,
@@ -1139,6 +1141,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setUser(userSession);
     localStorage.setItem('pp_session', JSON.stringify(userSession));
+
+    if (isMaster) {
+      setProfile(null);
+      return;
+    }
 
     try {
       if (!supabase) return;
@@ -1224,6 +1231,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const login = async (email: string, role: 'master' | 'user') => {
+    const masterEmail = import.meta.env.MASTER_EMAIL;
+    if (role === 'master' && masterEmail) {
+      const masterSession = {
+        id: '00000000-0000-0000-0000-000000000000',
+        email: masterEmail,
+        role: 'master' as const
+      };
+      setUser(masterSession);
+      setProfile(null);
+      localStorage.setItem('pp_session', JSON.stringify(masterSession));
+      setViewingAsUser(false);
+      return;
+    }
+
     if (!supabase) {
       setUser({ email, role });
       return;
@@ -1256,6 +1277,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loginWithEmail = async (emailInput: string, passwordInput: string) => {
+    const masterEmail = import.meta.env.MASTER_EMAIL;
+    const masterPassword = import.meta.env.MASTER_PASSWORD;
+
+    if (masterEmail && masterPassword && 
+        emailInput.trim().toLowerCase() === masterEmail.trim().toLowerCase() && 
+        passwordInput === masterPassword) {
+      const masterSession = {
+        id: '00000000-0000-0000-0000-000000000000',
+        email: masterEmail,
+        role: 'master' as const
+      };
+      setUser(masterSession);
+      setProfile(null);
+      localStorage.setItem('pp_session', JSON.stringify(masterSession));
+      return { user: masterSession };
+    }
+
     if (!supabase) throw new Error('Supabase client not initialized.');
     const { data, error } = await supabase.auth.signInWithPassword({
       email: emailInput,
