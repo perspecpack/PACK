@@ -96,6 +96,7 @@ interface AppContextType {
   login: (email: string, role: 'master' | 'user') => void;
   logout: () => void;
   setViewingAsUser: (val: boolean) => void;
+  updateUser: (updatedUser: Partial<User>) => void;
 
   // Logging actions
   logDownload: (orgId: string, contentType: string, contentId: string, fileName: string) => Promise<void>;
@@ -1068,13 +1069,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auth actions
   const login = (email: string, role: 'master' | 'user') => {
-    setUser({ email, role });
+    const savedProfile = localStorage.getItem(`pp_profile_${email}`);
+    if (savedProfile) {
+      const profile = JSON.parse(savedProfile);
+      setUser({ email, role, companyName: profile.companyName, companyLogoUrl: profile.companyLogoUrl });
+    } else {
+      setUser({ email, role });
+    }
     setViewingAsUser(false);
   };
 
   const logout = () => {
     setUser(null);
     setViewingAsUser(false);
+  };
+
+  const updateUser = (updatedFields: Partial<User>) => {
+    setUser(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, ...updatedFields };
+      localStorage.setItem('pp_session', JSON.stringify(updated));
+      localStorage.setItem(`pp_profile_${prev.email}`, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   // Organization Actions
@@ -1825,6 +1842,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         login,
         logout,
         setViewingAsUser,
+        updateUser,
 
         logDownload,
         logUpload,

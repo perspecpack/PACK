@@ -133,13 +133,14 @@ export function AppLayout() {
                 </div>
 
                 <div className="py-1">
-                  <button 
+                  <Link 
+                    to="/perfil"
                     onClick={() => setUserDropdownOpen(false)}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors"
                   >
                     <User className="w-4 h-4 text-slate-400" />
                     <span>Meu Perfil</span>
-                  </button>
+                  </Link>
                   <button 
                     onClick={() => setUserDropdownOpen(false)}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors"

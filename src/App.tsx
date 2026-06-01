@@ -5,6 +5,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { MasterLayout } from './components/layout/MasterLayout';
 import Login from './pages/Auth/Login';
 import Downloads from './pages/Downloads/Downloads';
+import Profile from './pages/Auth/Profile';
 
 // Master Pages
 import Dashboard from './pages/Master/Dashboard';
@@ -53,6 +54,7 @@ function AppRoutes() {
           }
         >
           <Route path="/" element={<Downloads />} />
+          <Route path="/perfil" element={<Profile />} />
         </Route>
 
         {/* Protected Master / Admin Routes */}

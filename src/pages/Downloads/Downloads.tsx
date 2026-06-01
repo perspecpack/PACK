@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, Link } from 'react-router-dom';
 import { 
   Box, 
+  Building2,
   FileText, 
   CheckSquare, 
   FolderKanban, 
@@ -208,9 +209,6 @@ export default function Downloads() {
   const [generatedValCode, setGeneratedValCode] = useState('');
   const [generatedVerCode, setGeneratedVerCode] = useState('');
   const [isSubmittingChecklist, setIsSubmittingChecklist] = useState(false);
-  const [issuerCompany, setIssuerCompany] = useState('');
-  const [issuerLogoUrl, setIssuerLogoUrl] = useState<string | null>(null);
-  const [isLogoUploading, setIsLogoUploading] = useState(false);
 
   const activeOems = organizations.filter(o => o.status === 'active');
   const selectedOEMObj = activeOems.find(o => o.id === selectedOEM);
@@ -400,24 +398,6 @@ export default function Downloads() {
     }));
   };
 
-  const handleLogoUpload = async (file: File) => {
-    setIsLogoUploading(true);
-    try {
-      const { publicUrl } = await uploadFileToStorage(
-        file,
-        'checklist-evidencias',
-        selectedOEMObj?.slug || 'emissor',
-        'logos'
-      );
-      setIssuerLogoUrl(publicUrl);
-    } catch (error: any) {
-      console.error('Error uploading logo:', error);
-      alert('Erro ao fazer upload do logotipo: ' + error.message);
-    } finally {
-      setIsLogoUploading(false);
-    }
-  };
-
   const handleOpenConfirmation = () => {
     if (!activeChecklist) return;
 
@@ -433,13 +413,6 @@ export default function Downloads() {
     const verCode = generateVerificationCode();
     setGeneratedValCode(valCode);
     setGeneratedVerCode(verCode);
-
-    // Initialize issuerCompany name if empty, defaulting to email domain
-    if (!issuerCompany) {
-      const emailDomain = user?.email ? user.email.split('@')[1].split('.')[0] : '';
-      const formattedDomain = emailDomain ? emailDomain.toUpperCase() : 'FORNECEDOR';
-      setIssuerCompany(formattedDomain);
-    }
 
     setShowConfirmationModal(true);
   };
@@ -481,6 +454,9 @@ export default function Downloads() {
       setGeneratedValCode(valCode);
       setGeneratedVerCode(verCode);
 
+      const companyName = user?.companyName || (user?.email ? user.email.split('@')[1].split('.')[0].toUpperCase() : 'FORNECEDOR');
+      const companyLogoUrl = user?.companyLogoUrl || null;
+
       // 2. Preload Logo Images (Official and Custom)
       let perspecpackLogoImg: HTMLImageElement | null = null;
       let issuerLogoImg: HTMLImageElement | null = null;
@@ -491,9 +467,9 @@ export default function Downloads() {
         console.error('Error preloading official logo:', e);
       }
 
-      if (issuerLogoUrl) {
+      if (companyLogoUrl) {
         try {
-          issuerLogoImg = await loadImage(issuerLogoUrl);
+          issuerLogoImg = await loadImage(companyLogoUrl);
         } catch (e) {
           console.error('Error preloading issuer logo:', e);
         }
@@ -778,13 +754,13 @@ export default function Downloads() {
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(11);
             doc.setTextColor(6, 36, 44);
-            doc.text(issuerCompany || 'FORNECEDOR', margin, 19);
+            doc.text(companyName, margin, 19);
           }
         } else {
           doc.setFont('Helvetica', 'bold');
           doc.setFontSize(11);
           doc.setTextColor(6, 36, 44);
-          doc.text(issuerCompany || 'FORNECEDOR', margin, 19);
+          doc.text(companyName, margin, 19);
         }
         
         // Header Right: Title and Date
@@ -1940,74 +1916,39 @@ export default function Downloads() {
               </div>
 
               {/* Identificação do Emissor */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3.5 text-xs">
-                <div className="border-b border-slate-200 pb-2">
-                  <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Identificação do Emissor (PDF)</h4>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 text-xs">
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                  <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Identificação do Emissor (Cadastro)</h4>
+                  <Link 
+                    to="/perfil"
+                    className="text-[10px] text-teal-650 hover:text-teal-700 font-bold hover:underline"
+                  >
+                    Editar Perfil
+                  </Link>
                 </div>
                 
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                      Nome da Empresa / Emissor
-                    </label>
-                    <input 
-                      type="text"
-                      value={issuerCompany}
-                      onChange={(e) => setIssuerCompany(e.target.value)}
-                      placeholder="Ex: Minha Empresa Ltda"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-455 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                      Logotipo da Empresa (Opcional)
-                    </label>
-                    <div className="flex items-center gap-4">
-                      {issuerLogoUrl ? (
-                        <div className="relative border border-slate-200 rounded-lg p-1 bg-white flex items-center justify-center h-12 w-24 shadow-sm">
-                          <img src={issuerLogoUrl} alt="Logo Emissor" className="max-h-full max-w-full object-contain" />
-                          <button
-                            type="button"
-                            onClick={() => setIssuerLogoUrl(null)}
-                            className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white rounded-full p-0.5 hover:bg-rose-600 transition-colors shadow shadow-slate-400"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex-1">
-                          <label className={cn(
-                            "flex items-center justify-center gap-2 border border-dashed rounded-lg p-2.5 text-xs font-semibold cursor-pointer transition-all min-h-[42px]",
-                            isLogoUploading
-                              ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-                              : "border-slate-300 hover:border-teal-400 hover:bg-slate-100 text-slate-650"
-                          )}>
-                            {isLogoUploading ? (
-                              <>
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
-                                <span>Enviando logo...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Paperclip className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Selecionar Logotipo</span>
-                              </>
-                            )}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              disabled={isLogoUploading}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleLogoUpload(file);
-                              }}
-                            />
-                          </label>
-                        </div>
-                      )}
+                <div className="flex items-center gap-4">
+                  {user?.companyLogoUrl ? (
+                    <div className="border border-slate-200 rounded-lg p-1 bg-white flex items-center justify-center h-12 w-24 shadow-sm shrink-0">
+                      <img src={user.companyLogoUrl} alt="Logo Emissor" className="max-h-full max-w-full object-contain" />
                     </div>
+                  ) : (
+                    <div className="h-12 w-24 border border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center bg-white text-slate-450 shrink-0 select-none">
+                      <Building2 className="w-4 h-4" />
+                      <span className="text-[8px] font-bold mt-0.5 uppercase">Sem Logo</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1 min-w-0">
+                    <span className="block text-[10px] text-slate-400 font-semibold uppercase">Empresa / Emissor</span>
+                    <span className="font-bold text-slate-800 text-xs truncate block">
+                      {user?.companyName || (user?.email ? user.email.split('@')[1].split('.')[0].toUpperCase() : 'FORNECEDOR')}
+                    </span>
+                    {!user?.companyName && (
+                      <span className="text-[9px] text-amber-600 font-semibold leading-none block">
+                        (Usando padrão do email. Preencha no perfil.)
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

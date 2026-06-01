@@ -163,6 +163,8 @@ export interface ReferenceProjectEntry {
 export interface User {
   email: string;
   role: 'master' | 'user';
+  companyName?: string;
+  companyLogoUrl?: string;
 }
 
 export interface DownloadLog {
