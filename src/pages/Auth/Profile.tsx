@@ -9,13 +9,14 @@ import {
   Paperclip, 
   X,
   Sparkles,
-  Info
+  Info,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/src/context/AppContext';
-import { uploadFileToStorage } from '@/lib/supabase';
+import { uploadFileToStorage, supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
 const COMPANY_TYPES = [
@@ -68,6 +69,11 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Password Change States
+  const [changePassword, setChangePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
     logPageAccess('Fornecedor - Editar Perfil');
@@ -177,6 +183,21 @@ export default function Profile() {
       return;
     }
 
+    if (changePassword) {
+      if (!newPassword.trim()) {
+        setValidationError('Por favor, informe a nova senha.');
+        return;
+      }
+      if (newPassword.length < 6) {
+        setValidationError('A nova senha deve ter no mínimo 6 caracteres.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setValidationError('As senhas digitadas não coincidem.');
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     try {
@@ -199,6 +220,14 @@ export default function Profile() {
         mainInterestOther: selectedInterests.includes('Outro') ? mainInterestOther.trim() : undefined,
         profileCompleted: true
       });
+      if (changePassword && supabase) {
+        const { error: pwdErr } = await supabase.auth.updateUser({ password: newPassword });
+        if (pwdErr) throw pwdErr;
+        setChangePassword(false);
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 3000);
     } catch (err: any) {
@@ -538,6 +567,60 @@ export default function Profile() {
                   placeholder="Ex: Consultar projetos específicos"
                   className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
                 />
+              </div>
+            )}
+          </div>
+
+          {/* Section 5: Change Password */}
+          <div className="space-y-4 pt-2">
+            <h3 className="font-extrabold text-[14px] text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <Lock className="w-4 h-4 text-teal-600" />
+              <span>5. Alterar Senha de Acesso</span>
+            </h3>
+
+            <div className="flex items-center gap-2.5">
+              <input 
+                type="checkbox"
+                id="changePasswordCheck"
+                checked={changePassword}
+                onChange={(e) => {
+                  setChangePassword(e.target.checked);
+                  if (!e.target.checked) {
+                    setNewPassword('');
+                    setConfirmPassword('');
+                  }
+                }}
+                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+              />
+              <Label htmlFor="changePasswordCheck" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                Desejo alterar minha senha de acesso
+              </Label>
+            </div>
+
+            {changePassword && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="space-y-1.5">
+                  <Label htmlFor="newPassword" className="text-[12px] font-bold text-slate-700">Nova Senha</Label>
+                  <Input 
+                    id="newPassword" 
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPassword" className="text-[12px] font-bold text-slate-700">Confirmar Nova Senha</Label>
+                  <Input 
+                    id="confirmPassword" 
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repita a nova senha"
+                    className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  />
+                </div>
               </div>
             )}
           </div>
