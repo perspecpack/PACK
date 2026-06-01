@@ -41,7 +41,7 @@ export default function Settings() {
           <div className="grid grid-cols-2 gap-4 text-xs max-w-md bg-slate-50 p-4 rounded-lg border border-slate-100">
             <div>
               <span className="text-slate-500 font-medium">E-mail:</span>
-              <p className="font-bold text-slate-800 mt-0.5">{user?.email || 'master@perspecpack.com'}</p>
+              <p className="font-bold text-slate-800 mt-0.5">{user?.email || import.meta.env.MASTER_EMAIL || 'perspec03d@gmail.com'}</p>
             </div>
             <div>
               <span className="text-slate-500 font-medium">Permissões:</span>

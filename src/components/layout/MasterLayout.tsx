@@ -135,7 +135,7 @@ export function MasterLayout() {
               </div>
               <div className="flex flex-col text-left">
                 <span className="text-[13px] font-bold text-slate-800 leading-tight">Master Admin</span>
-                <span className="text-[10px] text-slate-500 font-medium">{user?.email || 'master@perspecpack.com'}</span>
+                <span className="text-[10px] text-slate-500 font-medium">{user?.email || import.meta.env.MASTER_EMAIL || 'perspec03d@gmail.com'}</span>
               </div>
             </div>
           </div>
