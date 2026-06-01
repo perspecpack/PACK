@@ -46,6 +46,14 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    
+    --color-teal-650: #0d857a;
+    --color-teal-750: #0e6a62;
+    --color-slate-650: #3b4a5d;
+    --color-slate-750: #293445;
+    --color-emerald-650: #159143;
+    --color-emerald-750: #137035;
+    --color-amber-650: #c66507;
 }
 
 :root {
