@@ -606,6 +606,7 @@ const mapChecklistTemplateFromDb = (db: any): ChecklistTemplate => ({
   status: db.status as 'active' | 'inactive',
   createdAt: db.created_at,
   updatedAt: db.updated_at,
+  headerConfig: db.header_config || undefined,
   sections: (db.sections || []).map((sec: any) => ({
     id: sec.id,
     checklistTemplateId: sec.checklist_template_id,
@@ -634,6 +635,7 @@ const mapChecklistTemplateToDb = (ts: Partial<ChecklistTemplate>) => {
   if (ts.name !== undefined) db.name = ts.name;
   if (ts.revision !== undefined) db.revision = ts.revision;
   if (ts.status !== undefined) db.status = ts.status;
+  if (ts.headerConfig !== undefined) db.header_config = ts.headerConfig;
   return db;
 };
 
@@ -1883,7 +1885,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           organization_id: checklist.organizationId,
           name: checklist.name,
           revision: checklist.revision,
-          status: checklist.status
+          status: checklist.status,
+          header_config: checklist.headerConfig || null
         })
         .then(({ error: tErr }) => {
           if (tErr) {

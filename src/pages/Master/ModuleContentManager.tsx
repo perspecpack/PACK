@@ -24,7 +24,7 @@ import {
   FileDown,
   Paperclip
 } from 'lucide-react';
-import { ModuleType, DocumentType, StandardType, ChecklistSection, ChecklistCriterion } from '@/src/types';
+import { ModuleType, DocumentType, StandardType, ChecklistSection, ChecklistCriterion, ChecklistHeaderField } from '@/src/types';
 
 const DEFAULT_SECTIONS = [
   { title: 'Identificação do Projeto', sortOrder: 1 },
@@ -124,6 +124,8 @@ export default function ModuleContentManager() {
   const [activeSectionIndex, setActiveSectionIndex] = useState<number>(0);
   const [isAddingCriterion, setIsAddingCriterion] = useState(false);
   const [editingCriterionIndex, setEditingCriterionIndex] = useState<number | null>(null);
+  const [hasHeader, setHasHeader] = useState(false);
+  const [headerFields, setHeaderFields] = useState<ChecklistHeaderField[]>([]);
   
   // Local states for editing a criterion
   const [critCode, setCritCode] = useState('');
@@ -205,6 +207,18 @@ export default function ModuleContentManager() {
     setAttachmentType('');
     
     // Pre-populate with default 10 sections
+    if (moduleType === 'checklists') {
+      setHasHeader(true);
+      setHeaderFields([
+        { label: 'Número da Peça / Part Number', type: 'text', required: true },
+        { label: 'Nome da Peça', type: 'text', required: true },
+        { label: 'Nome do Projeto', type: 'text', required: false }
+      ]);
+    } else {
+      setHasHeader(false);
+      setHeaderFields([]);
+    }
+
     setSections(
       DEFAULT_SECTIONS.map((sec, idx) => ({
         id: '',
@@ -244,6 +258,14 @@ export default function ModuleContentManager() {
     setAttachmentName(rec.attachmentName || '');
     setAttachmentType(rec.attachmentType || '');
     
+    if (moduleType === 'checklists') {
+      setHasHeader(rec.headerConfig?.enabled || false);
+      setHeaderFields(rec.headerConfig?.fields || []);
+    } else {
+      setHasHeader(false);
+      setHeaderFields([]);
+    }
+
     // Deep copy checklists sections & criteria
     setSections(rec.sections ? JSON.parse(JSON.stringify(rec.sections)) : []);
     setActiveSectionIndex(0);
@@ -318,7 +340,11 @@ export default function ModuleContentManager() {
         organizationId: orgId!,
         name,
         revision,
-        status
+        status,
+        headerConfig: {
+          enabled: hasHeader,
+          fields: hasHeader ? headerFields.filter(f => f.label.trim() !== '') : []
+        }
       };
 
       if (editingId) {
@@ -960,6 +986,122 @@ export default function ModuleContentManager() {
                       placeholder="Detalhes adicionais, notas, especificações de projeto..." 
                       className="text-[14px] rounded-lg border-slate-300 min-h-[60px]" 
                     />
+                  </div>
+                )}
+
+                {/* Configuração do Cabeçalho do Projeto */}
+                {moduleType === 'checklists' && (
+                  <div className="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-xs font-bold text-slate-800">Cabeçalho do Projeto</Label>
+                        <p className="text-[11px] text-slate-500">
+                          Habilite para exigir que o usuário preencha dados como Part Number e Nome do Projeto ao executar a validação.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                        <input
+                          type="checkbox"
+                          id="chk-has-header"
+                          checked={hasHeader}
+                          onChange={(e) => {
+                            setHasHeader(e.target.checked);
+                            if (e.target.checked && headerFields.length === 0) {
+                              setHeaderFields([
+                                { label: 'Número da Peça / Part Number', type: 'text', required: true },
+                                { label: 'Nome da Peça', type: 'text', required: true },
+                                { label: 'Nome do Projeto', type: 'text', required: false }
+                              ]);
+                            }
+                          }}
+                          className="rounded border-slate-350 text-teal-600 w-4 h-4 focus:ring-teal-500 cursor-pointer"
+                        />
+                        <Label htmlFor="chk-has-header" className="text-[12.5px] font-bold text-slate-700 cursor-pointer select-none">
+                          Habilitar Cabeçalho
+                        </Label>
+                      </div>
+                    </div>
+
+                    {hasHeader && (
+                      <div className="pt-3 border-t border-slate-200 space-y-3">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Campos do Cabeçalho</span>
+                        
+                        <div className="grid grid-cols-1 gap-2.5">
+                          {headerFields.map((field, idx) => (
+                            <div key={idx} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-1 duration-150">
+                              <div className="flex-1">
+                                <Input
+                                  type="text"
+                                  value={field.label}
+                                  onChange={(e) => {
+                                    const newFields = [...headerFields];
+                                    newFields[idx].label = e.target.value;
+                                    setHeaderFields(newFields);
+                                  }}
+                                  placeholder="Nome do Campo (ex: Número da Peça)"
+                                  className="h-8.5 text-[12.5px] border-slate-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                                  required
+                                />
+                              </div>
+                              
+                              <div className="w-28 shrink-0">
+                                <select
+                                  value={field.type}
+                                  onChange={(e) => {
+                                    const newFields = [...headerFields];
+                                    newFields[idx].type = e.target.value as 'text' | 'number';
+                                    setHeaderFields(newFields);
+                                  }}
+                                  className="w-full h-8.5 px-2 bg-white border border-slate-300 rounded-lg text-[12px] text-slate-800 focus:ring-teal-500 shadow-sm font-semibold"
+                                >
+                                  <option value="text">Texto</option>
+                                  <option value="number">Número</option>
+                                </select>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                                <input
+                                  type="checkbox"
+                                  id={`field-req-${idx}`}
+                                  checked={field.required}
+                                  onChange={(e) => {
+                                    const newFields = [...headerFields];
+                                    newFields[idx].required = e.target.checked;
+                                    setHeaderFields(newFields);
+                                  }}
+                                  className="rounded border-slate-300 text-teal-600 w-3.5 h-3.5 focus:ring-teal-500 cursor-pointer"
+                                />
+                                <Label htmlFor={`field-req-${idx}`} className="text-[11.5px] font-bold text-slate-700 cursor-pointer select-none">
+                                  Obrigatório
+                                </Label>
+                              </div>
+
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  setHeaderFields(headerFields.filter((_, fIdx) => fIdx !== idx));
+                                }}
+                                variant="ghost"
+                                size="sm"
+                                className="h-8.5 w-8.5 p-0 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded-lg"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setHeaderFields([...headerFields, { label: '', type: 'text', required: false }]);
+                          }}
+                          className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold h-8.5 px-3 rounded-lg text-xs flex items-center gap-1.5 shadow-sm mt-1"
+                        >
+                          <Plus className="w-4 h-4 text-slate-550" /> Adicionar Campo ao Cabeçalho
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
 

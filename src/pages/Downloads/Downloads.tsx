@@ -29,6 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/src/context/AppContext';
 import { ModuleType, ChecklistTemplate, ComponentEntry, DocumentEntry, StandardEntry } from '@/src/types';
@@ -216,6 +217,7 @@ export default function Downloads() {
     evidenceUrl?: string;
     evidenceLoading?: boolean;
   }>>({});
+  const [headerAnswers, setHeaderAnswers] = useState<Record<string, string>>({});
   const [showReportSuccessModal, setShowReportSuccessModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [generatedValCode, setGeneratedValCode] = useState('');
@@ -260,6 +262,16 @@ export default function Downloads() {
       return;
     }
     setActiveChecklist(checklist);
+    
+    // Initialize header answers
+    const initialHeaderAnswers: Record<string, string> = {};
+    if (checklist.headerConfig?.enabled && checklist.headerConfig.fields) {
+      checklist.headerConfig.fields.forEach(field => {
+        initialHeaderAnswers[field.label] = '';
+      });
+    }
+    setHeaderAnswers(initialHeaderAnswers);
+
     const initialAnswers: Record<string, { 
       status: 'C' | 'NC' | 'NA' | null; 
       note: string; 
@@ -416,6 +428,17 @@ export default function Downloads() {
 
   const handleOpenConfirmation = () => {
     if (!activeChecklist) return;
+
+    // Validate required header fields
+    if (activeChecklist.headerConfig?.enabled && activeChecklist.headerConfig.fields) {
+      const missingFields = activeChecklist.headerConfig.fields
+        .filter(field => field.required && !headerAnswers[field.label]?.trim());
+      
+      if (missingFields.length > 0) {
+        alert(`Por favor, preencha todos os campos obrigatórios do cabeçalho do projeto:\n- ${missingFields.map(f => f.label).join('\n- ')}`);
+        return;
+      }
+    }
 
     const currentStatus = getChecklistStatus();
     const stats = getChecklistStats();
@@ -633,6 +656,36 @@ export default function Downloads() {
       doc.text(`${stats.conforms} Conformes | ${stats.nonConforms} Não Conf. | ${stats.na} N.A.`, margin + 140, y + 20);
 
       y += 34;
+
+      // Project information header block in PDF
+      if (activeChecklist.headerConfig?.enabled && headerAnswers && Object.keys(headerAnswers).length > 0) {
+        const headerCount = Object.keys(headerAnswers).length;
+        const boxHeight = 8 + (headerCount * 6);
+        checkPageBreak(boxHeight + 10);
+        doc.setFillColor(248, 250, 252);
+        doc.rect(margin, y, contentWidth, boxHeight, 'F');
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(margin, y, contentWidth, boxHeight, 'S');
+
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(6, 36, 44);
+        doc.text('INFORMAÇÕES DO PROJETO', margin + 4, y + 6);
+
+        doc.setFontSize(8);
+        let fieldY = y + 12;
+        Object.entries(headerAnswers).forEach(([label, val]) => {
+          doc.setFont('Helvetica', 'bold');
+          doc.setTextColor(71, 85, 105);
+          doc.text(`${label}:`, margin + 6, fieldY);
+          
+          doc.setFont('Helvetica', 'normal');
+          doc.setTextColor(15, 23, 42);
+          doc.text(String(val), margin + 50, fieldY);
+          fieldY += 6;
+        });
+        y += boxHeight + 10;
+      }
 
       // Table Title
       checkPageBreak(12);
@@ -866,7 +919,8 @@ export default function Downloads() {
           pending_items: stats.pending,
           pdf_url: pdfUrl,
           report_status: currentStatus.text,
-          generated_at: new Date().toISOString()
+          generated_at: new Date().toISOString(),
+          header_data: activeChecklist.headerConfig?.enabled ? headerAnswers : null
         })
         .select()
         .single();
@@ -1656,6 +1710,38 @@ export default function Downloads() {
  
             </div>
           </div>
+
+          {/* Project Header fields form */}
+          {activeChecklist.headerConfig?.enabled && activeChecklist.headerConfig.fields && activeChecklist.headerConfig.fields.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4 animate-in fade-in duration-150">
+              <div className="border-b border-slate-100 pb-3 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-teal-600" />
+                <h3 className="font-extrabold text-[14px] text-slate-800">Informações do Projeto (Cabeçalho)</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {activeChecklist.headerConfig.fields.map((field, fIdx) => (
+                  <div key={fIdx} className="space-y-1.5">
+                    <Label htmlFor={`header-field-${fIdx}`} className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                      <span>{field.label}</span>
+                      {field.required && <span className="text-red-500 font-extrabold">*</span>}
+                    </Label>
+                    <input
+                      id={`header-field-${fIdx}`}
+                      type={field.type === 'number' ? 'number' : 'text'}
+                      value={headerAnswers[field.label] || ''}
+                      onChange={(e) => setHeaderAnswers({
+                        ...headerAnswers,
+                        [field.label]: e.target.value
+                      })}
+                      placeholder={`Preencha o/a ${field.label.toLowerCase()}`}
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-705 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 focus:bg-white transition-all shadow-inner"
+                      required={field.required}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Visual Summary Panel */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

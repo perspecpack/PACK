@@ -128,6 +128,17 @@ export interface ChecklistSection {
   criteria: ChecklistCriterion[];
 }
 
+export interface ChecklistHeaderField {
+  label: string;
+  type: 'text' | 'number';
+  required: boolean;
+}
+
+export interface ChecklistHeaderConfig {
+  enabled: boolean;
+  fields: ChecklistHeaderField[];
+}
+
 export interface ChecklistTemplate {
   id: string;
   organizationId: string;
@@ -137,6 +148,7 @@ export interface ChecklistTemplate {
   createdAt: string;
   updatedAt: string;
   sections: ChecklistSection[];
+  headerConfig?: ChecklistHeaderConfig;
   // For backwards compatibility in lists
   items?: any[];
 }
