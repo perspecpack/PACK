@@ -157,7 +157,7 @@ export default function Login() {
             </div>
             
             <h1 className="text-[36px] font-extrabold text-gray-900 leading-[1.15] tracking-tight mb-6">
-              Reduza retrabalho. Acelere aprovações. Padronize projetos.
+              Reduza retrabalhos. Acelere aprovações. Padronize projetos.
             </h1>
             
             <p className="text-[16px] text-gray-600 leading-relaxed mb-2">
