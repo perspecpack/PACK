@@ -132,7 +132,6 @@ export default function CompleteProfile() {
       if (!fullName.trim()) return 'Por favor, informe seu nome completo.';
       if (!roleTitle.trim()) return 'Por favor, informe seu cargo ou função.';
       if (!phone.trim()) return 'Por favor, informe um número de telefone.';
-      if (!whatsapp.trim()) return 'Por favor, informe seu número de WhatsApp.';
       if (!corporateEmail.trim()) return 'Por favor, informe seu e-mail corporativo.';
     }
     if (step === 2) {
