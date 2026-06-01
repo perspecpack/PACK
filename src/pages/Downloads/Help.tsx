@@ -14,7 +14,10 @@ import {
   Calendar,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Phone,
+  Mail,
+  Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -147,48 +150,157 @@ export default function Help() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
         
         {/* Navigation Sidebar */}
-        <div className="md:col-span-4 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1.5">
-          <button
-            onClick={() => setActiveTab('suporte')}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left text-sm font-semibold transition-all",
-              activeTab === 'suporte'
-                ? "bg-[#06242c] text-white shadow-md font-bold"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            )}
-          >
-            <HelpCircle className={cn("w-4 h-4 shrink-0", activeTab === 'suporte' ? "text-[#00F59B]" : "text-slate-400")} />
-            <span className="flex-1">Suporte Técnico</span>
-            <ChevronRight className={cn("w-4 h-4 opacity-50", activeTab === 'suporte' ? "text-[#00F59B]" : "text-slate-400")} />
-          </button>
+        <div className="md:col-span-4 space-y-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1.5">
+            <button
+              onClick={() => setActiveTab('suporte')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left text-sm font-semibold transition-all",
+                activeTab === 'suporte'
+                  ? "bg-[#06242c] text-white shadow-md font-bold"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              <HelpCircle className={cn("w-4 h-4 shrink-0", activeTab === 'suporte' ? "text-[#00F59B]" : "text-slate-400")} />
+              <span className="flex-1">Suporte Técnico</span>
+              <ChevronRight className={cn("w-4 h-4 opacity-50", activeTab === 'suporte' ? "text-[#00F59B]" : "text-slate-400")} />
+            </button>
 
-          <button
-            onClick={() => setActiveTab('termos')}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left text-sm font-semibold transition-all",
-              activeTab === 'termos'
-                ? "bg-[#06242c] text-white shadow-md font-bold"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            )}
-          >
-            <FileText className={cn("w-4 h-4 shrink-0", activeTab === 'termos' ? "text-[#00F59B]" : "text-slate-400")} />
-            <span className="flex-1">Termos e Políticas</span>
-            <ChevronRight className={cn("w-4 h-4 opacity-50", activeTab === 'termos' ? "text-[#00F59B]" : "text-slate-400")} />
-          </button>
+            <button
+              onClick={() => setActiveTab('termos')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left text-sm font-semibold transition-all",
+                activeTab === 'termos'
+                  ? "bg-[#06242c] text-white shadow-md font-bold"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              <FileText className={cn("w-4 h-4 shrink-0", activeTab === 'termos' ? "text-[#00F59B]" : "text-slate-400")} />
+              <span className="flex-1">Termos e Políticas</span>
+              <ChevronRight className={cn("w-4 h-4 opacity-50", activeTab === 'termos' ? "text-[#00F59B]" : "text-slate-400")} />
+            </button>
 
-          <button
-            onClick={() => setActiveTab('sobre')}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left text-sm font-semibold transition-all",
-              activeTab === 'sobre'
-                ? "bg-[#06242c] text-white shadow-md font-bold"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            )}
-          >
-            <Info className={cn("w-4 h-4 shrink-0", activeTab === 'sobre' ? "text-[#00F59B]" : "text-slate-400")} />
-            <span className="flex-1">Sobre a Plataforma</span>
-            <ChevronRight className={cn("w-4 h-4 opacity-50", activeTab === 'sobre' ? "text-[#00F59B]" : "text-slate-400")} />
-          </button>
+            <button
+              onClick={() => setActiveTab('sobre')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left text-sm font-semibold transition-all",
+                activeTab === 'sobre'
+                  ? "bg-[#06242c] text-white shadow-md font-bold"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              <Info className={cn("w-4 h-4 shrink-0", activeTab === 'sobre' ? "text-[#00F59B]" : "text-slate-400")} />
+              <span className="flex-1">Sobre a Plataforma</span>
+              <ChevronRight className={cn("w-4 h-4 opacity-50", activeTab === 'sobre' ? "text-[#00F59B]" : "text-slate-400")} />
+            </button>
+          </div>
+
+          {/* Central de Atendimento Card */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-450 uppercase tracking-wider">Central de Atendimento</h3>
+              <div className="h-0.5 w-8 bg-[#06242c] rounded-full"></div>
+            </div>
+
+            {/* Contact details */}
+            <div className="space-y-4 text-xs">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-teal-50 text-[#0c3944] rounded-lg shrink-0">
+                  <Phone className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Suporte WhatsApp</p>
+                  <p className="font-bold text-slate-800 text-[13px]">(14) 9 9889-2017</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-teal-50 text-[#0c3944] rounded-lg shrink-0">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">E-mail</p>
+                  <a href="mailto:perspecpack@gmail.com" className="font-bold text-slate-800 hover:text-teal-650 transition-colors text-[13px]">
+                    perspecpack@gmail.com
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-teal-50 text-[#0c3944] rounded-lg shrink-0">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Website</p>
+                  <a href="https://www.perspec3d.com" target="_blank" rel="noreferrer" className="font-bold text-slate-800 hover:text-teal-650 transition-colors text-[13px]">
+                    www.perspec3d.com
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-slate-100"></div>
+
+            {/* Horário de Atendimento */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Horário de Atendimento</h4>
+              <div className="space-y-2.5 text-xs">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="font-semibold text-slate-650">Segunda a Sexta-feira</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-700">
+                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="font-bold text-[#0c3944]">08:00 às 17:00</span>
+                </div>
+                <p className="text-[10px] text-slate-400 font-medium italic pl-5.5">Horário de Brasília</p>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-slate-100"></div>
+
+            {/* Institutional info */}
+            <div className="space-y-2">
+              <h4 className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">PERSPECPACK</h4>
+              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                Plataforma desenvolvida para centralizar normas, cadernos de encargos, componentes homologados e checklists de validação utilizados no desenvolvimento de embalagens metálicas para a indústria.
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-slate-100"></div>
+
+            {/* Version & Status */}
+            <div className="flex justify-between items-center gap-4 text-xs">
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Versão da Plataforma</p>
+                <p className="font-bold text-slate-700">Versão: 2.1.0</p>
+              </div>
+              <div className="space-y-0.5 text-right">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Status</p>
+                <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                  <span className="inline-block w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                  <span className="font-bold text-emerald-700">Operacional</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-slate-100"></div>
+
+            {/* WhatsApp Link Button */}
+            <a 
+              href="https://wa.me/5514998892017" 
+              target="_blank" 
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold h-11 px-4 text-xs rounded-xl shadow-sm hover:shadow transition-all text-center uppercase tracking-wider"
+            >
+              <MessageSquare className="w-3.5 h-3.5 fill-white text-white shrink-0" />
+              <span>Falar no WhatsApp</span>
+            </a>
+          </div>
         </div>
 
         {/* Content Area */}
