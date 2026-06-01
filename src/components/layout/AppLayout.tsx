@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Search,
   User,
+  Building2,
   ChevronDown,
   Settings,
   CreditCard,
@@ -141,16 +142,30 @@ export function AppLayout() {
                     <User className="w-4 h-4 text-slate-400" />
                     <span>Meu Perfil</span>
                   </Link>
-                  <button 
+                  <Link 
+                    to="/perfil"
                     onClick={() => setUserDropdownOpen(false)}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors"
+                  >
+                    <Building2 className="w-4 h-4 text-slate-400" />
+                    <span>Minha Empresa</span>
+                  </Link>
+                  <button 
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      alert('Funcionalidade de Assinatura/Meu Plano disponível em breve. PERSPECPACK está em modo gratuito de demonstração.');
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors cursor-pointer"
                   >
                     <CreditCard className="w-4 h-4 text-slate-400" />
                     <span>Meu Plano</span>
                   </button>
                   <button 
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors"
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      alert('O Histórico de Downloads detalhado estará disponível na sua área restrita.');
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors cursor-pointer"
                   >
                     <History className="w-4 h-4 text-slate-400" />
                     <span>Histórico de Downloads</span>

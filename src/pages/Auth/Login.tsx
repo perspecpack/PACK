@@ -13,11 +13,13 @@ import brandTextImg from '@/PERSPECPACK.png';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useApp();
+  const { login, loginWithEmail } = useApp();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   // Validation State
   const { validationCode } = useParams<{ validationCode?: string }>();
@@ -76,27 +78,46 @@ export default function Login() {
     }
   }, [validationCode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
 
-    // Direct auto-detection: if it's admin/master email, log in as master
-    if (email.toLowerCase().includes('master') || email.toLowerCase().includes('admin')) {
-      login(email, 'master');
-      navigate('/master');
-    } else {
-      login(email, 'user');
-      navigate('/');
+    setIsSubmitting(true);
+    setLoginError(null);
+
+    try {
+      await loginWithEmail(email, password);
+      
+      const role = (email.toLowerCase().includes('master') || email.toLowerCase().includes('admin')) ? 'master' : 'user';
+      if (role === 'master') {
+        navigate('/master');
+      } else {
+        navigate('/');
+      }
+    } catch (err: any) {
+      console.error('Error logging in:', err);
+      setLoginError(err.message || 'E-mail ou senha incorretos.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleQuickLogin = (role: 'master' | 'user') => {
-    if (role === 'master') {
-      login('master@perspecpack.com', 'master');
-      navigate('/master');
-    } else {
-      login('fornecedor@perspecpack.com', 'user');
-      navigate('/');
+  const handleQuickLogin = async (role: 'master' | 'user') => {
+    setIsSubmitting(true);
+    setLoginError(null);
+    try {
+      if (role === 'master') {
+        await login('master@perspecpack.com', 'master');
+        navigate('/master');
+      } else {
+        await login('fornecedor@perspecpack.com', 'user');
+        navigate('/');
+      }
+    } catch (err: any) {
+      console.error('Quick login failed:', err);
+      setLoginError('Falha no acesso rápido: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -139,6 +160,13 @@ export default function Login() {
               <h2 className="text-[22px] font-extrabold text-gray-900">Entrar na plataforma</h2>
               <p className="text-[13px] text-gray-500 mt-1">Insira suas credenciais ou utilize os atalhos rápidos abaixo.</p>
             </div>
+
+            {loginError && (
+              <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs font-semibold p-3.5 rounded-lg flex items-center gap-2 animate-in fade-in duration-200">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                <span>{loginError}</span>
+              </div>
+            )}
             
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="space-y-2">
@@ -182,8 +210,19 @@ export default function Login() {
                 </Link>
               </div>
 
-              <Button type="submit" className="w-full bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-12 text-[15px] rounded-lg mt-2 transition-colors shadow-md">
-                Entrar
+              <Button 
+                type="submit" 
+                className="w-full bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-12 text-[15px] rounded-lg mt-2 transition-colors shadow-md flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Entrando...</span>
+                  </>
+                ) : (
+                  <span>Entrar</span>
+                )}
               </Button>
             </form>
 
@@ -242,7 +281,7 @@ export default function Login() {
             </div>
 
             <p className="text-center text-[13px] text-gray-500">
-              Não tem uma conta? <Link to="#" className="font-semibold text-teal-600 hover:text-teal-700">Fale com o administrador.</Link>
+              Não tem uma conta? <Link to="/cadastro" className="font-semibold text-teal-600 hover:text-teal-700">Criar conta</Link>
             </p>
           </div>
         </div>

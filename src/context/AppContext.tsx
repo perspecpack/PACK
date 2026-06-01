@@ -11,6 +11,7 @@ import {
   ChecklistCriterion,
   ReferenceProjectEntry,
   User,
+  UserProfile,
   OrganizationType,
   ModuleType,
   DocumentType,
@@ -31,6 +32,7 @@ export type {
   ChecklistCriterion,
   ReferenceProjectEntry,
   User,
+  UserProfile,
   OrganizationType,
   ModuleType,
   DocumentType,
@@ -89,14 +91,18 @@ interface AppContextType {
 
   // User state
   user: User | null;
+  profile: UserProfile | null;
   viewingAsUser: boolean;
   syncError: string | null;
   
   // Auth actions
-  login: (email: string, role: 'master' | 'user') => void;
-  logout: () => void;
+  login: (email: string, role: 'master' | 'user') => Promise<void>;
+  logout: () => Promise<void>;
   setViewingAsUser: (val: boolean) => void;
   updateUser: (updatedUser: Partial<User>) => void;
+  updateProfile: (updatedProfile: Partial<UserProfile>) => Promise<void>;
+  loginWithEmail: (emailInput: string, passwordInput: string) => Promise<any>;
+  signUpWithEmail: (emailInput: string, passwordInput: string) => Promise<any>;
 
   // Logging actions
   logDownload: (orgId: string, contentType: string, contentId: string, fileName: string) => Promise<void>;
@@ -718,6 +724,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : null;
   });
 
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
   // Mode to simulate public view
   const [viewingAsUser, setViewingAsUser] = useState<boolean>(() => {
     return localStorage.getItem('pp_viewing_as_user') === 'true';
@@ -1067,20 +1075,208 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('pp_viewing_as_user', viewingAsUser ? 'true' : 'false');
   }, [viewingAsUser]);
 
-  // Auth actions
-  const login = (email: string, role: 'master' | 'user') => {
-    const savedProfile = localStorage.getItem(`pp_profile_${email}`);
-    if (savedProfile) {
-      const profile = JSON.parse(savedProfile);
-      setUser({ email, role, companyName: profile.companyName, companyLogoUrl: profile.companyLogoUrl });
-    } else {
+  // DB mapping helpers for user_profiles
+  const mapProfileFromDb = (db: any): UserProfile => ({
+    id: db.id,
+    userId: db.user_id,
+    fullName: db.full_name || '',
+    roleTitle: db.role_title || '',
+    phone: db.phone || '',
+    whatsapp: db.whatsapp || '',
+    corporateEmail: db.corporate_email || '',
+    companyName: db.company_name || '',
+    cnpj: db.cnpj || '',
+    companyWebsite: db.company_website || '',
+    companyLogoUrl: db.company_logo_url || '',
+    city: db.city || '',
+    state: db.state || '',
+    country: db.country || '',
+    companyType: db.company_type || '',
+    companyTypeOther: db.company_type_other || '',
+    mainInterests: db.main_interests || [],
+    mainInterestOther: db.main_interest_other || '',
+    profileCompleted: !!db.profile_completed,
+    accountStatus: db.account_status || 'pending',
+    createdAt: db.created_at,
+    updatedAt: db.updated_at
+  });
+
+  const mapProfileToDb = (ts: Partial<UserProfile>) => {
+    const db: any = {};
+    if (ts.fullName !== undefined) db.full_name = ts.fullName;
+    if (ts.roleTitle !== undefined) db.role_title = ts.roleTitle;
+    if (ts.phone !== undefined) db.phone = ts.phone;
+    if (ts.whatsapp !== undefined) db.whatsapp = ts.whatsapp;
+    if (ts.corporateEmail !== undefined) db.corporate_email = ts.corporateEmail;
+    if (ts.companyName !== undefined) db.company_name = ts.companyName;
+    if (ts.cnpj !== undefined) db.cnpj = ts.cnpj;
+    if (ts.companyWebsite !== undefined) db.company_website = ts.companyWebsite;
+    if (ts.companyLogoUrl !== undefined) db.company_logo_url = ts.companyLogoUrl;
+    if (ts.city !== undefined) db.city = ts.city;
+    if (ts.state !== undefined) db.state = ts.state;
+    if (ts.country !== undefined) db.country = ts.country;
+    if (ts.companyType !== undefined) db.company_type = ts.companyType;
+    if (ts.companyTypeOther !== undefined) db.company_type_other = ts.companyTypeOther;
+    if (ts.mainInterests !== undefined) db.main_interests = ts.mainInterests;
+    if (ts.mainInterestOther !== undefined) db.main_interest_other = ts.mainInterestOther;
+    if (ts.profileCompleted !== undefined) db.profile_completed = ts.profileCompleted;
+    if (ts.accountStatus !== undefined) db.account_status = ts.accountStatus;
+    return db;
+  };
+
+  const handleAuthUser = async (authUser: any) => {
+    const email = authUser.email || '';
+    const role = (email.toLowerCase().includes('master') || email.toLowerCase().includes('admin')) ? 'master' : 'user';
+    
+    const userSession = {
+      id: authUser.id,
+      email,
+      role
+    };
+    setUser(userSession);
+    localStorage.setItem('pp_session', JSON.stringify(userSession));
+
+    try {
+      if (!supabase) return;
+      const { data: profData, error: profErr } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      if (profErr) throw profErr;
+
+      if (profData) {
+        const mapped = mapProfileFromDb(profData);
+        setProfile(mapped);
+        
+        setUser(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            companyName: mapped.companyName || undefined,
+            companyLogoUrl: mapped.companyLogoUrl || undefined
+          };
+        });
+      } else {
+        const newProf = {
+          user_id: authUser.id,
+          corporate_email: email,
+          profile_completed: false,
+          account_status: 'pending'
+        };
+        const { data: inserted, error: insertErr } = await supabase
+          .from('user_profiles')
+          .insert(newProf)
+          .select()
+          .single();
+
+        if (!insertErr && inserted) {
+          const mapped = mapProfileFromDb(inserted);
+          setProfile(mapped);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        handleAuthUser(session.user);
+      } else {
+        const saved = localStorage.getItem('pp_session');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setUser(parsed);
+        } else {
+          setUser(null);
+        }
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        handleAuthUser(session.user);
+      } else {
+        const saved = localStorage.getItem('pp_session');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.role === 'master') {
+            setUser(parsed);
+            return;
+          }
+        }
+        setUser(null);
+        setProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email: string, role: 'master' | 'user') => {
+    if (!supabase) {
+      setUser({ email, role });
+      return;
+    }
+    const defaultPassword = 'password123';
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: defaultPassword
+      });
+      if (error) {
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+          email,
+          password: defaultPassword
+        });
+        if (signUpErr) throw signUpErr;
+        
+        if (signUpData.user) {
+          await supabase.auth.signInWithPassword({
+            email,
+            password: defaultPassword
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Quick login failed, falling back to mock session:', err);
       setUser({ email, role });
     }
     setViewingAsUser(false);
   };
 
-  const logout = () => {
+  const loginWithEmail = async (emailInput: string, passwordInput: string) => {
+    if (!supabase) throw new Error('Supabase client not initialized.');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: emailInput,
+      password: passwordInput,
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const signUpWithEmail = async (emailInput: string, passwordInput: string) => {
+    if (!supabase) throw new Error('Supabase client not initialized.');
+    const { data, error } = await supabase.auth.signUp({
+      email: emailInput,
+      password: passwordInput,
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const logout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     setUser(null);
+    setProfile(null);
+    localStorage.removeItem('pp_session');
     setViewingAsUser(false);
   };
 
@@ -1092,6 +1288,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem(`pp_profile_${prev.email}`, JSON.stringify(updated));
       return updated;
     });
+  };
+
+  const updateProfile = async (updatedFields: Partial<UserProfile>) => {
+    if (!profile) return;
+    const dbFields = mapProfileToDb(updatedFields);
+    
+    const newProfile = { ...profile, ...updatedFields } as UserProfile;
+    setProfile(newProfile);
+
+    setUser(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        companyName: newProfile.companyName || undefined,
+        companyLogoUrl: newProfile.companyLogoUrl || undefined
+      };
+    });
+
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('user_profiles')
+          .update(dbFields)
+          .eq('user_id', profile.userId);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Error updating profile in Supabase:', err);
+      }
+    }
   };
 
   // Organization Actions
@@ -1837,12 +2062,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         projects: referenceProjects,
 
         user,
+        profile,
         viewingAsUser,
         syncError,
         login,
         logout,
         setViewingAsUser,
         updateUser,
+        updateProfile,
+        loginWithEmail,
+        signUpWithEmail,
 
         logDownload,
         logUpload,

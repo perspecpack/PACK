@@ -4,6 +4,8 @@ import { AppProvider, useApp } from './context/AppContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { MasterLayout } from './components/layout/MasterLayout';
 import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
+import CompleteProfile from './pages/Auth/CompleteProfile';
 import Downloads from './pages/Downloads/Downloads';
 import Profile from './pages/Auth/Profile';
 
@@ -22,15 +24,45 @@ interface ProtectedRouteProps {
 }
 
 function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
-  const { user } = useApp();
+  const { user, profile } = useApp();
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
+  if (user.role === 'master') {
+    if (allowedRole && allowedRole !== 'master') {
+      return <Navigate to="/master/dashboard" replace />;
+    }
+    return <>{children}</>;
+  }
+
   if (allowedRole && user.role !== allowedRole) {
-    // Redirect if role doesn't match: Master goes to /master/dashboard, User goes to /
-    return <Navigate to={user.role === 'master' ? '/master/dashboard' : '/'} replace />;
+    // Redirect if role doesn't match
+    return <Navigate to="/" replace />;
+  }
+
+  // Force profile completion for common users
+  if (!profile || !profile.profileCompleted) {
+    return <Navigate to="/completar-perfil" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function ProfileCompletionRoute({ children }: { children: React.ReactNode }) {
+  const { user, profile } = useApp();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === 'master') {
+    return <Navigate to="/master/dashboard" replace />;
+  }
+
+  if (profile && profile.profileCompleted) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -43,7 +75,18 @@ function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/cadastro" element={<Register />} />
         <Route path="/validar/:validationCode" element={<Login />} />
+        
+        {/* Profile Completion Flow */}
+        <Route 
+          path="/completar-perfil" 
+          element={
+            <ProfileCompletionRoute>
+              <CompleteProfile />
+            </ProfileCompletionRoute>
+          } 
+        />
         
         {/* Protected Supplier / Final User Routes */}
         <Route 

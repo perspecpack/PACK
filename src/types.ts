@@ -161,10 +161,36 @@ export interface ReferenceProjectEntry {
 }
 
 export interface User {
+  id?: string;
   email: string;
   role: 'master' | 'user';
   companyName?: string;
   companyLogoUrl?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  userId: string;
+  fullName: string;
+  roleTitle: string;
+  phone: string;
+  whatsapp: string;
+  corporateEmail: string;
+  companyName: string;
+  cnpj: string;
+  companyWebsite: string;
+  companyLogoUrl: string;
+  city: string;
+  state: string;
+  country: string;
+  companyType: string;
+  companyTypeOther?: string;
+  mainInterests: string[];
+  mainInterestOther?: string;
+  profileCompleted: boolean;
+  accountStatus: 'active' | 'pending' | 'blocked';
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DownloadLog {
