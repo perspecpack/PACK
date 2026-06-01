@@ -1234,9 +1234,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const login = async (email: string, role: 'master' | 'user') => {
     const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
-    if (role === 'master' && masterEmail) {
+    const masterPassword = cleanEnvVar(import.meta.env.MASTER_PASSWORD || import.meta.env.VITE_MASTER_PASSWORD);
+
+    if (role === 'master' && masterEmail && masterPassword) {
+      let sessionData = null;
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: masterEmail,
+          password: masterPassword
+        });
+        if (error) {
+          const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+            email: masterEmail,
+            password: masterPassword
+          });
+          if (!signUpErr && signUpData.user) {
+            const { data: signInData } = await supabase.auth.signInWithPassword({
+              email: masterEmail,
+              password: masterPassword
+            });
+            sessionData = signInData;
+          }
+        } else {
+          sessionData = data;
+        }
+      } catch (authErr) {
+        console.error('Quick login master auth failed:', authErr);
+      }
+
       const masterSession = {
-        id: '00000000-0000-0000-0000-000000000000',
+        id: sessionData?.user?.id || '00000000-0000-0000-0000-000000000000',
         email: masterEmail,
         role: 'master' as const
       };
@@ -1285,8 +1312,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (masterEmail && masterPassword && 
         emailInput.trim().toLowerCase() === masterEmail && 
         passwordInput === masterPassword) {
+      let sessionData = null;
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: masterEmail,
+          password: masterPassword
+        });
+        if (error) {
+          const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+            email: masterEmail,
+            password: masterPassword
+          });
+          if (!signUpErr && signUpData.user) {
+            const { data: signInData } = await supabase.auth.signInWithPassword({
+              email: masterEmail,
+              password: masterPassword
+            });
+            sessionData = signInData;
+          }
+        } else {
+          sessionData = data;
+        }
+      } catch (authErr) {
+        console.error('Master auth failed:', authErr);
+      }
+
       const masterSession = {
-        id: '00000000-0000-0000-0000-000000000000',
+        id: sessionData?.user?.id || '00000000-0000-0000-0000-000000000000',
         email: masterEmail,
         role: 'master' as const
       };
