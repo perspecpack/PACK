@@ -107,7 +107,7 @@ export default function Profile() {
       <div className="flex justify-between items-center">
         <button 
           onClick={() => navigate('/')}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-650 hover:text-teal-700 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 hover:text-teal-700 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Voltar para Downloads</span>
@@ -127,7 +127,7 @@ export default function Profile() {
         <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
             <h3 className="font-extrabold text-[14px] text-slate-800 flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-teal-650" />
+              <Building2 className="w-4 h-4 text-teal-600" />
               <span>Dados da Empresa</span>
             </h3>
           </div>
@@ -155,7 +155,7 @@ export default function Profile() {
                   <button 
                     type="button" 
                     onClick={handleAutoFill}
-                    className="text-[10px] text-teal-650 hover:text-teal-700 font-bold hover:underline"
+                    className="text-[10px] text-teal-600 hover:text-teal-700 font-bold hover:underline"
                   >
                     Preencher automático
                   </button>
@@ -197,11 +197,11 @@ export default function Profile() {
                       "flex items-center justify-center gap-2 border border-dashed rounded-xl p-4 text-xs font-semibold cursor-pointer transition-all min-h-[46px]",
                       isUploading
                         ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed"
-                        : "border-slate-300 hover:border-teal-400 hover:bg-slate-50/50 text-slate-650"
+                        : "border-slate-300 hover:border-teal-400 hover:bg-slate-50/50 text-slate-600"
                     )}>
                       {isUploading ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin text-teal-650" />
+                          <Loader2 className="w-4 h-4 animate-spin text-teal-600" />
                           <span>Enviando imagem...</span>
                         </>
                       ) : (
@@ -232,16 +232,15 @@ export default function Profile() {
 
           <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
             <Button 
-              variant="outline"
               onClick={() => navigate('/')}
-              className="text-xs font-semibold h-10 px-5 rounded-lg"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold h-10 px-5 rounded-lg transition-colors"
               disabled={isSaving}
             >
               Cancelar
             </Button>
             <Button 
               onClick={handleSave}
-              className="bg-teal-650 hover:bg-teal-700 text-white text-xs font-bold h-10 px-6 rounded-lg flex items-center gap-1.5 justify-center shadow-md"
+              className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold h-10 px-6 rounded-lg flex items-center gap-1.5 justify-center shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               disabled={isSaving || isUploading}
             >
               {isSaving ? (

@@ -355,7 +355,7 @@ export default function Login() {
                         href={validationResult.pdf_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center justify-center gap-1.5 w-full bg-teal-650 hover:bg-teal-700 text-white font-bold h-10 px-4 text-xs rounded-xl shadow-sm transition-colors text-center animate-in fade-in"
+                        className="flex items-center justify-center gap-1.5 w-full bg-teal-600 hover:bg-teal-700 text-white font-bold h-10 px-4 text-xs rounded-xl shadow-sm transition-colors text-center animate-in fade-in"
                       >
                         <Download className="w-3.5 h-3.5" />
                         <span>Visualizar PDF do Relatório</span>

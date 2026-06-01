@@ -1354,7 +1354,7 @@ export default function Downloads() {
                           </div>
 
                           <div className="space-y-1">
-                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-650 transition-colors">
+                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
                               {comp.name}
                             </h4>
                             <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
@@ -1418,7 +1418,7 @@ export default function Downloads() {
                           </div>
 
                           <div className="space-y-1">
-                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-650 transition-colors">
+                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
                               {doc.title}
                             </h4>
                             <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
@@ -1482,7 +1482,7 @@ export default function Downloads() {
                           </div>
 
                           <div className="space-y-1">
-                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-650 transition-colors">
+                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
                               {std.title}
                             </h4>
                             <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
@@ -1712,7 +1712,7 @@ export default function Downloads() {
                             <div className="shrink-0 flex items-center">
                               {ans.evidenceLoading ? (
                                 <div className="flex items-center gap-1.5 text-[11px] text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 min-h-[36px]">
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-650" />
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
                                   <span>Enviando...</span>
                                 </div>
                               ) : ans.evidenceUrl ? (
@@ -1921,7 +1921,7 @@ export default function Downloads() {
                   <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Identificação do Emissor (Cadastro)</h4>
                   <Link 
                     to="/perfil"
-                    className="text-[10px] text-teal-650 hover:text-teal-700 font-bold hover:underline"
+                    className="text-[10px] text-teal-600 hover:text-teal-700 font-bold hover:underline"
                   >
                     Editar Perfil
                   </Link>
@@ -2090,7 +2090,7 @@ export default function Downloads() {
               <div className="space-y-6">
                 {/* Rev */}
                 <div className="flex items-center gap-2">
-                  <span className="bg-slate-100 border border-slate-200 text-slate-650 font-mono text-[10px] font-extrabold px-2.5 py-1 rounded-full">
+                  <span className="bg-slate-100 border border-slate-200 text-slate-600 font-mono text-[10px] font-extrabold px-2.5 py-1 rounded-full">
                     REV {selectedItemForModal.data.revision}
                   </span>
                 </div>
@@ -2151,7 +2151,7 @@ export default function Downloads() {
                 {((selectedItemForModal.data.description && selectedItemForModal.data.description !== '-') || (selectedItemForModal.data.application && selectedItemForModal.type !== 'component')) && (
                   <div className="space-y-1.5">
                     <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider block">Descrição Detalhada</span>
-                    <p className="text-[13px] text-slate-650 leading-relaxed font-medium">
+                    <p className="text-[13px] text-slate-600 leading-relaxed font-medium">
                       {selectedItemForModal.data.description || selectedItemForModal.data.application}
                     </p>
                   </div>
