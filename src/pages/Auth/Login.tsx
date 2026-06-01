@@ -210,20 +210,30 @@ export default function Login() {
                 </Link>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-12 text-[15px] rounded-lg mt-2 transition-colors shadow-md flex items-center justify-center gap-2"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Entrando...</span>
-                  </>
-                ) : (
-                  <span>Entrar</span>
-                )}
-              </Button>
+              <div className="flex flex-col gap-3 mt-4">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-12 text-[15px] rounded-lg transition-colors shadow-md flex items-center justify-center gap-2"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Entrando...</span>
+                    </>
+                  ) : (
+                    <span>Entrar</span>
+                  )}
+                </Button>
+                
+                <Button 
+                  type="button" 
+                  onClick={() => navigate('/cadastro')}
+                  className="w-full bg-white hover:bg-slate-50 text-[#0c3944] border border-slate-350 hover:border-slate-400 font-bold h-12 text-[15px] rounded-lg transition-all shadow-sm flex items-center justify-center gap-2"
+                >
+                  <span>Criar Conta</span>
+                </Button>
+              </div>
             </form>
 
             {/* Quick Access / Shortcuts */}

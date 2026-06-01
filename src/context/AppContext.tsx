@@ -1096,7 +1096,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     mainInterests: db.main_interests || [],
     mainInterestOther: db.main_interest_other || '',
     profileCompleted: !!db.profile_completed,
-    accountStatus: db.account_status || 'pending',
+    accountStatus: db.account_status || 'active',
+    planType: db.plan_type || 'free',
+    premiumUntil: db.premium_until || null,
     createdAt: db.created_at,
     updatedAt: db.updated_at
   });
@@ -1121,6 +1123,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (ts.mainInterestOther !== undefined) db.main_interest_other = ts.mainInterestOther;
     if (ts.profileCompleted !== undefined) db.profile_completed = ts.profileCompleted;
     if (ts.accountStatus !== undefined) db.account_status = ts.accountStatus;
+    if (ts.planType !== undefined) db.plan_type = ts.planType;
+    if (ts.premiumUntil !== undefined) db.premium_until = ts.premiumUntil;
     return db;
   };
 
@@ -1163,7 +1167,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           user_id: authUser.id,
           corporate_email: email,
           profile_completed: false,
-          account_status: 'pending'
+          account_status: 'active',
+          plan_type: 'free'
         };
         const { data: inserted, error: insertErr } = await supabase
           .from('user_profiles')

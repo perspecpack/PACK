@@ -23,10 +23,10 @@ import logoImage from '@/logo.png';
 import brandTextImg from '@/PERSPECPACK.png';
 
 const COMPANY_TYPES = [
-  'Montadora',
+  'Montadora / OEM',
   'Fabricante de Embalagens Metálicas',
   'Fabricante de Componentes Automotivos',
-  'Fornecedor',
+  'Fornecedor Tier 1',
   'Integrador Logístico',
   'Empresa de Engenharia',
   'Consultoria Técnica',
@@ -132,14 +132,17 @@ export default function CompleteProfile() {
       if (!fullName.trim()) return 'Por favor, informe seu nome completo.';
       if (!roleTitle.trim()) return 'Por favor, informe seu cargo ou função.';
       if (!phone.trim()) return 'Por favor, informe um número de telefone.';
+      if (!whatsapp.trim()) return 'Por favor, informe seu número de WhatsApp.';
       if (!corporateEmail.trim()) return 'Por favor, informe seu e-mail corporativo.';
     }
     if (step === 2) {
       if (!companyName.trim()) return 'Por favor, informe o nome da empresa.';
       if (!cnpj.trim() || cnpj.length < 18) return 'Por favor, informe um CNPJ válido.';
+      if (!companyWebsite.trim()) return 'Por favor, informe o site oficial da empresa.';
       if (!city.trim()) return 'Por favor, informe a cidade.';
       if (!state.trim()) return 'Por favor, informe o estado.';
       if (!country.trim()) return 'Por favor, informe o país.';
+      if (!companyLogoUrl) return 'Por favor, faça o upload do logotipo da empresa.';
     }
     if (step === 3) {
       if (!companyType) return 'Por favor, selecione o tipo de empresa.';
@@ -199,7 +202,8 @@ export default function CompleteProfile() {
         mainInterests: selectedInterests,
         mainInterestOther: selectedInterests.includes('Outro') ? mainInterestOther.trim() : undefined,
         profileCompleted: true,
-        accountStatus: 'active'
+        accountStatus: 'active',
+        planType: 'free'
       });
 
       // Navigate to homepage

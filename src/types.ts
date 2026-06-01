@@ -189,6 +189,8 @@ export interface UserProfile {
   mainInterestOther?: string;
   profileCompleted: boolean;
   accountStatus: 'active' | 'pending' | 'blocked';
+  planType: 'free' | 'premium';
+  premiumUntil?: string | null;
   createdAt: string;
   updatedAt: string;
 }

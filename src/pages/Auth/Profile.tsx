@@ -19,10 +19,10 @@ import { uploadFileToStorage } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
 const COMPANY_TYPES = [
-  'Montadora',
+  'Montadora / OEM',
   'Fabricante de Embalagens Metálicas',
   'Fabricante de Componentes Automotivos',
-  'Fornecedor',
+  'Fornecedor Tier 1',
   'Integrador Logístico',
   'Empresa de Engenharia',
   'Consultoria Técnica',
@@ -154,12 +154,15 @@ export default function Profile() {
     if (!fullName.trim()) { setValidationError('Nome completo é obrigatório.'); return; }
     if (!roleTitle.trim()) { setValidationError('Cargo / Função é obrigatória.'); return; }
     if (!phone.trim()) { setValidationError('Telefone de contato é obrigatório.'); return; }
+    if (!whatsapp.trim()) { setValidationError('WhatsApp de contato é obrigatório.'); return; }
     if (!corporateEmail.trim()) { setValidationError('E-mail corporativo é obrigatório.'); return; }
     if (!companyName.trim()) { setValidationError('Nome da empresa é obrigatório.'); return; }
     if (!cnpj.trim() || cnpj.length < 18) { setValidationError('CNPJ válido é obrigatório.'); return; }
+    if (!companyWebsite.trim()) { setValidationError('Site oficial da empresa é obrigatório.'); return; }
     if (!city.trim()) { setValidationError('Cidade é obrigatória.'); return; }
     if (!state.trim()) { setValidationError('Estado é obrigatório.'); return; }
     if (!country.trim()) { setValidationError('País é obrigatório.'); return; }
+    if (!companyLogoUrl) { setValidationError('O logotipo da empresa é obrigatório.'); return; }
     if (!companyType) { setValidationError('Selecione o tipo de empresa.'); return; }
     if (companyType === 'Outros' && !companyTypeOther.trim()) {
       setValidationError('Descreva o tipo da empresa.');

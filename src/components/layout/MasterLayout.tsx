@@ -10,7 +10,8 @@ import {
   Eye, 
   Settings as SettingsIcon, 
   LogOut,
-  Shield
+  Shield,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ export function MasterLayout() {
 
   const navigation = [
     { name: 'Visualizar Plataforma', href: '/master/dashboard', icon: Eye },
+    { name: 'Usuários', href: '/master/users', icon: Users },
     { name: 'Organizações', href: '/master/oems', icon: Building2 },
     { name: 'Conteúdo', href: '/master/content', icon: Layers },
     { name: 'Uploads', href: '/master/uploads', icon: FileText },
@@ -119,6 +121,7 @@ export function MasterLayout() {
             <h1 className="text-[18px] font-bold text-[#0F172A] tracking-tight">
               {location.pathname === '/master' && 'Centro de Controle'}
               {location.pathname.startsWith('/master/dashboard') && 'Centro de Controle'}
+              {location.pathname.startsWith('/master/users') && 'Gestão de Usuários'}
               {location.pathname.startsWith('/master/oems') && 'Gestão de Organizações'}
               {location.pathname.startsWith('/master/content') && 'Gestão de Conteúdo por Organização'}
               {location.pathname.startsWith('/master/uploads') && 'Central de Uploads'}

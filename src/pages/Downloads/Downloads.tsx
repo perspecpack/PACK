@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useOutletContext, Link } from 'react-router-dom';
+import { useOutletContext, Link, useNavigate } from 'react-router-dom';
 import { 
   Box, 
   Building2,
@@ -23,7 +23,8 @@ import {
   Eye,
   Paperclip,
   Trash2,
-  Loader2
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -161,6 +162,7 @@ const ORG_TYPE_LABELS: Record<string, string> = {
 
 
 export default function Downloads() {
+  const navigate = useNavigate();
   const { 
     organizations, 
     organizationModules, 
@@ -172,13 +174,23 @@ export default function Downloads() {
     logDownload,
     logPageAccess,
     logUpload,
-    user
+    user,
+    profile
   } = useApp();
 
   const { searchQuery, setSearchQuery, resetTrigger } = useOutletContext<{ searchQuery: string; setSearchQuery: (q: string) => void; resetTrigger: number }>();
 
   // Steps: 'org_selection' | 'module_selection' | 'content_view' | 'checklist_execution'
   const [step, setStep] = useState<'org_selection' | 'module_selection' | 'content_view' | 'checklist_execution'>('org_selection');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const handlePremiumDownload = (e: React.MouseEvent) => {
+    if (user?.role === 'master' || profile?.planType === 'premium') {
+      return;
+    }
+    e.preventDefault();
+    setShowUpgradeModal(true);
+  };
   const [selectedOEM, setSelectedOEM] = useState<string>('');
   const [selectedItemForModal, setSelectedItemForModal] = useState<{
     type: 'component' | 'document' | 'standard';
@@ -243,6 +255,10 @@ export default function Downloads() {
 
   // Initialize checklist answers when entering checklist execution
   const startChecklistExecution = (checklist: ChecklistTemplate) => {
+    if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+      setShowUpgradeModal(true);
+      return;
+    }
     setActiveChecklist(checklist);
     const initialAnswers: Record<string, { 
       status: 'C' | 'NC' | 'NA' | null; 
@@ -1019,7 +1035,14 @@ export default function Downloads() {
                             {comp.stepFileUrl && (
                               <a 
                                 href={comp.stepFileUrl}
-                                onClick={() => logDownload(comp.organizationId, 'Componente (STEP)', comp.id, comp.stepFileUrl?.split('/').pop() || 'file.step')}
+                                onClick={(e) => {
+                                  if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                                    e.preventDefault();
+                                    setShowUpgradeModal(true);
+                                  } else {
+                                    logDownload(comp.organizationId, 'Componente (STEP)', comp.id, comp.stepFileUrl?.split('/').pop() || 'file.step');
+                                  }
+                                }}
                                 className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] px-2 py-1 rounded font-bold font-mono border border-blue-100"
                               >
                                 STEP
@@ -1028,7 +1051,14 @@ export default function Downloads() {
                             {comp.pdfFileUrl && (
                               <a 
                                 href={comp.pdfFileUrl}
-                                onClick={() => logDownload(comp.organizationId, 'Componente (PDF)', comp.id, comp.pdfFileUrl?.split('/').pop() || 'file.pdf')}
+                                onClick={(e) => {
+                                  if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                                    e.preventDefault();
+                                    setShowUpgradeModal(true);
+                                  } else {
+                                    logDownload(comp.organizationId, 'Componente (PDF)', comp.id, comp.pdfFileUrl?.split('/').pop() || 'file.pdf');
+                                  }
+                                }}
                                 className="bg-red-50 hover:bg-red-100 text-red-700 text-[10px] px-2 py-1 rounded font-bold font-mono border border-red-100"
                               >
                                 PDF
@@ -1105,13 +1135,19 @@ export default function Downloads() {
                           {std.fileUrl && (
                             <a 
                               href={std.fileUrl}
-                              onClick={() => logDownload(std.organizationId, 'Normas e Padrões', std.id, std.fileName || 'norma.pdf')}
+                              onClick={(e) => {
+                                if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                                  e.preventDefault();
+                                  setShowUpgradeModal(true);
+                                } else {
+                                  logDownload(std.organizationId, 'Normas e Padrões', std.id, std.fileName || 'norma.pdf');
+                                }
+                              }}
                               className="bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] px-2 py-1.5 rounded font-bold shrink-0 border border-teal-100"
                             >
                               Download
                             </a>
-                          )}
-                        </div>
+                          )}</div>
                       );
                     })}
                   </div>
@@ -2169,7 +2205,14 @@ export default function Downloads() {
                     {selectedItemForModal.data.stepFileUrl ? (
                       <a 
                         href={selectedItemForModal.data.stepFileUrl}
-                        onClick={() => logDownload(selectedItemForModal.data.organizationId, 'Componente (STEP)', selectedItemForModal.data.id, selectedItemForModal.data.stepFileUrl?.split('/').pop() || 'file.step')}
+                        onClick={(e) => {
+                          if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                            e.preventDefault();
+                            setShowUpgradeModal(true);
+                          } else {
+                            logDownload(selectedItemForModal.data.organizationId, 'Componente (STEP)', selectedItemForModal.data.id, selectedItemForModal.data.stepFileUrl?.split('/').pop() || 'file.step');
+                          }
+                        }}
                         target="_blank" 
                         rel="noreferrer"
                         className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center min-h-[50px] w-full"
@@ -2187,7 +2230,14 @@ export default function Downloads() {
                     {selectedItemForModal.data.pdfFileUrl ? (
                       <a 
                         href={selectedItemForModal.data.pdfFileUrl}
-                        onClick={() => logDownload(selectedItemForModal.data.organizationId, 'Componente (PDF)', selectedItemForModal.data.id, selectedItemForModal.data.pdfFileUrl?.split('/').pop() || 'file.pdf')}
+                        onClick={(e) => {
+                          if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                            e.preventDefault();
+                            setShowUpgradeModal(true);
+                          } else {
+                            logDownload(selectedItemForModal.data.organizationId, 'Componente (PDF)', selectedItemForModal.data.id, selectedItemForModal.data.pdfFileUrl?.split('/').pop() || 'file.pdf');
+                          }
+                        }}
                         target="_blank" 
                         rel="noreferrer"
                         className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center min-h-[50px] w-full"
@@ -2205,7 +2255,14 @@ export default function Downloads() {
                     {selectedItemForModal.data.dwgFileUrl ? (
                       <a 
                         href={selectedItemForModal.data.dwgFileUrl}
-                        onClick={() => logDownload(selectedItemForModal.data.organizationId, 'Componente (DWG)', selectedItemForModal.data.id, selectedItemForModal.data.dwgFileUrl?.split('/').pop() || 'file.dwg')}
+                        onClick={(e) => {
+                          if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                            e.preventDefault();
+                            setShowUpgradeModal(true);
+                          } else {
+                            logDownload(selectedItemForModal.data.organizationId, 'Componente (DWG)', selectedItemForModal.data.id, selectedItemForModal.data.dwgFileUrl?.split('/').pop() || 'file.dwg');
+                          }
+                        }}
                         target="_blank" 
                         rel="noreferrer"
                         className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all text-center min-h-[50px] w-full"
@@ -2225,12 +2282,19 @@ export default function Downloads() {
                     {selectedItemForModal.data.fileUrl ? (
                       <a 
                         href={selectedItemForModal.data.fileUrl}
-                        onClick={() => logDownload(
-                          selectedItemForModal.data.organizationId, 
-                          selectedItemForModal.type === 'document' ? 'Documentação Técnica' : 'Normas e Padrões', 
-                          selectedItemForModal.data.id, 
-                          selectedItemForModal.data.fileName || 'file.pdf'
-                        )}
+                        onClick={(e) => {
+                          if (selectedItemForModal.type === 'standard' && !(user?.role === 'master' || profile?.planType === 'premium')) {
+                            e.preventDefault();
+                            setShowUpgradeModal(true);
+                          } else {
+                            logDownload(
+                              selectedItemForModal.data.organizationId, 
+                              selectedItemForModal.type === 'document' ? 'Documentação Técnica' : 'Normas e Padrões', 
+                              selectedItemForModal.data.id, 
+                              selectedItemForModal.data.fileName || 'file.pdf'
+                            );
+                          }
+                        }}
                         target="_blank" 
                         rel="noreferrer"
                         className={cn(
@@ -2252,7 +2316,57 @@ export default function Downloads() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
+      {/* UPGRADE POPUP MODAL */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[480px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+            <div className="bg-[#06242c] text-white p-5 border-b border-teal-950 flex justify-between items-center shrink-0">
+              <h3 className="text-sm font-bold flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#00F59B]" />
+                <span>Recurso disponível no Plano Premium</span>
+              </h3>
+              <button 
+                onClick={() => setShowUpgradeModal(false)}
+                className="text-slate-300 hover:text-white hover:bg-teal-950/50 p-1.5 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 text-center space-y-4">
+              <div className="w-14 h-14 bg-amber-50 text-amber-650 border border-amber-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                <ShieldCheck className="w-7 h-7 text-amber-500" />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-base font-extrabold text-slate-900">Assinatura Premium Necessária</h4>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
+                  Para acessar componentes homologados, executar checklists de validação e gerar relatórios de conformidade, atualize sua assinatura.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-5 border-t border-slate-200 flex flex-col gap-2.5 shrink-0">
+              <Button
+                onClick={() => {
+                  setShowUpgradeModal(false);
+                  navigate('/meu-plano');
+                }}
+                className="w-full bg-teal-650 hover:bg-teal-750 text-white font-bold h-11 text-xs rounded-xl shadow-md transition-colors"
+              >
+                Ver Plano Premium
+              </Button>
+              <Button
+                onClick={() => setShowUpgradeModal(false)}
+                variant="outline"
+                className="w-full bg-white hover:bg-slate-50 text-slate-700 border-slate-250 hover:border-slate-300 text-xs font-semibold h-11 rounded-xl transition-colors"
+              >
+                Continuar no Plano Free
+              </Button>
+            </div>
           </div>
         </div>
       )}

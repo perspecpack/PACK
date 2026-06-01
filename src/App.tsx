@@ -8,6 +8,8 @@ import Register from './pages/Auth/Register';
 import CompleteProfile from './pages/Auth/CompleteProfile';
 import Downloads from './pages/Downloads/Downloads';
 import Profile from './pages/Auth/Profile';
+import MyPlan from './pages/Auth/MyPlan';
+import DownloadsHistory from './pages/Downloads/DownloadsHistory';
 
 // Master Pages
 import Dashboard from './pages/Master/Dashboard';
@@ -17,6 +19,7 @@ import Settings from './pages/Master/Settings';
 import Content from './pages/Master/Content';
 import OrganizationDetail from './pages/Master/OrganizationDetail';
 import ModuleContentManager from './pages/Master/ModuleContentManager';
+import Users from './pages/Master/Users';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -98,6 +101,8 @@ function AppRoutes() {
         >
           <Route path="/" element={<Downloads />} />
           <Route path="/perfil" element={<Profile />} />
+          <Route path="/meu-plano" element={<MyPlan />} />
+          <Route path="/historico-downloads" element={<DownloadsHistory />} />
         </Route>
 
         {/* Protected Master / Admin Routes */}
@@ -110,6 +115,7 @@ function AppRoutes() {
         >
           <Route path="/master" element={<Navigate to="/master/dashboard" replace />} />
           <Route path="/master/dashboard" element={<Dashboard />} />
+          <Route path="/master/users" element={<Users />} />
           <Route path="/master/oems" element={<Organizations />} />
           <Route path="/master/content" element={<Content />} />
           <Route path="/master/content/:orgId" element={<OrganizationDetail />} />

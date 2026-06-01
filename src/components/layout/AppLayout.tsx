@@ -14,10 +14,11 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/src/context/AppContext';
 import logoImage from '@/logo.png';
+import { cn } from '@/lib/utils';
 
 export function AppLayout() {
   const navigate = useNavigate();
-  const { user, viewingAsUser, setViewingAsUser, logout } = useApp();
+  const { user, profile, viewingAsUser, setViewingAsUser, logout } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [resetTrigger, setResetTrigger] = useState(0);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -116,7 +117,9 @@ export function AppLayout() {
               </div>
               <div className="flex flex-col text-left hidden sm:block">
                 <span className="text-[13px] font-bold text-slate-200 leading-none">
-                  {user?.role === 'master' ? 'Master Admin' : 'Fornecedor'}
+                  {user?.role === 'master' 
+                    ? 'Master Admin' 
+                    : `Fornecedor (${profile?.planType === 'premium' ? 'Premium' : 'Free'})`}
                 </span>
               </div>
               <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -131,6 +134,18 @@ export function AppLayout() {
                     {user?.role === 'master' ? 'Master Admin (Simulado)' : 'Fornecedor'}
                   </p>
                   <p className="text-xs text-slate-500 truncate">{user?.email || 'fornecedor@perspecpack.com'}</p>
+                  {user?.role !== 'master' && profile && (
+                    <div className="mt-2">
+                      <span className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase border",
+                        profile.planType === 'premium'
+                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                          : "bg-slate-100 text-slate-650 border-slate-200"
+                      )}>
+                        Plano {profile.planType}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="py-1">
@@ -150,26 +165,22 @@ export function AppLayout() {
                     <Building2 className="w-4 h-4 text-slate-400" />
                     <span>Minha Empresa</span>
                   </Link>
-                  <button 
-                    onClick={() => {
-                      setUserDropdownOpen(false);
-                      alert('Funcionalidade de Assinatura/Meu Plano disponível em breve. PERSPECPACK está em modo gratuito de demonstração.');
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors cursor-pointer"
+                  <Link 
+                    to="/meu-plano"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-650 transition-colors cursor-pointer"
                   >
                     <CreditCard className="w-4 h-4 text-slate-400" />
                     <span>Meu Plano</span>
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setUserDropdownOpen(false);
-                      alert('O Histórico de Downloads detalhado estará disponível na sua área restrita.');
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors cursor-pointer"
+                  </Link>
+                  <Link 
+                    to="/historico-downloads"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-650 transition-colors cursor-pointer"
                   >
                     <History className="w-4 h-4 text-slate-400" />
                     <span>Histórico de Downloads</span>
-                  </button>
+                  </Link>
                   <button 
                     onClick={() => setUserDropdownOpen(false)}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors"
