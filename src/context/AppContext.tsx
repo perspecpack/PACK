@@ -1206,6 +1206,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (saved) {
           const parsed = JSON.parse(saved);
           setUser(parsed);
+          
+          if (parsed.role === 'master') {
+            const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+            const masterPassword = cleanEnvVar(import.meta.env.MASTER_PASSWORD || import.meta.env.VITE_MASTER_PASSWORD);
+            if (masterEmail && masterPassword) {
+              supabase.auth.signInWithPassword({
+                email: masterEmail,
+                password: masterPassword
+              }).then(({ data, error }) => {
+                if (!error && data?.user) {
+                  setUser(prev => prev ? { ...prev, id: data.user.id } : null);
+                } else if (error) {
+                  console.error('Silent master login on load failed:', error);
+                }
+              });
+            }
+          }
         } else {
           setUser(null);
         }
@@ -1221,6 +1238,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const parsed = JSON.parse(saved);
           if (parsed.role === 'master') {
             setUser(parsed);
+            
+            const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL).toLowerCase();
+            const masterPassword = cleanEnvVar(import.meta.env.MASTER_PASSWORD || import.meta.env.VITE_MASTER_PASSWORD);
+            if (masterEmail && masterPassword) {
+              supabase.auth.signInWithPassword({
+                email: masterEmail,
+                password: masterPassword
+              }).then(({ data, error }) => {
+                if (!error && data?.user) {
+                  setUser(prev => prev ? { ...prev, id: data.user.id } : null);
+                }
+              });
+            }
             return;
           }
         }
