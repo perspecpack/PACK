@@ -503,8 +503,8 @@ export default function Help() {
 
               <div className="space-y-4">
                 <div className="font-sans text-[22px] tracking-wider leading-none select-none text-left border-b border-slate-100 pb-3">
-                  <span className="font-bold text-slate-650">PERSPEC</span>
-                  <span className="font-normal text-teal-500">PACK</span>
+                  <span className="font-bold text-slate-500">PERSPEC</span>
+                  <span className="font-normal text-[#00ff00]">PACK</span>
                 </div>
 
                 <div className="text-sm text-slate-650 leading-relaxed space-y-4">
