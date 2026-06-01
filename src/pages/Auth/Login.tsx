@@ -303,12 +303,12 @@ export default function Login() {
                     placeholder="Digite o código de validação"
                     value={validationCodeInput}
                     onChange={(e) => setValidationCodeInput(e.target.value)}
-                    className="h-10 text-xs rounded-lg border-gray-300 shadow-sm focus:ring-teal-500 focus:border-teal-500"
+                    className="h-10 text-xs flex-1 placeholder:text-[10.5px] rounded-lg border-gray-300 shadow-sm focus:ring-teal-500 focus:border-teal-500"
                   />
                   <Button
                     type="button"
                     onClick={() => handleValidateReport()}
-                    className="bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-10 px-4 text-xs rounded-lg shrink-0 transition-colors shadow-md"
+                    className="bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-10 px-3 text-xs rounded-lg shrink-0 transition-colors shadow-md"
                     disabled={isValidatingReport}
                   >
                     {isValidatingReport ? (
