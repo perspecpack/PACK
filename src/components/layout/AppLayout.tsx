@@ -4,9 +4,7 @@ import {
   ArrowLeft,
   Search,
   User,
-  Building2,
   ChevronDown,
-  Settings,
   CreditCard,
   History,
   HelpCircle,
@@ -180,14 +178,6 @@ export function AppLayout() {
                     <span>Meu Perfil</span>
                   </Link>
                   <Link 
-                    to="/perfil"
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors"
-                  >
-                    <Building2 className="w-4 h-4 text-slate-400" />
-                    <span>Minha Empresa</span>
-                  </Link>
-                  <Link 
                     to="/meu-plano"
                     onClick={() => setUserDropdownOpen(false)}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-650 transition-colors cursor-pointer"
@@ -203,13 +193,6 @@ export function AppLayout() {
                     <History className="w-4 h-4 text-slate-400" />
                     <span>Histórico de Downloads</span>
                   </Link>
-                  <button 
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors"
-                  >
-                    <Settings className="w-4 h-4 text-slate-400" />
-                    <span>Configurações</span>
-                  </button>
                   <button 
                     onClick={() => setUserDropdownOpen(false)}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-teal-600 transition-colors"
