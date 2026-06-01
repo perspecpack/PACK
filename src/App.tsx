@@ -5,6 +5,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { MasterLayout } from './components/layout/MasterLayout';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
+import ResetPassword from './pages/Auth/ResetPassword';
 import CompleteProfile from './pages/Auth/CompleteProfile';
 import Downloads from './pages/Downloads/Downloads';
 import Profile from './pages/Auth/Profile';
@@ -82,6 +83,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Register />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/validar/:validationCode" element={<Login />} />
         
         {/* Profile Completion Flow */}
