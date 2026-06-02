@@ -12,6 +12,7 @@ import brandTextImg from '@/PERSPECPACK.png';
 export default function ResetPassword() {
   const navigate = useNavigate();
 
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,26 +29,68 @@ export default function ResetPassword() {
       return;
     }
 
-    // Capture hash synchronously on mount before any async calls/redirects clear it
     const initialHash = window.location.hash || '';
     const isRecoveryOnMount = initialHash.includes('type=recovery') || initialHash.includes('access_token');
+    const hasError = initialHash.includes('error=') || initialHash.includes('error_code=');
 
-    // Verify if we are in recovery flow
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session && !isRecoveryOnMount) {
-        setInitError('Link expirado ou inválido. Solicite uma nova recuperação de senha.');
+    if (hasError) {
+      setInitError('Link inválido ou expirado. Solicite uma nova recuperação de senha.');
+      return;
+    }
+
+    let isMounted = true;
+
+    const checkUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!isMounted) return;
+        if (user && user.email) {
+          setEmail(user.email);
+          setInitError(null);
+        } else if (!isRecoveryOnMount) {
+          setInitError('Link inválido ou expirado. Solicite uma nova recuperação de senha.');
+        } else {
+          // Timeout fallback to let onAuthStateChange resolve hash
+          setTimeout(async () => {
+            if (!isMounted) return;
+            const { data: { user: delayedUser } } = await supabase.auth.getUser();
+            if (!delayedUser) {
+              setInitError('Link inválido ou expirado. Solicite uma nova recuperação de senha.');
+            }
+          }, 1500);
+        }
+      } catch (err) {
+        console.error('Error checking user:', err);
+        if (isMounted) {
+          setInitError('Link inválido ou expirado. Solicite uma nova recuperação de senha.');
+        }
       }
-    });
+    };
+
+    checkUser();
 
     // Handle listener for hash login
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
       if (event === 'PASSWORD_RECOVERY' || (session && window.location.hash.includes('access_token'))) {
         console.log('Recovery session established.');
-        setInitError(null);
+        if (session?.user?.email) {
+          setEmail(session.user.email);
+          setInitError(null);
+        } else {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            setEmail(user.email);
+            setInitError(null);
+          }
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Validation checks
@@ -75,10 +118,13 @@ export default function ResetPassword() {
 
       if (updateErr) throw updateErr;
 
+      // Executar logout da sessão temporária
+      await supabase.auth.signOut();
+
       setSaveSuccess(true);
     } catch (err: any) {
       console.error('Error updating password:', err);
-      setError('Link expirado ou inválido. Solicite uma nova recuperação de senha.');
+      setError('Não foi possível redefinir a senha. Solicite um novo link de recuperação.');
     } finally {
       setIsSaving(false);
     }
@@ -126,7 +172,7 @@ export default function ResetPassword() {
               <CheckCircle2 className="w-7 h-7" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-[18px] font-extrabold text-slate-900">Senha atualizada com sucesso.</h3>
+              <h3 className="text-[18px] font-extrabold text-slate-900">Senha redefinida com sucesso.</h3>
               <p className="text-slate-500 text-xs">
                 Sua senha foi redefinida com segurança. Use a nova credencial para acessar a plataforma.
               </p>
@@ -142,7 +188,7 @@ export default function ResetPassword() {
           <div className="space-y-6">
             <div className="space-y-1 text-center">
               <h2 className="text-[20px] font-extrabold text-slate-900">Redefinir Senha</h2>
-              <p className="text-xs text-slate-500">Crie uma nova senha segura para sua conta.</p>
+              <p className="text-xs text-slate-500">Informe sua nova senha de acesso à plataforma.</p>
             </div>
 
             {error && (
@@ -154,6 +200,18 @@ export default function ResetPassword() {
 
             <form onSubmit={handleSavePassword} className="space-y-4">
               
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-bold text-slate-700">E-mail</Label>
+                <Input 
+                  id="email"
+                  type="email"
+                  value={email}
+                  readOnly
+                  disabled
+                  className="h-11 text-xs rounded-lg border-gray-300 bg-slate-50 text-slate-500 cursor-not-allowed shadow-sm focus:ring-0 focus:border-gray-300"
+                />
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="password" className="text-xs font-bold text-slate-700">Nova Senha</Label>
                 <div className="relative">
