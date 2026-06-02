@@ -28,11 +28,13 @@ export default function ResetPassword() {
       return;
     }
 
+    // Capture hash synchronously on mount before any async calls/redirects clear it
+    const initialHash = window.location.hash || '';
+    const isRecoveryOnMount = initialHash.includes('type=recovery') || initialHash.includes('access_token');
+
     // Verify if we are in recovery flow
     supabase.auth.getSession().then(({ data: { session } }) => {
-      const hash = window.location.hash || '';
-      const isRecovery = hash.includes('type=recovery') || hash.includes('access_token');
-      if (!session && !isRecovery) {
+      if (!session && !isRecoveryOnMount) {
         setInitError('Link expirado ou inválido. Solicite uma nova recuperação de senha.');
       }
     });

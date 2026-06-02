@@ -78,6 +78,18 @@ function ProfileCompletionRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user } = useApp();
   
+  // Intercept password recovery flow from Supabase redirecting to root or other pages
+  const hash = window.location.hash || '';
+  if (hash.includes('type=recovery') && window.location.pathname !== '/reset-password') {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="*" element={<Navigate to={`/reset-password${hash}`} replace />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
   return (
     <BrowserRouter>
       <Routes>
