@@ -283,14 +283,6 @@ export default function Login() {
                     <span>Entrar</span>
                   )}
                 </Button>
-                
-                <Button 
-                  type="button" 
-                  onClick={() => navigate('/cadastro')}
-                  className="w-full bg-white hover:bg-slate-50 text-[#0c3944] border border-slate-350 hover:border-slate-400 font-bold h-12 text-[15px] rounded-lg transition-all shadow-sm flex items-center justify-center gap-2"
-                >
-                  <span>Criar Conta</span>
-                </Button>
               </div>
             </form>
 
