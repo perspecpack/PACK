@@ -56,17 +56,17 @@ export default function Login() {
       }
       
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: window.location.origin + '/reset-password',
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       
       if (error) throw error;
       
       setResetSuccessMessage(
-        'Solicitação enviada. Caso o endereço informado esteja cadastrado, você receberá um e-mail com instruções para redefinição da sua senha.'
+        'Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.'
       );
     } catch (err: any) {
       console.error('Error requesting password reset:', err);
-      setResetError(err.message || 'Erro ao enviar e-mail de recuperação.');
+      setResetError(err.message || 'Erro ao enviar solicitação de recuperação de senha.');
     } finally {
       setIsResetSubmitting(false);
     }
@@ -496,55 +496,85 @@ export default function Login() {
               <button 
                 onClick={() => setShowResetModal(false)}
                 className="text-slate-350 hover:text-white hover:bg-teal-950/50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                disabled={isResetSubmitting}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 space-y-5 text-slate-650 text-xs leading-relaxed text-left">
-              <div className="space-y-2">
-                <h4 className="text-[14px] font-bold text-slate-800">
-                  Esqueceu sua senha de acesso?
-                </h4>
-                <p className="text-[12.5px] text-slate-600">
-                  Por motivos de governança técnica e segurança, a recuperação de senha é gerenciada diretamente pelo suporte técnico da <strong>PERSPECPACK</strong>.
-                </p>
-                <p className="text-[12.5px] text-slate-600 font-medium">
-                  Clique abaixo para falar com o suporte via WhatsApp ou e-mail corporativo para receber suas novas credenciais de acesso rápido.
-                </p>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                <span className="font-bold text-slate-800 block text-[10.5px] uppercase tracking-wider">Canais de Atendimento:</span>
-                
-                <div className="flex flex-col gap-2.5">
-                  <a 
-                    href="https://wa.me/5514998892017?text=Olá,%20gostaria%20de%20redefinir%20minha%20senha%20de%20acesso%20na%20plataforma%20PERSPECPACK."
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-all shadow-sm text-[12px] text-center"
-                  >
-                    <span>Falar no WhatsApp (14) 99889-2017</span>
-                  </a>
-                  
-                  <a 
-                    href="mailto:perspecpack@gmail.com?subject=Recuperação de Senha PERSPECPACK"
-                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold rounded-lg transition-all shadow-sm text-[12px] text-center"
-                  >
-                    <span>Enviar E-mail para perspecpack@gmail.com</span>
-                  </a>
+            {resetSuccessMessage ? (
+              <div className="p-6 text-center space-y-4">
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                  <CheckCircle className="w-6 h-6" />
                 </div>
+                <div className="space-y-1.5">
+                  <h4 className="font-extrabold text-[15px] text-slate-800">Solicitação Enviada</h4>
+                  <p className="text-slate-600 text-xs leading-relaxed">
+                    {resetSuccessMessage}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setShowResetModal(false);
+                    setResetSuccessMessage(null);
+                  }}
+                  className="bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-10 px-6 rounded-lg w-full text-xs"
+                >
+                  Ok, entendi
+                </Button>
               </div>
-            </div>
+            ) : (
+              <form onSubmit={handleResetPasswordRequest}>
+                <div className="p-6 space-y-4 text-left">
+                  <p className="text-xs text-slate-550 leading-relaxed font-semibold">
+                    Informe seu e-mail cadastrado. Enviaremos um link seguro para redefinição da sua senha.
+                  </p>
 
-            <div className="bg-slate-50 p-4 border-t border-slate-200 shrink-0">
-              <Button
-                onClick={() => setShowResetModal(false)}
-                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold h-10 text-xs rounded-xl"
-              >
-                Fechar
-              </Button>
-            </div>
+                  {resetError && (
+                    <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs font-semibold p-3 rounded-lg flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                      <span>{resetError}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="resetEmail" className="text-xs font-bold text-gray-800">E-mail</Label>
+                    <Input 
+                      id="resetEmail" 
+                      type="email" 
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder="seu-email@empresa.com" 
+                      required 
+                      className="h-10 text-xs rounded-lg border-slate-350 shadow-inner focus:ring-teal-500 focus:border-teal-500" 
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center gap-3 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowResetModal(false)}
+                    className="w-1/2 text-xs font-semibold h-10 rounded-xl"
+                    disabled={isResetSubmitting}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="w-1/2 bg-[#0c3944] hover:bg-[#124d5b] text-white text-xs font-bold h-10 rounded-xl flex items-center justify-center gap-1.5 shadow-md"
+                    disabled={isResetSubmitting || !resetEmail.trim()}
+                  >
+                    {isResetSubmitting ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      'Enviar Link'
+                    )}
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

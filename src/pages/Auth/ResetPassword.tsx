@@ -33,7 +33,7 @@ export default function ResetPassword() {
       const hash = window.location.hash || '';
       const isRecovery = hash.includes('type=recovery') || hash.includes('access_token');
       if (!session && !isRecovery) {
-        setInitError('Acesso inválido. Esta página deve ser acessada através do link de redefinição de senha enviado por e-mail.');
+        setInitError('Link expirado ou inválido. Solicite uma nova recuperação de senha.');
       }
     });
 
@@ -49,20 +49,16 @@ export default function ResetPassword() {
 
   // Validation checks
   const isMinLength = password.length >= 8;
-  const hasUpper = /[A-Z]/.test(password);
-  const hasLower = /[a-z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecial = /[^A-Za-z0-9]/.test(password);
   const passwordsMatch = password === confirmPassword && password.length > 0;
 
-  const isFormValid = isMinLength && hasUpper && hasLower && hasNumber && hasSpecial && passwordsMatch;
+  const isFormValid = isMinLength && passwordsMatch;
 
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!isFormValid) {
-      setError('A senha não atende a todos os requisitos exigidos.');
+      setError('A senha deve conter no mínimo 8 caracteres e coincidir com a confirmação.');
       return;
     }
 
@@ -79,7 +75,7 @@ export default function ResetPassword() {
       setSaveSuccess(true);
     } catch (err: any) {
       console.error('Error updating password:', err);
-      setError(err.message || 'Erro ao atualizar a senha. O token do link pode ter expirado.');
+      setError('Link expirado ou inválido. Solicite uma nova recuperação de senha.');
     } finally {
       setIsSaving(false);
     }
@@ -190,8 +186,7 @@ export default function ResetPassword() {
                 />
               </div>
 
-              {/* Password strength checklist */}
-              <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-2xl text-[11px] text-slate-600 space-y-2.5 shadow-inner">
+              <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-2xl text-[11px] text-slate-655 space-y-2.5 shadow-inner">
                 <span className="font-bold text-slate-500 uppercase tracking-wide text-[10px] block">Requisitos de Segurança</span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-medium">
@@ -202,42 +197,6 @@ export default function ResetPassword() {
                       <X className="w-3.5 h-3.5 text-slate-350 shrink-0" />
                     )}
                     <span className={cn(isMinLength ? "text-emerald-700 font-semibold" : "text-slate-500")}>Min. 8 caracteres</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    {hasUpper ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    ) : (
-                      <X className="w-3.5 h-3.5 text-slate-350 shrink-0" />
-                    )}
-                    <span className={cn(hasUpper ? "text-emerald-700 font-semibold" : "text-slate-500")}>1 letra maiúscula</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    {hasLower ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    ) : (
-                      <X className="w-3.5 h-3.5 text-slate-350 shrink-0" />
-                    )}
-                    <span className={cn(hasLower ? "text-emerald-700 font-semibold" : "text-slate-500")}>1 letra minúscula</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    {hasNumber ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    ) : (
-                      <X className="w-3.5 h-3.5 text-slate-350 shrink-0" />
-                    )}
-                    <span className={cn(hasNumber ? "text-emerald-700 font-semibold" : "text-slate-500")}>1 número</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    {hasSpecial ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    ) : (
-                      <X className="w-3.5 h-3.5 text-slate-350 shrink-0" />
-                    )}
-                    <span className={cn(hasSpecial ? "text-emerald-700 font-semibold" : "text-slate-500")}>1 caractere especial</span>
                   </div>
 
                   <div className="flex items-center gap-1.5">
