@@ -328,25 +328,15 @@ export default function Login() {
               Não tem uma conta? <Link to="/cadastro" className="font-semibold text-teal-600 hover:text-teal-700">Criar conta</Link>
             </p>
 
-            <div className="pt-5 border-t border-slate-150 mt-2">
-              <div className="bg-[#f0f9fa] border border-[#d1eef2] rounded-xl p-4 text-center space-y-3 relative overflow-hidden shadow-sm">
-                <div className="space-y-1 relative z-10">
-                  <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider block">
-                    Parceria para Organizações
-                  </span>
-                  <p className="text-[12px] text-slate-600 leading-relaxed max-w-[320px] mx-auto">
-                    Disponibilize normas técnicas, modelagens 3D e checklists homologados para sua cadeia de fornecimento.
-                  </p>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => setShowPublishModal(true)}
-                  className="w-full py-2.5 px-4 bg-[#0c3944] hover:bg-[#124d5b] text-white text-[12.5px] font-bold transition-all flex items-center justify-center gap-2 shadow-md rounded-lg cursor-pointer"
-                >
-                  <HelpCircle className="w-4.5 h-4.5 text-teal-300 shrink-0" />
-                  <span>Como publicar padrões da minha organização?</span>
-                </button>
-              </div>
+            <div className="pt-5 border-t border-slate-150 mt-1">
+              <button 
+                type="button"
+                onClick={() => setShowPublishModal(true)}
+                className="w-full py-3 px-4 bg-[#0d9488] hover:bg-[#0f766e] text-white text-[13px] font-bold transition-all flex items-center justify-center gap-2 shadow-md rounded-xl cursor-pointer"
+              >
+                <HelpCircle className="w-4.5 h-4.5 text-teal-100 shrink-0" />
+                <span>Como publicar padrões da minha organização?</span>
+              </button>
             </div>
           </div>
         </div>
