@@ -39,6 +39,9 @@ export default function Login() {
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
 
+  // Publish Standards Info State
+  const [showPublishModal, setShowPublishModal] = useState(false);
+
   const handleResetPasswordRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetEmail.trim()) return;
@@ -151,7 +154,7 @@ export default function Login() {
         <div className="flex-1 flex flex-col justify-center py-12 px-12 sm:px-24 lg:px-32 bg-[#FAFBFA] relative">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 pointer-events-none"></div>
           
-          <div className="max-w-[580px] z-10 relative">
+          <div className="max-w-[640px] z-10 relative">
             <div className="flex items-center gap-3.5 mb-8">
               <img src={logoImage} alt="Perspecpack Logo" className="h-12 w-auto object-contain mix-blend-multiply" />
               <img src={brandTextImg} alt="PERSPECPACK" className="h-5.5 w-auto object-contain mix-blend-multiply" />
@@ -193,7 +196,7 @@ export default function Login() {
               <img 
                 src={loginImage} 
                 alt="Industrial Rack" 
-                className="w-full h-full object-contain object-top mix-blend-multiply"
+                className="w-full h-full object-contain object-top mix-blend-multiply scale-125 origin-top transition-all duration-500 hover:scale-130"
               />
             </div>
           </div>
@@ -324,6 +327,17 @@ export default function Login() {
             <p className="text-center text-[13px] text-gray-500">
               Não tem uma conta? <Link to="/cadastro" className="font-semibold text-teal-600 hover:text-teal-700">Criar conta</Link>
             </p>
+
+            <div className="pt-4 text-center border-t border-slate-100">
+              <button 
+                type="button"
+                onClick={() => setShowPublishModal(true)}
+                className="text-[12px] font-semibold text-slate-500 hover:text-teal-600 transition-colors flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
+              >
+                <HelpCircle className="w-4 h-4 text-slate-400" />
+                <span>Como publicar padrões da minha organização?</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -555,6 +569,55 @@ export default function Login() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+      {/* PUBLISH MODAL */}
+      {showPublishModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[500px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+            <div className="bg-[#06242c] text-white p-5 border-b border-teal-950 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-[#00F59B]" />
+                <span>Como publicar padrões?</span>
+              </h3>
+              <button 
+                onClick={() => setShowPublishModal(false)}
+                className="text-slate-300 hover:text-white hover:bg-teal-950/50 p-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-slate-650 text-xs leading-relaxed">
+              <p className="text-sm font-semibold text-slate-800">
+                Deseja disponibilizar as normas, cadernos de encargos e componentes 3D da sua empresa na PERSPECPACK?
+              </p>
+              <p>
+                A plataforma PERSPECPACK atua como o hub centralizado de conformidade técnica de embalagens metálicas para as maiores montadoras e sistemistas do país.
+              </p>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Como funciona o processo:</span>
+                <ol className="list-decimal pl-4 space-y-2 text-[11.5px] text-slate-600 font-medium">
+                  <li>Nossa equipe de engenharia e TI realiza o onboarding de sua organização (OEM ou Fornecedor).</li>
+                  <li>Configuramos as permissões de acesso exclusivas e ativamos os módulos contratados.</li>
+                  <li>Sua equipe de engenharia poderá subir arquivos STEP, DWG, normas técnicas e configurar checklists dinâmicos no perfil Master.</li>
+                </ol>
+              </div>
+              <div className="border-t border-slate-100 pt-3 text-center space-y-1">
+                <p className="font-bold text-slate-850">Solicite a ativação comercial do seu canal:</p>
+                <p className="font-mono text-teal-650 font-bold text-sm">suporte@perspecpack.com</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-4 border-t border-slate-200 shrink-0">
+              <Button
+                onClick={() => setShowPublishModal(false)}
+                className="w-full bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-10 text-xs rounded-xl"
+              >
+                Fechar
+              </Button>
+            </div>
           </div>
         </div>
       )}
