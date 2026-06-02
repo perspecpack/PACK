@@ -489,86 +489,62 @@ export default function Login() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[450px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
             <div className="bg-[#06242c] text-white p-5 border-b border-teal-950 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold">Recuperar Senha</h3>
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-[#00F59B]" />
+                <span>Recuperar Senha</span>
+              </h3>
               <button 
                 onClick={() => setShowResetModal(false)}
-                className="text-slate-350 hover:text-white hover:bg-teal-950/50 p-1.5 rounded-lg transition-colors"
-                disabled={isResetSubmitting}
+                className="text-slate-350 hover:text-white hover:bg-teal-950/50 p-1.5 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {resetSuccessMessage ? (
-              <div className="p-6 text-center space-y-4">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                  <CheckCircle className="w-6 h-6" />
-                </div>
-                <div className="space-y-1.5">
-                  <h4 className="font-extrabold text-[15px] text-slate-800">Solicitação enviada.</h4>
-                  <p className="text-slate-650 text-xs leading-relaxed">
-                    Caso o endereço informado esteja cadastrado, você receberá um e-mail com instruções para redefinição da sua senha.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => setShowResetModal(false)}
-                  className="bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold h-10 px-6 rounded-lg w-full text-xs"
-                >
-                  Ok, entendi
-                </Button>
+            <div className="p-6 space-y-5 text-slate-650 text-xs leading-relaxed text-left">
+              <div className="space-y-2">
+                <h4 className="text-[14px] font-bold text-slate-800">
+                  Esqueceu sua senha de acesso?
+                </h4>
+                <p className="text-[12.5px] text-slate-600">
+                  Por motivos de governança técnica e segurança, a recuperação de senha é gerenciada diretamente pelo suporte técnico da <strong>PERSPECPACK</strong>.
+                </p>
+                <p className="text-[12.5px] text-slate-600 font-medium">
+                  Clique abaixo para falar com o suporte via WhatsApp ou e-mail corporativo para receber suas novas credenciais de acesso rápido.
+                </p>
               </div>
-            ) : (
-              <form onSubmit={handleResetPasswordRequest}>
-                <div className="p-6 space-y-4">
-                  <p className="text-xs text-slate-550 leading-relaxed">
-                    Informe o e-mail cadastrado na plataforma. Enviaremos um link seguro para redefinição da sua senha.
-                  </p>
 
-                  {resetError && (
-                    <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs font-semibold p-3 rounded-lg flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-                      <span>{resetError}</span>
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="resetEmail" className="text-xs font-bold text-gray-800">E-mail</Label>
-                    <Input 
-                      id="resetEmail" 
-                      type="email" 
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      placeholder="seu-email@empresa.com" 
-                      required 
-                      className="h-10 text-xs rounded-lg border-gray-300 shadow-sm focus:ring-teal-500 focus:border-teal-500" 
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center gap-3 shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowResetModal(false)}
-                    className="w-1/2 text-xs font-semibold h-10 rounded-xl"
-                    disabled={isResetSubmitting}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <span className="font-bold text-slate-800 block text-[10.5px] uppercase tracking-wider">Canais de Atendimento:</span>
+                
+                <div className="flex flex-col gap-2.5">
+                  <a 
+                    href="https://wa.me/5514998892017?text=Olá,%20gostaria%20de%20redefinir%20minha%20senha%20de%20acesso%20na%20plataforma%20PERSPECPACK."
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-all shadow-sm text-[12px] text-center"
                   >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="w-1/2 bg-[#0c3944] hover:bg-[#124d5b] text-white text-xs font-bold h-10 rounded-xl flex items-center justify-center gap-1.5 shadow-md"
-                    disabled={isResetSubmitting || !resetEmail.trim()}
+                    <span>Falar no WhatsApp (14) 99889-2017</span>
+                  </a>
+                  
+                  <a 
+                    href="mailto:perspecpack@gmail.com?subject=Recuperação de Senha PERSPECPACK"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-[#0c3944] hover:bg-[#124d5b] text-white font-bold rounded-lg transition-all shadow-sm text-[12px] text-center"
                   >
-                    {isResetSubmitting ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      'Enviar Link de Recuperação'
-                    )}
-                  </Button>
+                    <span>Enviar E-mail para perspecpack@gmail.com</span>
+                  </a>
                 </div>
-              </form>
-            )}
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-4 border-t border-slate-200 shrink-0">
+              <Button
+                onClick={() => setShowResetModal(false)}
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold h-10 text-xs rounded-xl"
+              >
+                Fechar
+              </Button>
+            </div>
           </div>
         </div>
       )}

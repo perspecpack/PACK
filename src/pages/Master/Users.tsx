@@ -15,7 +15,8 @@ import {
   Layers,
   Sparkles,
   Link as LinkIcon,
-  Loader2
+  Loader2,
+  Key
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -107,6 +108,12 @@ export default function Users() {
   const [viewingUser, setViewingUser] = useState<DbProfile | null>(null);
   const [editingUser, setEditingUser] = useState<DbProfile | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Temporary Password State
+  const [resettingPasswordUser, setResettingPasswordUser] = useState<DbProfile | null>(null);
+  const [generatedTempPassword, setGeneratedTempPassword] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
 
   // Edit Form Fields
   const [fullName, setFullName] = useState('');
@@ -431,6 +438,36 @@ export default function Users() {
       alert('Erro ao salvar edições: ' + err.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleGenerateTempPassword = async (targetUser: DbProfile) => {
+    const tempPass = `PACK-${Math.floor(1000 + Math.random() * 9000)}`;
+    setResettingPasswordUser(targetUser);
+    setGeneratedTempPassword(tempPass);
+    setPasswordResetSuccess(false);
+    setIsResettingPassword(false);
+  };
+
+  const handleConfirmPasswordReset = async () => {
+    if (!resettingPasswordUser || !generatedTempPassword) return;
+    setIsResettingPassword(true);
+    try {
+      if (!supabase) throw new Error('Cliente Supabase não inicializado.');
+      
+      const { data, error } = await supabase.rpc('reset_user_password_by_admin', {
+        target_user_id: resettingPasswordUser.user_id,
+        new_plaintext_password: generatedTempPassword
+      });
+
+      if (error) throw error;
+
+      setPasswordResetSuccess(true);
+    } catch (err: any) {
+      console.error('Error resetting password:', err);
+      alert('Erro ao redefinir senha: ' + err.message);
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -765,6 +802,15 @@ export default function Users() {
                                 className="text-indigo-650 hover:text-indigo-800 p-1.5 hover:bg-indigo-50 rounded-lg transition-all"
                               >
                                 <Edit2 className="w-4 h-4" />
+                              </button>
+
+                              {/* Generate temp password */}
+                              <button
+                                onClick={() => handleGenerateTempPassword(profile)}
+                                title="Gerar Senha de Acesso Único"
+                                className="text-amber-600 hover:text-amber-800 p-1.5 hover:bg-amber-50 rounded-lg transition-all"
+                              >
+                                <Key className="w-4 h-4" />
                               </button>
 
                             </div>
@@ -1162,6 +1208,17 @@ export default function Users() {
                     Ativar Usuário
                   </Button>
                 )}
+
+                <Button 
+                  onClick={() => {
+                    handleGenerateTempPassword(viewingUser);
+                    setViewingUser(null);
+                  }}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold h-9 px-4 rounded-xl flex gap-1.5 items-center"
+                >
+                  <Key className="w-3.5 h-3.5 text-amber-200 shrink-0" />
+                  <span>Gerar Senha Temporária</span>
+                </Button>
               </div>
               <Button
                 onClick={() => setViewingUser(null)}
@@ -1614,6 +1671,120 @@ export default function Users() {
                   <span>Salvar Alterações</span>
                 )}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PASSWORD RESET CONFIRMATION MODAL */}
+      {resettingPasswordUser && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[420px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col animate-none">
+            
+            {/* Header */}
+            <div className="bg-[#06242c] text-white p-5 border-b border-teal-950 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <Key className="w-5 h-5 text-[#00F59B]" />
+                <span>Senha de Acesso Único</span>
+              </h3>
+              <button 
+                onClick={() => setResettingPasswordUser(null)}
+                className="text-slate-300 hover:text-white hover:bg-teal-950/50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                disabled={isResettingPassword}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 text-left text-xs text-slate-650 leading-relaxed">
+              {passwordResetSuccess ? (
+                <div className="space-y-4 text-center">
+                  <div className="w-12 h-12 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-extrabold text-[14px] text-slate-800 text-center">Senha Alterada com Sucesso!</h4>
+                    <p className="text-slate-500 text-center">
+                      Copie a senha abaixo e envie ao usuário <strong>{resettingPasswordUser.full_name}</strong>:
+                    </p>
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 mt-2">
+                      <span className="font-mono text-lg font-black text-teal-850 tracking-wider select-all">
+                        {generatedTempPassword}
+                      </span>
+                      <Button
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedTempPassword);
+                          alert('Senha copiada para a área de transferência!');
+                        }}
+                        className="bg-teal-600 hover:bg-teal-700 text-white font-bold h-8 text-[11px] px-3 rounded-lg"
+                      >
+                        Copiar
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium text-center">
+                      Esta senha permitirá o login único. Oriente o usuário a acessar o menu de perfil e alterá-la imediatamente após entrar.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p>
+                    Você está gerando uma senha temporária de acesso para o usuário <strong>{resettingPasswordUser.full_name}</strong> ({resettingPasswordUser.corporate_email}).
+                  </p>
+                  <p>
+                    A senha atual do usuário será substituída imediatamente no banco de dados da plataforma pela credencial temporária abaixo:
+                  </p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                    <span className="font-mono text-lg font-black text-teal-850 tracking-wider">
+                      {generatedTempPassword}
+                    </span>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-250 rounded-xl p-3.5 flex gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-amber-800 leading-normal font-medium">
+                      O usuário poderá utilizar esta nova senha para realizar o login e então acessar seu perfil para redefinir uma senha definitiva própria.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+              {passwordResetSuccess ? (
+                <Button 
+                  onClick={() => setResettingPasswordUser(null)}
+                  className="w-full bg-[#0c3944] hover:bg-[#124d5b] text-white text-xs font-bold h-10 rounded-xl"
+                >
+                  Concluir
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setResettingPasswordUser(null)}
+                    className="bg-white border-slate-250 text-slate-700 text-xs font-semibold h-10 rounded-xl"
+                    disabled={isResettingPassword}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    onClick={handleConfirmPasswordReset}
+                    className="bg-[#0c3944] hover:bg-[#124d5b] text-white text-xs font-bold h-10 px-6 rounded-xl flex items-center gap-1.5"
+                    disabled={isResettingPassword}
+                  >
+                    {isResettingPassword ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Definindo...</span>
+                      </>
+                    ) : (
+                      <span>Gerar e Aplicar Senha</span>
+                    )}
+                  </Button>
+                </>
+              )}
             </div>
 
           </div>
