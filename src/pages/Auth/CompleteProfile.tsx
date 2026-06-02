@@ -130,30 +130,9 @@ export default function CompleteProfile() {
     setErrorMessage(null);
     if (step === 1) {
       if (!fullName.trim()) return 'Por favor, informe seu nome completo.';
-      if (!roleTitle.trim()) return 'Por favor, informe seu cargo ou função.';
-      if (!phone.trim()) return 'Por favor, informe um número de telefone.';
-      if (!corporateEmail.trim()) return 'Por favor, informe seu e-mail corporativo.';
     }
     if (step === 2) {
       if (!companyName.trim()) return 'Por favor, informe o nome da empresa.';
-      if (!cnpj.trim() || cnpj.length < 18) return 'Por favor, informe um CNPJ válido.';
-      if (!companyWebsite.trim()) return 'Por favor, informe o site oficial da empresa.';
-      if (!city.trim()) return 'Por favor, informe a cidade.';
-      if (!state.trim()) return 'Por favor, informe o estado.';
-      if (!country.trim()) return 'Por favor, informe o país.';
-      if (!companyLogoUrl) return 'Por favor, faça o upload do logotipo da empresa.';
-    }
-    if (step === 3) {
-      if (!companyType) return 'Por favor, selecione o tipo de empresa.';
-      if (companyType === 'Outros' && !companyTypeOther.trim()) {
-        return 'Por favor, descreva o tipo da sua empresa.';
-      }
-    }
-    if (step === 4) {
-      if (selectedInterests.length === 0) return 'Selecione pelo menos um interesse principal.';
-      if (selectedInterests.includes('Outro') && !mainInterestOther.trim()) {
-        return 'Por favor, descreva o seu interesse na plataforma.';
-      }
     }
     return null;
   };
@@ -302,7 +281,7 @@ export default function CompleteProfile() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="roleTitle" className="text-[12px] font-bold text-slate-700">Cargo / Função</Label>
+                    <Label htmlFor="roleTitle" className="text-[12px] font-bold text-slate-700">Cargo / Função (Opcional)</Label>
                     <Input 
                       id="roleTitle" 
                       value={roleTitle}
@@ -315,7 +294,7 @@ export default function CompleteProfile() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="phone" className="text-[12px] font-bold text-slate-700">Telefone para Contato</Label>
+                    <Label htmlFor="phone" className="text-[12px] font-bold text-slate-700">Telefone para Contato (Opcional)</Label>
                     <Input 
                       id="phone" 
                       value={phone}
@@ -337,7 +316,7 @@ export default function CompleteProfile() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="corporateEmail" className="text-[12px] font-bold text-slate-700">E-mail Corporativo</Label>
+                  <Label htmlFor="corporateEmail" className="text-[12px] font-bold text-slate-700">E-mail Corporativo (Opcional)</Label>
                   <Input 
                     id="corporateEmail" 
                     type="email"
@@ -365,7 +344,7 @@ export default function CompleteProfile() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="cnpj" className="text-[12px] font-bold text-slate-700">CNPJ da Empresa</Label>
+                    <Label htmlFor="cnpj" className="text-[12px] font-bold text-slate-700">CNPJ da Empresa (Opcional)</Label>
                     <Input 
                       id="cnpj" 
                       value={cnpj}
@@ -388,7 +367,7 @@ export default function CompleteProfile() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="city" className="text-[12px] font-bold text-slate-700">Cidade</Label>
+                    <Label htmlFor="city" className="text-[12px] font-bold text-slate-700">Cidade (Opcional)</Label>
                     <Input 
                       id="city" 
                       value={city}
@@ -401,7 +380,7 @@ export default function CompleteProfile() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="state" className="text-[12px] font-bold text-slate-700">Estado / Província</Label>
+                    <Label htmlFor="state" className="text-[12px] font-bold text-slate-700">Estado / Província (Opcional)</Label>
                     <Input 
                       id="state" 
                       value={state}
@@ -411,7 +390,7 @@ export default function CompleteProfile() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="country" className="text-[12px] font-bold text-slate-700">País</Label>
+                    <Label htmlFor="country" className="text-[12px] font-bold text-slate-700">País (Opcional)</Label>
                     <Input 
                       id="country" 
                       value={country}
@@ -486,7 +465,7 @@ export default function CompleteProfile() {
             {step === 3 && (
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="companyType" className="text-[12px] font-bold text-slate-700">Selecione o Tipo de Organização</Label>
+                  <Label htmlFor="companyType" className="text-[12px] font-bold text-slate-700">Selecione o Tipo de Organização (Opcional)</Label>
                   <select 
                     id="companyType"
                     value={companyType}
@@ -525,7 +504,7 @@ export default function CompleteProfile() {
               <div className="space-y-5">
                 <div className="space-y-2.5">
                   <Label className="text-[12px] font-bold text-slate-700 block">
-                    Quais são seus principais objetivos na plataforma?
+                    Quais são seus principais objetivos na plataforma? (Opcional)
                   </Label>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1.5">
