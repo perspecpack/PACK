@@ -575,11 +575,11 @@ export default function Login() {
       {/* PUBLISH MODAL */}
       {showPublishModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[500px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[620px] max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
             <div className="bg-[#06242c] text-white p-5 border-b border-teal-950 flex justify-between items-center shrink-0">
               <h3 className="text-base font-bold flex items-center gap-2">
                 <HelpCircle className="w-5 h-5 text-[#00F59B]" />
-                <span>Como publicar padrões?</span>
+                <span>Como publicar padrões da minha organização?</span>
               </h3>
               <button 
                 onClick={() => setShowPublishModal(false)}
@@ -589,24 +589,165 @@ export default function Login() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-slate-650 text-xs leading-relaxed">
-              <p className="text-sm font-semibold text-slate-800">
-                Deseja disponibilizar as normas, cadernos de encargos e componentes 3D da sua empresa na PERSPECPACK?
-              </p>
-              <p>
-                A plataforma PERSPECPACK atua como o hub centralizado de conformidade técnica de embalagens metálicas para as maiores montadoras e sistemistas do país.
-              </p>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Como funciona o processo:</span>
-                <ol className="list-decimal pl-4 space-y-2 text-[11.5px] text-slate-600 font-medium">
-                  <li>Nossa equipe de engenharia e TI realiza o onboarding de sua organização (OEM ou Fornecedor).</li>
-                  <li>Configuramos as permissões de acesso exclusivas e ativamos os módulos contratados.</li>
-                  <li>Sua equipe de engenharia poderá subir arquivos STEP, DWG, normas técnicas e configurar checklists dinâmicos no perfil Master.</li>
-                </ol>
+            <div className="p-6 space-y-6 overflow-y-auto flex-1 text-slate-650 text-xs leading-relaxed">
+              <div className="space-y-3">
+                <h4 className="text-[14px] font-bold text-slate-800 leading-snug">
+                  Deseja disponibilizar normas, cadernos de encargos, componentes homologados e critérios de validação da sua empresa na PERSPECPACK?
+                </h4>
+                <p className="text-[12px] text-slate-650 leading-relaxed">
+                  A PERSPECPACK foi desenvolvida para centralizar e distribuir informações técnicas de engenharia para montadoras, sistemistas e fabricantes de componentes automotivos.
+                </p>
+                <p className="text-[12px] text-slate-650 leading-relaxed font-semibold">
+                  Nossa equipe realiza toda a implantação, estruturação e manutenção do ambiente da sua organização, garantindo que fornecedores e parceiros tenham acesso apenas às informações corretas e atualizadas.
+                </p>
               </div>
-              <div className="border-t border-slate-100 pt-3 text-center space-y-1">
-                <p className="font-bold text-slate-850">Solicite a ativação comercial do seu canal:</p>
-                <p className="font-mono text-teal-650 font-bold text-sm">suporte@perspecpack.com</p>
+
+              {/* Flow Timeline */}
+              <div className="space-y-4 pt-2 border-t border-slate-100">
+                <h5 className="text-[11px] font-bold text-teal-850 uppercase tracking-wider block">
+                  Como funciona o processo de implantação
+                </h5>
+                <div className="relative border-l-2 border-teal-100/75 ml-3 pl-6 space-y-6">
+                  {/* Step 1 */}
+                  <div className="relative">
+                    <div className="absolute -left-[37px] top-0.5 bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold shadow-sm">
+                      01
+                    </div>
+                    <div className="space-y-1">
+                      <h6 className="text-[13px] font-extrabold text-slate-800">Diagnóstico Técnico</h6>
+                      <p className="text-[11.5px] text-slate-650 leading-relaxed">
+                        Nossa equipe realiza reuniões de levantamento para compreender a estrutura de normas, cadernos de encargos, componentes homologados, critérios de validação e processos internos da organização.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="relative">
+                    <div className="absolute -left-[37px] top-0.5 bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold shadow-sm">
+                      02
+                    </div>
+                    <div className="space-y-2">
+                      <h6 className="text-[13px] font-extrabold text-slate-800">Estruturação da Plataforma</h6>
+                      <p className="text-[11.5px] text-slate-650 leading-relaxed">
+                        A equipe <strong className="font-bold text-slate-900">PERSPEC3D</strong> organiza e publica todo o conteúdo técnico dentro da PERSPECPACK, criando uma biblioteca padronizada e controlada.
+                      </p>
+                      
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mt-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                          Conteúdos publicados pela nossa equipe:
+                        </span>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-slate-700 font-semibold">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 bg-teal-500 rounded-full shrink-0"></span>
+                            <span>Cadernos de Encargos</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 bg-teal-500 rounded-full shrink-0"></span>
+                            <span>Normas Técnicas</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 bg-teal-500 rounded-full shrink-0"></span>
+                            <span>Critérios de Conformidade</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 bg-teal-500 rounded-full shrink-0"></span>
+                            <span>Componentes Homologados</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 col-span-2">
+                            <span className="w-1.5 h-1.5 bg-teal-500 rounded-full shrink-0"></span>
+                            <span>Checklists de Validação</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div className="relative">
+                    <div className="absolute -left-[37px] top-0.5 bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold shadow-sm">
+                      03
+                    </div>
+                    <div className="space-y-1">
+                      <h6 className="text-[13px] font-extrabold text-slate-800">Atualização Contínua</h6>
+                      <p className="text-[11.5px] text-slate-650 leading-relaxed">
+                        A equipe <strong className="font-bold text-slate-900">PERSPEC3D</strong> permanece responsável pelo suporte, manutenção e atualização das informações publicadas, garantindo que toda a cadeia de fornecedores trabalhe sempre com a versão oficial dos documentos.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefits */}
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <h5 className="text-[11px] font-bold text-teal-850 uppercase tracking-wider block">
+                  Benefícios
+                </h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[12px] text-slate-700 font-semibold">
+                  <div className="flex items-start gap-2 bg-emerald-50/40 border border-emerald-100/50 rounded-lg p-2.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>Redução de retrabalho</span>
+                  </div>
+                  <div className="flex items-start gap-2 bg-emerald-50/40 border border-emerald-100/50 rounded-lg p-2.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>Padronização de requisitos</span>
+                  </div>
+                  <div className="flex items-start gap-2 bg-emerald-50/40 border border-emerald-100/50 rounded-lg p-2.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>Controle de versões</span>
+                  </div>
+                  <div className="flex items-start gap-2 bg-emerald-50/40 border border-emerald-100/50 rounded-lg p-2.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>Maior velocidade nas aprovações</span>
+                  </div>
+                  <div className="flex items-start gap-2 bg-emerald-50/40 border border-emerald-100/50 rounded-lg p-2.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>Rastreabilidade de conformidade</span>
+                  </div>
+                  <div className="flex items-start gap-2 bg-emerald-50/40 border border-emerald-100/50 rounded-lg p-2.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>Distribuição centralizada de informações técnicas</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Footer */}
+              <div className="space-y-4 pt-5 border-t border-slate-100 bg-slate-50/50 -mx-6 -mb-6 p-6 rounded-b-2xl">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block text-center">
+                  Entre em contato para uma avaliação da sua organização
+                </span>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px] text-slate-700 text-center font-bold">
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-teal-300 transition-colors">
+                    <span className="block text-slate-400 text-[10px] uppercase mb-1">E-mail</span>
+                    <a href="mailto:perspecpack@gmail.com" className="text-teal-700 hover:text-teal-800 break-all font-semibold font-mono text-[11px]">
+                      perspecpack@gmail.com
+                    </a>
+                  </div>
+                  
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-teal-300 transition-colors">
+                    <span className="block text-slate-400 text-[10px] uppercase mb-1">WhatsApp</span>
+                    <a href="https://wa.me/5514998892017" target="_blank" rel="noreferrer" className="text-teal-700 hover:text-teal-800 font-semibold font-mono text-[11px]">
+                      (14) 99889-2017
+                    </a>
+                  </div>
+                  
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-teal-300 transition-colors">
+                    <span className="block text-slate-400 text-[10px] uppercase mb-1">Website</span>
+                    <a href="https://www.perspec3d.com" target="_blank" rel="noreferrer" className="text-teal-700 hover:text-teal-800 font-semibold font-mono text-[11px]">
+                      www.perspec3d.com
+                    </a>
+                  </div>
+                </div>
+
+                <div className="text-center pt-1.5 flex justify-center">
+                  <span className="inline-flex items-center gap-1.5 text-[11.5px] font-extrabold text-[#0c3944] bg-teal-50 border border-teal-100 px-3 py-1.5 rounded-full shadow-inner">
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                    </span>
+                    Solicite uma apresentação personalizada
+                  </span>
+                </div>
               </div>
             </div>
 
