@@ -39,8 +39,9 @@ export default function ResetPassword() {
 
     // Handle listener for hash login
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
+      if (event === 'PASSWORD_RECOVERY' || (session && window.location.hash.includes('access_token'))) {
         console.log('Recovery session established.');
+        setInitError(null);
       }
     });
 
