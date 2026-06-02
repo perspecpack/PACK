@@ -196,7 +196,7 @@ export default function Login() {
               <img 
                 src={loginImage} 
                 alt="Industrial Rack" 
-                className="w-full h-full object-contain object-top mix-blend-multiply scale-125 origin-top transition-all duration-500 hover:scale-130"
+                className="w-full h-full object-contain object-top mix-blend-multiply scale-125 origin-top"
               />
             </div>
           </div>
@@ -328,15 +328,25 @@ export default function Login() {
               Não tem uma conta? <Link to="/cadastro" className="font-semibold text-teal-600 hover:text-teal-700">Criar conta</Link>
             </p>
 
-            <div className="pt-4 text-center border-t border-slate-100">
-              <button 
-                type="button"
-                onClick={() => setShowPublishModal(true)}
-                className="text-[12px] font-semibold text-slate-500 hover:text-teal-600 transition-colors flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
-              >
-                <HelpCircle className="w-4 h-4 text-slate-400" />
-                <span>Como publicar padrões da minha organização?</span>
-              </button>
+            <div className="pt-5 border-t border-slate-150 mt-2">
+              <div className="bg-[#f0f9fa] border border-[#d1eef2] rounded-xl p-4 text-center space-y-3 relative overflow-hidden shadow-sm">
+                <div className="space-y-1 relative z-10">
+                  <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider block">
+                    Parceria para Organizações
+                  </span>
+                  <p className="text-[12px] text-slate-600 leading-relaxed max-w-[320px] mx-auto">
+                    Disponibilize normas técnicas, modelagens 3D e checklists homologados para sua cadeia de fornecimento.
+                  </p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setShowPublishModal(true)}
+                  className="w-full py-2.5 px-4 bg-[#0c3944] hover:bg-[#124d5b] text-white text-[12.5px] font-bold transition-all flex items-center justify-center gap-2 shadow-md rounded-lg cursor-pointer"
+                >
+                  <HelpCircle className="w-4.5 h-4.5 text-teal-300 shrink-0" />
+                  <span>Como publicar padrões da minha organização?</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
