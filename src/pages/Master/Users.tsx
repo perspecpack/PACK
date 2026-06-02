@@ -16,7 +16,8 @@ import {
   Sparkles,
   Link as LinkIcon,
   Loader2,
-  Key
+  Key,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -331,12 +332,19 @@ export default function Users() {
   const handleUpdateStatus = async (userId: string, status: 'active' | 'pending' | 'blocked') => {
     try {
       if (!supabase) return;
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ account_status: status })
-        .eq('user_id', userId);
       
-      if (error) throw error;
+      if (status === 'active') {
+        const { error } = await supabase.rpc('confirm_user_email_by_admin', {
+          target_user_id: userId
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({ account_status: status })
+          .eq('user_id', userId);
+        if (error) throw error;
+      }
       
       // Update local state
       setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, account_status: status } : u));
@@ -345,6 +353,32 @@ export default function Users() {
       }
     } catch (err: any) {
       alert('Erro ao atualizar status: ' + err.message);
+    }
+  };
+
+  const handleDeleteUser = async (targetUser: DbProfile) => {
+    const confirmDelete = window.confirm(`ATENÇÃO: Tem certeza que deseja excluir permanentemente o usuário ${targetUser.full_name || 'Sem Nome'} (${targetUser.corporate_email}) e todos os seus dados? Esta ação não pode ser desfeita.`);
+    if (!confirmDelete) return;
+
+    try {
+      if (!supabase) throw new Error('Cliente Supabase não inicializado.');
+      
+      const { error } = await supabase.rpc('delete_user_by_admin', {
+        target_user_id: targetUser.user_id
+      });
+
+      if (error) throw error;
+
+      alert('Usuário excluído com sucesso!');
+      
+      // Update local state
+      setUsers(prev => prev.filter(u => u.user_id !== targetUser.user_id));
+      if (viewingUser?.user_id === targetUser.user_id) {
+        setViewingUser(null);
+      }
+    } catch (err: any) {
+      console.error('Error deleting user:', err);
+      alert('Erro ao excluir usuário: ' + err.message);
     }
   };
 
@@ -811,6 +845,15 @@ export default function Users() {
                                 className="text-amber-600 hover:text-amber-800 p-1.5 hover:bg-amber-50 rounded-lg transition-all"
                               >
                                 <Key className="w-4 h-4" />
+                              </button>
+
+                              {/* Delete User */}
+                              <button
+                                onClick={() => handleDeleteUser(profile)}
+                                title="Excluir Usuário"
+                                className="text-rose-600 hover:text-rose-800 p-1.5 hover:bg-rose-50 rounded-lg transition-all"
+                              >
+                                <Trash2 className="w-4.5 h-4.5" />
                               </button>
 
                             </div>
