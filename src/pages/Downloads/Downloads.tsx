@@ -889,7 +889,7 @@ export default function Downloads() {
         doc.setFont('Helvetica', 'normal');
         doc.setFontSize(7);
         doc.setTextColor(100, 116, 139);
-        doc.text(' — Plataforma de Conformidade para Embalagens Industriais', margin + 24, pageHeight - 13.8);
+        doc.text(' — Uma nova perspectiva para padrões industriais', margin + 24, pageHeight - 13.8);
         
         // Footer Codes
         doc.setFont('Helvetica', 'normal');

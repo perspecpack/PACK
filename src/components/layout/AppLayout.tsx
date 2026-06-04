@@ -102,7 +102,7 @@ export function AppLayout() {
               <span className="font-normal text-[#00ff00]">PACK</span>
             </div>
             <span className="text-[10px] text-slate-400 font-medium tracking-tight mt-0.5">
-              Plataforma de Conformidade para Embalagens Industriais
+              Uma nova perspectiva para padrões industriais
             </span>
           </div>
         </Link>
