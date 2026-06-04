@@ -23,6 +23,15 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [pendingStatusMsg, setPendingStatusMsg] = useState<'pending' | 'rejected' | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const statusParam = params.get('status');
+    if (statusParam === 'pending' || statusParam === 'rejected') {
+      setPendingStatusMsg(statusParam);
+    }
+  }, []);
 
   // Validation State
   const { validationCode } = useParams<{ validationCode?: string }>();
@@ -127,22 +136,58 @@ export default function Login() {
 
     setIsSubmitting(true);
     setLoginError(null);
+    setPendingStatusMsg(null);
 
     try {
-      await loginWithEmail(email, password);
-      
+      if (!supabase) throw new Error('Cliente Supabase não inicializado.');
+
       const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
       const isMaster = masterEmail && email.toLowerCase() === masterEmail;
-      
+
       if (isMaster) {
+        await loginWithEmail(email, password);
         navigate('/master');
-      } else {
-        navigate('/');
+        return;
       }
+
+      // 1. Sign in via Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
+
+      if (authError) throw authError;
+      const authUser = authData?.user;
+      if (!authUser) throw new Error('Credenciais inválidas.');
+
+      // 2. Fetch profile user_status
+      const { data: profData, error: profErr } = await supabase
+        .from('user_profiles')
+        .select('user_status')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      if (profErr) throw profErr;
+
+      const status = profData?.user_status || 'pending';
+      if (status === 'pending') {
+        await supabase.auth.signOut();
+        setPendingStatusMsg('pending');
+        setIsSubmitting(false);
+        return;
+      } else if (status === 'rejected') {
+        await supabase.auth.signOut();
+        setPendingStatusMsg('rejected');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 3. Login succeeded & user is active -> set session in AppContext
+      await loginWithEmail(email, password);
+      navigate('/');
     } catch (err: any) {
       console.error('Error logging in:', err);
       setLoginError(err.message || 'E-mail ou senha incorretos.');
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -214,6 +259,48 @@ export default function Login() {
               <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs font-semibold p-3.5 rounded-lg flex items-center gap-2 animate-in fade-in duration-200">
                 <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
                 <span>{loginError}</span>
+              </div>
+            )}
+
+            {pendingStatusMsg === 'pending' && (
+              <div className="bg-amber-50 border border-amber-250 text-amber-900 text-xs font-semibold p-4 rounded-xl space-y-3.5 animate-in fade-in duration-200 text-left">
+                <div className="flex items-center gap-2 text-amber-700">
+                  <AlertTriangle className="w-4.5 h-4.5 shrink-0" />
+                  <span className="font-extrabold text-[13px]">Solicitação em Análise</span>
+                </div>
+                <p className="leading-relaxed text-slate-700">
+                  Sua solicitação ainda está em análise. Aguarde a aprovação da equipe PERSPECPACK.
+                </p>
+                <div className="pt-2.5 border-t border-amber-200/55 space-y-1 text-slate-600 font-medium">
+                  <span className="block font-bold text-slate-750 text-[11px]">Dúvidas sobre sua solicitação?</span>
+                  <span className="block">
+                    WhatsApp: <a href="https://wa.me/5514998892017" target="_blank" rel="noreferrer" className="text-teal-700 font-bold hover:underline font-mono">(14) 99889-2017</a>
+                  </span>
+                  <span className="block">
+                    E-mail: <a href="mailto:perspecpack@gmail.com" className="text-teal-700 font-bold hover:underline font-mono">perspecpack@gmail.com</a>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {pendingStatusMsg === 'rejected' && (
+              <div className="bg-rose-50 border border-rose-250 text-rose-900 text-xs font-semibold p-4 rounded-xl space-y-3.5 animate-in fade-in duration-200 text-left">
+                <div className="flex items-center gap-2 text-rose-700">
+                  <AlertTriangle className="w-4.5 h-4.5 shrink-0" />
+                  <span className="font-extrabold text-[13px]">Solicitação não Aprovada</span>
+                </div>
+                <p className="leading-relaxed text-slate-700">
+                  Sua solicitação de acesso não foi aprovada pela equipe PERSPECPACK.
+                </p>
+                <div className="pt-2.5 border-t border-rose-200/55 space-y-1 text-slate-600 font-medium">
+                  <span className="block font-bold text-slate-750 text-[11px]">Dúvidas sobre sua solicitação?</span>
+                  <span className="block">
+                    WhatsApp: <a href="https://wa.me/5514998892017" target="_blank" rel="noreferrer" className="text-teal-700 font-bold hover:underline font-mono">(14) 99889-2017</a>
+                  </span>
+                  <span className="block">
+                    E-mail: <a href="mailto:perspecpack@gmail.com" className="text-teal-700 font-bold hover:underline font-mono">perspecpack@gmail.com</a>
+                  </span>
+                </div>
               </div>
             )}
             

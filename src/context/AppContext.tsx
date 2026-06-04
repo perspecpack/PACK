@@ -1216,6 +1216,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     mainInterestOther: db.main_interest_other || '',
     profileCompleted: !!db.profile_completed,
     accountStatus: db.account_status || 'active',
+    userStatus: db.user_status || 'pending',
     planType: db.plan_type || 'free',
     premiumUntil: db.premium_until || null,
     createdAt: db.created_at,
@@ -1242,6 +1243,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (ts.mainInterestOther !== undefined) db.main_interest_other = ts.mainInterestOther;
     if (ts.profileCompleted !== undefined) db.profile_completed = ts.profileCompleted;
     if (ts.accountStatus !== undefined) db.account_status = ts.accountStatus;
+    if (ts.userStatus !== undefined) db.user_status = ts.userStatus;
     if (ts.planType !== undefined) db.plan_type = ts.planType;
     if (ts.premiumUntil !== undefined) db.premium_until = ts.premiumUntil;
     return db;
@@ -1278,6 +1280,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (profData) {
         const mapped = mapProfileFromDb(profData);
+        
+        // Auto block on load if status changed to pending or rejected
+        if (mapped.userStatus === 'pending' || mapped.userStatus === 'rejected') {
+          if (supabase) {
+            await supabase.auth.signOut();
+          }
+          setUser(null);
+          setProfile(null);
+          localStorage.removeItem('pp_session');
+          setViewingAsUser(false);
+          window.location.href = `/login?status=${mapped.userStatus}`;
+          return;
+        }
+
         setProfile(mapped);
         
         setUser(prev => {

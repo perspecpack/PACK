@@ -24,6 +24,7 @@ import OrganizationDetail from './pages/Master/OrganizationDetail';
 import ModuleContentManager from './pages/Master/ModuleContentManager';
 import Users from './pages/Master/Users';
 import SupportRequests from './pages/Master/SupportRequests';
+import RegistrationRequests from './pages/Master/RegistrationRequests';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -138,6 +139,7 @@ function AppRoutes() {
           <Route path="/master" element={<Navigate to="/master/dashboard" replace />} />
           <Route path="/master/dashboard" element={<Dashboard />} />
           <Route path="/master/users" element={<Users />} />
+          <Route path="/master/solicitacoes" element={<RegistrationRequests />} />
           <Route path="/master/oems" element={<Organizations />} />
           <Route path="/master/content" element={<Content />} />
           <Route path="/master/content/:orgId" element={<OrganizationDetail />} />

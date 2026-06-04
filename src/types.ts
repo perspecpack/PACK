@@ -220,6 +220,7 @@ export interface UserProfile {
   mainInterestOther?: string;
   profileCompleted: boolean;
   accountStatus: 'active' | 'pending' | 'blocked';
+  userStatus: 'pending' | 'active' | 'rejected';
   planType: 'free' | 'premium';
   premiumUntil?: string | null;
   createdAt: string;

@@ -317,6 +317,7 @@ export default function Users() {
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
+        .eq('user_status', 'active')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
