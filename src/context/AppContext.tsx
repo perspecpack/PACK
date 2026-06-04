@@ -223,6 +223,7 @@ const INITIAL_COMPONENTS: ComponentEntry[] = [
     revision: '01',
     status: 'active',
     stepFileUrl: 'https://example.com/cad/trava_canhao_h1.step',
+    threeDModelUrl: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
@@ -519,6 +520,7 @@ const mapCompFromDb = (db: any): ComponentEntry => ({
   pdfFileUrl: db.pdf_file_url || undefined,
   dwgFileUrl: db.dwg_file_url || undefined,
   imageUrl: db.image_url || undefined,
+  threeDModelUrl: db.three_d_model_url || undefined,
   createdAt: db.created_at,
   updatedAt: db.updated_at
 });
@@ -535,6 +537,7 @@ const mapCompToDb = (ts: Partial<ComponentEntry>) => {
   if (ts.pdfFileUrl !== undefined) db.pdf_file_url = ts.pdfFileUrl;
   if (ts.dwgFileUrl !== undefined) db.dwg_file_url = ts.dwgFileUrl;
   if (ts.imageUrl !== undefined) db.image_url = ts.imageUrl;
+  if (ts.threeDModelUrl !== undefined) db.three_d_model_url = ts.threeDModelUrl;
   return db;
 };
 
@@ -812,7 +815,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         image_url: c.imageUrl || null,
         step_file_url: c.stepFileUrl || null,
         pdf_file_url: c.pdfFileUrl || null,
-        dwg_file_url: c.dwgFileUrl || null
+        dwg_file_url: c.dwgFileUrl || null,
+        three_d_model_url: c.threeDModelUrl || null
       }));
       const { error: compsErr } = await supabase.from('components').insert(dbComps);
       if (compsErr) throw compsErr;
@@ -1683,7 +1687,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           step_file_url: comp.stepFileUrl || null,
           pdf_file_url: comp.pdfFileUrl || null,
           dwg_file_url: comp.dwgFileUrl || null,
-          image_url: comp.imageUrl || null
+          image_url: comp.imageUrl || null,
+          three_d_model_url: comp.threeDModelUrl || null
         })
         .then(({ error }) => {
           if (error) console.error('Error adding component to Supabase:', error);

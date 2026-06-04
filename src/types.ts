@@ -47,6 +47,7 @@ export interface ComponentEntry {
   pdfFileUrl?: string;
   dwgFileUrl?: string;
   imageUrl?: string;
+  threeDModelUrl?: string;
   createdAt: string;
   updatedAt: string;
   // Legacy aliases

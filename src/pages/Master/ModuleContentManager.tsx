@@ -106,6 +106,7 @@ export default function ModuleContentManager() {
   const [pdfFileUrl, setPdfFileUrl] = useState('');
   const [dwgFileUrl, setDwgFileUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [threeDModelUrl, setThreeDModelUrl] = useState('');
 
   // Document / Standard / Checklist Shared File States
   const [fileUrl, setFileUrl] = useState('');
@@ -196,6 +197,7 @@ export default function ModuleContentManager() {
     setPdfFileUrl('');
     setDwgFileUrl('');
     setImageUrl('');
+    setThreeDModelUrl('');
     setDocumentType('Manual');
     setStandardType('Norma de Embalagem');
     setFileUrl('');
@@ -248,6 +250,7 @@ export default function ModuleContentManager() {
     setPdfFileUrl(rec.pdfFileUrl || '');
     setDwgFileUrl(rec.dwgFileUrl || '');
     setImageUrl(rec.imageUrl || '');
+    setThreeDModelUrl(rec.threeDModelUrl || '');
     setDocumentType(rec.documentType || 'Manual');
     setStandardType(rec.standardType || 'Norma de Embalagem');
     setFileUrl(rec.fileUrl || '');
@@ -290,7 +293,8 @@ export default function ModuleContentManager() {
         stepFileUrl: stepFileUrl || undefined,
         pdfFileUrl: pdfFileUrl || undefined,
         dwgFileUrl: dwgFileUrl || undefined,
-        imageUrl: imageUrl || undefined
+        imageUrl: imageUrl || undefined,
+        threeDModelUrl: threeDModelUrl || undefined
       };
 
       if (editingId) {
@@ -825,6 +829,23 @@ export default function ModuleContentManager() {
                           logUpload(orgId!, 'Componente (DWG)', url.split('/').pop() || 'arquivo.dwg');
                         }}
                         onRemove={() => setDwgFileUrl('')}
+                      />
+                    </div>
+
+                    {/* 3D Model Upload for Visualization */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Modelo 3D para Visualização (.glb, .gltf) - Visualização interativa (não disponível para download)"
+                        acceptedTypes=".glb,.gltf"
+                        bucket="components"
+                        currentFileUrl={threeDModelUrl}
+                        orgSlug={org.slug}
+                        moduleType="components"
+                        onUploadComplete={(url) => {
+                          setThreeDModelUrl(url);
+                          logUpload(orgId!, 'Componente (Modelo 3D)', url.split('/').pop() || 'modelo.glb');
+                        }}
+                        onRemove={() => setThreeDModelUrl('')}
                       />
                     </div>
                   </>
