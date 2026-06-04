@@ -24,7 +24,9 @@ import {
   Paperclip,
   Trash2,
   Loader2,
-  Sparkles
+  Sparkles,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -202,6 +204,7 @@ export default function Downloads() {
   } | null>(null);
 
   const [modalMediaTab, setModalMediaTab] = useState<'image' | '3d'>('3d');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     if (selectedItemForModal && selectedItemForModal.type === 'component') {
@@ -1506,6 +1509,38 @@ export default function Downloads() {
                 </span>
               </h2>
             </div>
+            
+            {/* View Mode Toggle */}
+            {selectedModule !== 'checklists' && (
+              <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                    viewMode === 'grid'
+                      ? "bg-white text-teal-600 shadow-sm"
+                      : "text-slate-550 hover:text-slate-800"
+                  )}
+                  title="Exibição em Miniatura"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Miniatura</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                    viewMode === 'list'
+                      ? "bg-white text-teal-650 shadow-sm"
+                      : "text-slate-550 hover:text-slate-800"
+                  )}
+                  title="Exibição em Lista"
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span>Lista</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* MODULE: COMPONENTES HOMOLOGADOS */}
@@ -1526,51 +1561,99 @@ export default function Downloads() {
                   );
                 }
 
-                return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-200">
-                    {filteredList.map(comp => (
-                      <div 
-                        key={comp.id}
-                        onClick={() => setSelectedItemForModal({ type: 'component', data: comp })}
-                        className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
-                      >
-                        <div className="space-y-3">
-                          <div className="aspect-square w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative p-3">
-                            {comp.imageUrl ? (
-                              <img src={comp.imageUrl} alt={comp.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
-                            ) : (
-                              <Layers className="w-10 h-10 text-slate-300 group-hover:scale-105 transition-transform duration-300" />
-                            )}
-                            <div className="absolute top-2 right-2">
-                              <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded">
-                                REV {comp.revision}
-                              </span>
+                if (viewMode === 'grid') {
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-in fade-in duration-200">
+                      {filteredList.map(comp => (
+                        <div 
+                          key={comp.id}
+                          onClick={() => setSelectedItemForModal({ type: 'component', data: comp })}
+                          className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-3 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
+                        >
+                          <div className="space-y-2">
+                            <div className="aspect-square w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative p-2">
+                              {comp.imageUrl ? (
+                                <img src={comp.imageUrl} alt={comp.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
+                              ) : (
+                                <Layers className="w-8 h-8 text-slate-300 group-hover:scale-105 transition-transform duration-300" />
+                              )}
+                              <div className="absolute top-1.5 right-1.5">
+                                <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[8px] font-extrabold px-1.5 py-0.5 rounded">
+                                  REV {comp.revision}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-0.5">
+                              <h4 className="font-extrabold text-[12px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
+                                {comp.name}
+                              </h4>
+                              <p className="text-[10px] text-slate-500 line-clamp-2 leading-tight">
+                                {comp.application || comp.description || 'Sem descrição adicional.'}
+                              </p>
                             </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
-                              {comp.name}
-                            </h4>
-                            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                              {comp.application || comp.description || 'Sem descrição adicional.'}
-                            </p>
+                          <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-[10px]">
+                            <span className="text-slate-400 font-mono font-bold uppercase">
+                              COD: {comp.id.substring(0, 8)}
+                            </span>
+                            <span className="text-teal-600 group-hover:text-teal-755 font-bold flex items-center gap-0.5 transition-colors">
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Ver</span>
+                            </span>
                           </div>
                         </div>
-
-                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-                          <span className="text-slate-400 font-mono text-[10px] font-bold uppercase">
-                            COD: {comp.id.substring(0, 8)}
-                          </span>
-                          <span className="text-teal-600 group-hover:text-teal-750 font-bold flex items-center gap-1 transition-colors">
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Ver Detalhes</span>
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
+                      ))}
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full animate-in fade-in duration-200">
+                      <Table>
+                        <TableHeader className="bg-slate-50 border-b border-slate-200">
+                          <TableRow>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px]">Miniatura</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Nome do Componente</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Aplicação / Descrição</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px] text-center">Rev.</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[120px] text-center">Código</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[120px] text-right pr-6">Ação</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredList.map(comp => (
+                            <TableRow 
+                              key={comp.id} 
+                              onClick={() => setSelectedItemForModal({ type: 'component', data: comp })}
+                              className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                            >
+                              <TableCell className="align-middle py-2">
+                                <div className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                                  {comp.imageUrl ? (
+                                    <img src={comp.imageUrl} alt={comp.name} className="w-full h-full object-contain" />
+                                  ) : (
+                                    <Layers className="w-5 h-5 text-slate-300" />
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="align-middle font-bold text-[13px] text-slate-900">{comp.name}</TableCell>
+                              <TableCell className="align-middle text-[12px] text-slate-500 max-w-xs truncate">{comp.application || comp.description || '-'}</TableCell>
+                              <TableCell className="align-middle text-[12px] text-slate-700 font-bold font-mono text-center">{comp.revision}</TableCell>
+                              <TableCell className="align-middle text-[11px] text-slate-400 font-mono text-center uppercase">{comp.id.substring(0, 8)}</TableCell>
+                              <TableCell className="align-middle text-right pr-6">
+                                <span className="text-teal-600 font-bold text-xs inline-flex items-center gap-1">
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>Ver Detalhes</span>
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  );
+                }
               })()}
             </div>
           )}
@@ -1587,55 +1670,99 @@ export default function Downloads() {
 
                 if (filteredList.length === 0) {
                   return (
-                    <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
+                    <div className="bg-white border border-slate-250 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
                       Nenhum documento cadastrado para esta área técnica.
                     </div>
                   );
                 }
 
-                return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-200">
-                    {filteredList.map(doc => (
-                      <div 
-                        key={doc.id}
-                        onClick={() => setSelectedItemForModal({ type: 'document', data: doc })}
-                        className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
-                      >
-                        <div className="space-y-3">
-                          <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                            <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
-                              <FileText className="w-6 h-6 text-teal-600" />
+                if (viewMode === 'grid') {
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-in fade-in duration-200">
+                      {filteredList.map(doc => (
+                        <div 
+                          key={doc.id}
+                          onClick={() => setSelectedItemForModal({ type: 'document', data: doc })}
+                          className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-3 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
+                        >
+                          <div className="space-y-2">
+                            <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
+                              <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                                <FileText className="w-5 h-5 text-teal-600" />
+                              </div>
+                              <div className="absolute top-1.5 right-1.5">
+                                <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[8px] font-extrabold px-1.5 py-0.5 rounded">
+                                  REV {doc.revision}
+                                </span>
+                              </div>
                             </div>
-                            <div className="absolute top-2 right-2">
-                              <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded">
-                                REV {doc.revision}
-                              </span>
+
+                            <div className="space-y-0.5">
+                              <h4 className="font-extrabold text-[12px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
+                                {doc.title}
+                              </h4>
+                              <p className="text-[10px] text-slate-505 line-clamp-2 leading-tight">
+                                {doc.description || 'Sem descrição adicional.'}
+                              </p>
                             </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
-                              {doc.title}
-                            </h4>
-                            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                              {doc.description || 'Sem descrição adicional.'}
-                            </p>
+                          <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-[10px]">
+                            <span className="text-slate-400 font-mono font-bold uppercase">
+                              {doc.fileName ? doc.fileName.split('.').pop()?.toUpperCase() : 'PDF'}
+                            </span>
+                            <span className="text-teal-600 group-hover:text-teal-755 font-bold flex items-center gap-0.5 transition-colors">
+                              <Eye className="w-3 h-3" />
+                              <span>Ver</span>
+                            </span>
                           </div>
                         </div>
-
-                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-                          <span className="text-slate-400 font-mono text-[10px] font-bold uppercase">
-                            {doc.fileName ? doc.fileName.split('.').pop()?.toUpperCase() : 'PDF'}
-                          </span>
-                          <span className="text-teal-600 group-hover:text-teal-750 font-bold flex items-center gap-1 transition-colors">
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Ver Detalhes</span>
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
+                      ))}
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full animate-in fade-in duration-200">
+                      <Table>
+                        <TableHeader className="bg-slate-50 border-b border-slate-200">
+                          <TableRow>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[60px] text-center">Formato</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Título do Documento</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Descrição</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px] text-center">Rev.</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[120px] text-center">Tipo</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[120px] text-right pr-6">Ação</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredList.map(doc => (
+                            <TableRow 
+                              key={doc.id} 
+                              onClick={() => setSelectedItemForModal({ type: 'document', data: doc })}
+                              className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                            >
+                              <TableCell className="align-middle py-2 text-center">
+                                <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center mx-auto">
+                                  <FileText className="w-4 h-4 text-teal-650" />
+                                </div>
+                              </TableCell>
+                              <TableCell className="align-middle font-bold text-[13px] text-slate-900">{doc.title}</TableCell>
+                              <TableCell className="align-middle text-[12px] text-slate-500 max-w-xs truncate">{doc.description || '-'}</TableCell>
+                              <TableCell className="align-middle text-[12px] text-slate-700 font-bold font-mono text-center">{doc.revision}</TableCell>
+                              <TableCell className="align-middle text-[11px] text-slate-505 font-mono text-center uppercase">{doc.documentType || 'PDF'}</TableCell>
+                              <TableCell className="align-middle text-right pr-6">
+                                <span className="text-teal-600 font-bold text-xs inline-flex items-center gap-1">
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>Ver Detalhes</span>
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  );
+                }
               })()}
             </div>
           )}
@@ -1658,49 +1785,93 @@ export default function Downloads() {
                   );
                 }
 
-                return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-200">
-                    {filteredList.map(std => (
-                      <div 
-                        key={std.id}
-                        onClick={() => setSelectedItemForModal({ type: 'standard', data: std })}
-                        className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
-                      >
-                        <div className="space-y-3">
-                          <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                            <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
-                              <ShieldCheck className="w-6 h-6 text-purple-600" />
+                if (viewMode === 'grid') {
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-in fade-in duration-200">
+                      {filteredList.map(std => (
+                        <div 
+                          key={std.id}
+                          onClick={() => setSelectedItemForModal({ type: 'standard', data: std })}
+                          className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-3 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
+                        >
+                          <div className="space-y-2">
+                            <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
+                              <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                                <ShieldCheck className="w-5 h-5 text-purple-600" />
+                              </div>
+                              <div className="absolute top-1.5 right-1.5">
+                                <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[8px] font-extrabold px-1.5 py-0.5 rounded">
+                                  REV {std.revision}
+                                </span>
+                              </div>
                             </div>
-                            <div className="absolute top-2 right-2">
-                              <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded">
-                                REV {std.revision}
-                              </span>
+
+                            <div className="space-y-0.5">
+                              <h4 className="font-extrabold text-[12px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
+                                {std.title}
+                              </h4>
+                              <p className="text-[10px] text-slate-505 line-clamp-2 leading-tight">
+                                {std.description || 'Sem descrição adicional.'}
+                              </p>
                             </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <h4 className="font-extrabold text-[13px] text-slate-850 line-clamp-1 group-hover:text-teal-600 transition-colors">
-                              {std.title}
-                            </h4>
-                            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                              {std.description || 'Sem descrição adicional.'}
-                            </p>
+                          <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-[10px]">
+                            <span className="text-slate-450 font-mono font-bold uppercase truncate max-w-[70px]">
+                              {std.referenceDocument || 'REF: N/A'}
+                            </span>
+                            <span className="text-teal-600 group-hover:text-teal-755 font-bold flex items-center gap-0.5 transition-colors">
+                              <Eye className="w-3 h-3" />
+                              <span>Ver</span>
+                            </span>
                           </div>
                         </div>
-
-                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-                          <span className="text-slate-400 font-mono text-[10px] font-bold uppercase">
-                            {std.referenceDocument || 'REF: N/A'}
-                          </span>
-                          <span className="text-teal-600 group-hover:text-teal-750 font-bold flex items-center gap-1 transition-colors">
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Ver Detalhes</span>
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
+                      ))}
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full animate-in fade-in duration-200">
+                      <Table>
+                        <TableHeader className="bg-slate-50 border-b border-slate-200">
+                          <TableRow>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[60px] text-center">Ícone</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Título da Norma / Diretriz</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Descrição</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px] text-center">Rev.</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[140px] text-center">Referência</TableHead>
+                            <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[120px] text-right pr-6">Ação</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredList.map(std => (
+                            <TableRow 
+                              key={std.id} 
+                              onClick={() => setSelectedItemForModal({ type: 'standard', data: std })}
+                              className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                            >
+                              <TableCell className="align-middle py-2 text-center">
+                                <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center mx-auto">
+                                  <ShieldCheck className="w-4 h-4 text-purple-600" />
+                                </div>
+                              </TableCell>
+                              <TableCell className="align-middle font-bold text-[13px] text-slate-900">{std.title}</TableCell>
+                              <TableCell className="align-middle text-[12px] text-slate-500 max-w-xs truncate">{std.description || '-'}</TableCell>
+                              <TableCell className="align-middle text-[12px] text-slate-700 font-bold font-mono text-center">{std.revision}</TableCell>
+                              <TableCell className="align-middle text-[11px] text-slate-500 text-center truncate max-w-[120px]" title={std.referenceDocument}>{std.referenceDocument || '-'}</TableCell>
+                              <TableCell className="align-middle text-right pr-6">
+                                <span className="text-teal-600 font-bold text-xs inline-flex items-center gap-1">
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>Ver Detalhes</span>
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  );
+                }
               })()}
             </div>
           )}
