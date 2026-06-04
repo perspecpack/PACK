@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/src/context/AppContext';
+import { ThreeDViewer } from '@/components/ui/ThreeDViewer';
 import { ModuleType, ChecklistTemplate, ComponentEntry, DocumentEntry, StandardEntry } from '@/src/types';
 import { jsPDF } from 'jspdf';
 import { supabase, uploadFileToStorage } from '@/lib/supabase';
@@ -2166,25 +2167,11 @@ export default function Downloads() {
             <div className="w-full md:w-1/2 bg-slate-50/50 flex flex-col items-center justify-center p-8 border-b md:border-b-0 md:border-r border-slate-150 relative min-h-[280px] md:min-h-[450px]">
               {selectedItemForModal.type === 'component' ? (
                 selectedItemForModal.data.threeDModelUrl ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center relative p-2 min-h-[350px]">
-                    <span className="absolute top-2 left-2 bg-[#0c3944]/80 text-[#00F59B] text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-teal-500/20 uppercase tracking-wider z-10 flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-                      </span>
-                      Visualização 3D
-                    </span>
-                    <model-viewer
-                      src={selectedItemForModal.data.threeDModelUrl}
-                      poster={selectedItemForModal.data.imageUrl || ''}
-                      camera-controls
-                      auto-rotate
-                      shadow-intensity="1"
-                      alt={selectedItemForModal.data.name}
-                      touch-action="pan-y"
-                      style={{ width: '100%', height: '380px', outline: 'none' }}
-                    ></model-viewer>
-                  </div>
+                  <ThreeDViewer
+                    url={selectedItemForModal.data.threeDModelUrl}
+                    poster={selectedItemForModal.data.imageUrl}
+                    alt={selectedItemForModal.data.name}
+                  />
                 ) : selectedItemForModal.data.imageUrl ? (
                   <div className="w-full h-full flex items-center justify-center p-2">
                     <img 

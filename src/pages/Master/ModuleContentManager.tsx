@@ -835,8 +835,8 @@ export default function ModuleContentManager() {
                     {/* 3D Model Upload for Visualization */}
                     <div className="col-span-2">
                       <FileUploadField
-                        label="Modelo 3D para Visualização (.glb, .gltf) - Visualização interativa (não disponível para download)"
-                        acceptedTypes=".glb,.gltf"
+                        label="Modelo 3D para Visualização (.glb, .gltf, .stl) - Visualização interativa (não disponível para download)"
+                        acceptedTypes=".glb,.gltf,.stl"
                         bucket="components"
                         currentFileUrl={threeDModelUrl}
                         orgSlug={org.slug}
