@@ -537,7 +537,7 @@ export default function ModuleContentManager() {
                       <TableCell className="align-middle">
                         <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center shadow-inner">
                           {rec.imageUrl ? (
-                            <img src={rec.imageUrl} alt={rec.name} className="w-full h-full object-cover" />
+                            <img src={rec.imageUrl} alt={rec.name} className="w-full h-full object-contain p-0.5" />
                           ) : (
                             <HardDrive className="w-5 h-5 text-slate-400" />
                           )}
@@ -634,7 +634,7 @@ export default function ModuleContentManager() {
                       <TableCell className="align-middle">
                         <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center shadow-inner">
                           {rec.imageUrl ? (
-                            <img src={rec.imageUrl} alt={rec.name} className="w-full h-full object-cover" />
+                            <img src={rec.imageUrl} alt={rec.name} className="w-full h-full object-contain p-0.5" />
                           ) : (
                             <FolderKanban className="w-5 h-5 text-slate-400" />
                           )}

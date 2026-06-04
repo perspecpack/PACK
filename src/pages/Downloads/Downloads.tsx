@@ -199,6 +199,18 @@ export default function Downloads() {
     data: any;
   } | null>(null);
 
+  const [modalMediaTab, setModalMediaTab] = useState<'image' | '3d'>('3d');
+
+  useEffect(() => {
+    if (selectedItemForModal && selectedItemForModal.type === 'component') {
+      if (selectedItemForModal.data.threeDModelUrl) {
+        setModalMediaTab('3d');
+      } else {
+        setModalMediaTab('image');
+      }
+    }
+  }, [selectedItemForModal]);
+
   useEffect(() => {
     if (resetTrigger > 0) {
       setStep('org_selection');
@@ -1426,9 +1438,9 @@ export default function Downloads() {
                         className="bg-white border border-slate-200 hover:border-teal-500 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer group relative overflow-hidden"
                       >
                         <div className="space-y-3">
-                          <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
+                          <div className="aspect-square w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative p-3">
                             {comp.imageUrl ? (
-                              <img src={comp.imageUrl} alt={comp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              <img src={comp.imageUrl} alt={comp.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
                             ) : (
                               <Layers className="w-10 h-10 text-slate-300 group-hover:scale-105 transition-transform duration-300" />
                             )}
@@ -2165,8 +2177,37 @@ export default function Downloads() {
 
             {/* Left Side: Media Preview */}
             <div className="w-full md:w-1/2 bg-slate-50/50 flex flex-col items-center justify-center p-8 border-b md:border-b-0 md:border-r border-slate-150 relative min-h-[280px] md:min-h-[450px]">
+              {selectedItemForModal.type === 'component' && selectedItemForModal.data.threeDModelUrl && selectedItemForModal.data.imageUrl && (
+                <div className="absolute top-4 left-4 z-10 flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shadow-sm">
+                  <button
+                    onClick={() => setModalMediaTab('image')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                      modalMediaTab === 'image'
+                        ? "bg-white text-teal-600 shadow-sm"
+                        : "text-slate-550 hover:text-slate-800"
+                    )}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Imagem</span>
+                  </button>
+                  <button
+                    onClick={() => setModalMediaTab('3d')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                      modalMediaTab === '3d'
+                        ? "bg-white text-teal-600 shadow-sm"
+                        : "text-slate-550 hover:text-slate-800"
+                    )}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Visualizar 3D</span>
+                  </button>
+                </div>
+              )}
+
               {selectedItemForModal.type === 'component' ? (
-                selectedItemForModal.data.threeDModelUrl ? (
+                modalMediaTab === '3d' && selectedItemForModal.data.threeDModelUrl ? (
                   <ThreeDViewer
                     url={selectedItemForModal.data.threeDModelUrl}
                     poster={selectedItemForModal.data.imageUrl}
