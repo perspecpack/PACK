@@ -68,7 +68,6 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
 
         // Create scene
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xf8fafc); // slate-50
 
         // Create camera
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
@@ -86,16 +85,23 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
         controls.dampingFactor = 0.05;
 
         // Add lighting
-        const ambientLight = new THREE.AmbientLight(0x666666);
+        const ambientLight = new THREE.AmbientLight(0x444444);
         scene.add(ambientLight);
 
-        const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.85);
-        dirLight1.position.set(1, 1.5, 1).normalize();
+        // Key light (top-right-front)
+        const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight1.position.set(2, 3, 2).normalize();
         scene.add(dirLight1);
 
-        const dirLight2 = new THREE.DirectionalLight(0x555555, 0.4);
-        dirLight2.position.set(-1, -1, -1).normalize();
+        // Fill light (bottom-left-back)
+        const dirLight2 = new THREE.DirectionalLight(0x94a3b8, 0.3);
+        dirLight2.position.set(-2, -1, -2).normalize();
         scene.add(dirLight2);
+
+        // Top down rim light for highlighted edges
+        const dirLight3 = new THREE.DirectionalLight(0xffffff, 0.45);
+        dirLight3.position.set(0, 4, 0).normalize();
+        scene.add(dirLight3);
 
         // Load STL
         const loader = new THREE.STLLoader();
@@ -104,18 +110,21 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
           (geometry: any) => {
             if (!isMounted) return;
 
-            // Beautiful metallic grey material
+            // Center geometry
+            geometry.center();
+
+            // Compute smooth vertex normals for proper lighting/shadows!
+            geometry.computeVertexNormals();
+
+            // Beautiful metallic steel material
             const material = new THREE.MeshStandardMaterial({
-              color: 0x94a3b8, // slate-400
-              metalness: 0.7,
-              roughness: 0.4,
+              color: 0xe2e8f0, // slate-200 (machined steel)
+              metalness: 0.85,
+              roughness: 0.25,
               shadowSide: THREE.DoubleSide
             });
 
             const mesh = new THREE.Mesh(geometry, material);
-            
-            // Center geometry
-            geometry.center();
 
             // Compute bounding sphere to frame the camera
             geometry.computeBoundingSphere();
@@ -202,13 +211,13 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
 
   if (!isStl) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center relative p-2 min-h-[350px]">
+      <div className="w-full h-full flex flex-col items-center justify-center relative min-h-[350px] bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl text-left">
         <span className="absolute top-2 left-2 bg-[#0c3944]/80 text-[#00F59B] text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-teal-500/20 uppercase tracking-wider z-10 flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
           </span>
-          Visualização 3D
+          Visualização 3D GLB
         </span>
         <model-viewer
           src={url}
@@ -218,14 +227,14 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
           shadow-intensity="1"
           alt={alt || 'Modelo 3D'}
           touch-action="pan-y"
-          style={{ width: '100%', height: '380px', outline: 'none' }}
+          style={{ width: '100%', height: '380px', outline: 'none', backgroundColor: 'transparent' }}
         ></model-viewer>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center relative min-h-[350px] bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 shadow-inner text-left">
+    <div className="w-full h-full flex flex-col items-center justify-center relative min-h-[350px] bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl text-left">
       <span className="absolute top-2 left-2 bg-[#0c3944]/80 text-[#00F59B] text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-teal-500/20 uppercase tracking-wider z-10 flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
@@ -235,18 +244,18 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
       </span>
 
       {isLoading && (
-        <div className="absolute inset-0 bg-slate-50 flex flex-col items-center justify-center gap-3 z-20">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
-          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+        <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center gap-3 z-20">
+          <Loader2 className="w-8 h-8 animate-spin text-teal-400" />
+          <span className="text-xs text-slate-300 font-bold uppercase tracking-wider">
             {progress > 0 ? `Carregando Modelo... ${progress}%` : 'Inicializando Renderizador...'}
           </span>
         </div>
       )}
 
       {error && (
-        <div className="absolute inset-0 bg-slate-50 flex flex-col items-center justify-center gap-3 p-6 text-center z-20">
+        <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center gap-3 p-6 text-center z-20">
           <AlertCircle className="w-8 h-8 text-rose-500" />
-          <span className="text-xs text-rose-600 font-bold bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-lg max-w-xs leading-normal">
+          <span className="text-xs text-rose-300 bg-rose-950/40 border border-rose-900/50 px-3 py-1.5 rounded-lg max-w-xs leading-normal font-semibold">
             {error}
           </span>
         </div>
