@@ -116,11 +116,11 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
             // Compute smooth vertex normals for proper lighting/shadows!
             geometry.computeVertexNormals();
 
-            // Beautiful metallic steel material
+            // Premium light gray steel material visible under all lighting
             const material = new THREE.MeshStandardMaterial({
-              color: 0xe2e8f0, // slate-200 (machined steel)
-              metalness: 0.85,
-              roughness: 0.25,
+              color: 0x7e8b9b, // Cool gray-steel
+              metalness: 0.2,   // low metalness to prevent black reflections
+              roughness: 0.4,   // medium-low roughness for clear shading structure
               shadowSide: THREE.DoubleSide
             });
 
@@ -211,7 +211,7 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
 
   if (!isStl) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center relative min-h-[350px] bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl text-left">
+      <div className="w-full h-full flex flex-col items-center justify-center relative min-h-[350px] bg-gradient-to-br from-slate-50 to-slate-200 rounded-2xl overflow-hidden border border-slate-200/80 shadow-lg text-left">
         <span className="absolute top-2 left-2 bg-[#0c3944]/80 text-[#00F59B] text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-teal-500/20 uppercase tracking-wider z-10 flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
@@ -234,7 +234,7 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
   }
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center relative min-h-[350px] bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl text-left">
+    <div className="w-full h-full flex flex-col items-center justify-center relative min-h-[350px] bg-gradient-to-br from-slate-50 to-slate-200 rounded-2xl overflow-hidden border border-slate-200/80 shadow-lg text-left">
       <span className="absolute top-2 left-2 bg-[#0c3944]/80 text-[#00F59B] text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-teal-500/20 uppercase tracking-wider z-10 flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
@@ -244,18 +244,18 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
       </span>
 
       {isLoading && (
-        <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center gap-3 z-20">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-400" />
-          <span className="text-xs text-slate-300 font-bold uppercase tracking-wider">
+        <div className="absolute inset-0 bg-slate-50/95 flex flex-col items-center justify-center gap-3 z-20">
+          <Loader2 className="w-8 h-8 animate-spin text-teal-650" />
+          <span className="text-xs text-slate-650 font-bold uppercase tracking-wider">
             {progress > 0 ? `Carregando Modelo... ${progress}%` : 'Inicializando Renderizador...'}
           </span>
         </div>
       )}
 
       {error && (
-        <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center gap-3 p-6 text-center z-20">
-          <AlertCircle className="w-8 h-8 text-rose-500" />
-          <span className="text-xs text-rose-300 bg-rose-950/40 border border-rose-900/50 px-3 py-1.5 rounded-lg max-w-xs leading-normal font-semibold">
+        <div className="absolute inset-0 bg-slate-50/95 flex flex-col items-center justify-center gap-3 p-6 text-center z-20">
+          <AlertCircle className="w-8 h-8 text-rose-600" />
+          <span className="text-xs text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg max-w-xs leading-normal font-semibold">
             {error}
           </span>
         </div>
