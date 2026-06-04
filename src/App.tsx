@@ -141,7 +141,7 @@ function AppRoutes() {
           <Route path="/master/oems" element={<Organizations />} />
           <Route path="/master/content" element={<Content />} />
           <Route path="/master/content/:orgId" element={<OrganizationDetail />} />
-          <Route path="/master/content/:orgId/:moduleType" element={<ModuleContentManager />} />
+          <Route path="/master/content/:orgId/:techAreaId/:moduleType" element={<ModuleContentManager />} />
           <Route path="/master/uploads" element={<Files />} />
           <Route path="/master/settings" element={<Settings />} />
           <Route path="/master/suporte" element={<SupportRequests />} />

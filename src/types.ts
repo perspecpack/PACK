@@ -35,9 +35,24 @@ export interface OrganizationModule {
   createdAt: string;
 }
 
+export interface TechnicalArea {
+  id: string;
+  organizationId: string;
+  name: string;
+  description?: string;
+  icon: string;
+  status: 'active' | 'inactive';
+  isDefault: boolean;
+  isVisibleToUsers: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ComponentEntry {
   id: string;
   organizationId: string;
+  technicalAreaId?: string;
   name: string;
   description?: string;
   application?: string;
@@ -69,6 +84,7 @@ export type DocumentType =
 export interface DocumentEntry {
   id: string;
   organizationId: string;
+  technicalAreaId?: string;
   title: string;
   description?: string;
   documentType: DocumentType;
@@ -94,6 +110,7 @@ export type StandardType =
 export interface StandardEntry {
   id: string;
   organizationId: string;
+  technicalAreaId?: string;
   title: string;
   description?: string;
   standardType?: StandardType;
@@ -143,6 +160,7 @@ export interface ChecklistHeaderConfig {
 export interface ChecklistTemplate {
   id: string;
   organizationId: string;
+  technicalAreaId?: string;
   name: string;
   revision: string;
   status: 'active' | 'inactive';
@@ -212,6 +230,7 @@ export interface DownloadLog {
   id: string;
   user_id: string;
   organization_id: string;
+  technicalAreaId?: string;
   content_type: string;
   content_id: string;
   file_name: string;

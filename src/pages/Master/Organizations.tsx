@@ -24,6 +24,16 @@ const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
   packaging_manufacturer: 'Fabricante de Embalagens Metálicas'
 };
 
+const DEFAULT_TECH_AREAS = [
+  { key: 'metal', name: 'Embalagens Metálicas', icon: '📦', isDefault: true },
+  { key: 'madeira', name: 'Embalagens de Madeira', icon: '🪵', isDefault: false },
+  { key: 'plasticas', name: 'Embalagens Plásticas', icon: '♻️', isDefault: false },
+  { key: 'movimentacao', name: 'Movimentação', icon: '🚚', isDefault: false },
+  { key: 'maquinas', name: 'Máquinas e Equipamentos', icon: '⚙️', isDefault: false },
+  { key: 'dispositivos', name: 'Dispositivos de Produção', icon: '🏭', isDefault: false },
+  { key: 'ergonomia', name: 'Ergonomia', icon: '🧍', isDefault: false }
+];
+
 export default function Organizations() {
   const { oems, addOrganization, updateOrganization, deleteOrganization, organizationModules } = useApp();
   
@@ -48,6 +58,14 @@ export default function Organizations() {
     procedures: false
   });
 
+  // Technical Areas states
+  const [selectedTechAreas, setSelectedTechAreas] = useState<Record<string, boolean>>({ metal: true });
+  const [hasCustomArea, setHasCustomArea] = useState(false);
+  const [customAreaName, setCustomAreaName] = useState('');
+  const [customAreaDesc, setCustomAreaDesc] = useState('');
+  const [customAreaIcon, setCustomAreaIcon] = useState('📂');
+  const [customAreaSortOrder, setCustomAreaSortOrder] = useState(10);
+
   // Delete confirm state
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -68,6 +86,12 @@ export default function Organizations() {
       cad_library: false,
       procedures: false
     });
+    setSelectedTechAreas({ metal: true });
+    setHasCustomArea(false);
+    setCustomAreaName('');
+    setCustomAreaDesc('');
+    setCustomAreaIcon('📂');
+    setCustomAreaSortOrder(10);
     setIsModalOpen(true);
   };
 
@@ -127,7 +151,35 @@ export default function Organizations() {
     if (editingOEM) {
       updateOrganization(editingOEM.id, oemData, modules);
     } else {
-      addOrganization(oemData, modules);
+      const initialAreas: any[] = [];
+      
+      DEFAULT_TECH_AREAS.forEach(area => {
+        if (selectedTechAreas[area.key]) {
+          initialAreas.push({
+            name: area.name,
+            description: `Área técnica de ${area.name.toLowerCase()}`,
+            icon: area.icon,
+            status: 'active' as const,
+            isDefault: area.isDefault,
+            isVisibleToUsers: true,
+            sortOrder: initialAreas.length + 1
+          });
+        }
+      });
+      
+      if (hasCustomArea && customAreaName.trim()) {
+        initialAreas.push({
+          name: customAreaName.trim(),
+          description: customAreaDesc.trim() || undefined,
+          icon: customAreaIcon.trim() || '📂',
+          status: 'active' as const,
+          isDefault: false,
+          isVisibleToUsers: true,
+          sortOrder: customAreaSortOrder
+        });
+      }
+      
+      addOrganization(oemData, modules, initialAreas);
     }
     setIsModalOpen(false);
   };
@@ -330,6 +382,82 @@ export default function Organizations() {
                   ))}
                 </div>
               </div>
+              
+              {!editingOEM && (
+                <div className="space-y-2 border-t border-slate-100 pt-4">
+                  <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Áreas Técnicas Iniciais</Label>
+                  <p className="text-[11px] text-slate-400 -mt-1 font-medium">Selecione quais áreas técnicas habilitar de início:</p>
+                  <div className="grid grid-cols-2 gap-2 mt-1.5">
+                    {DEFAULT_TECH_AREAS.map((area) => (
+                      <label key={area.key} className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200/50 p-2.5 rounded-lg hover:bg-slate-100/50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={selectedTechAreas[area.key] || false}
+                          onChange={(e) => setSelectedTechAreas(prev => ({ ...prev, [area.key]: e.target.checked }))}
+                          className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4"
+                        />
+                        <span>{area.icon} {area.name}</span>
+                      </label>
+                    ))}
+                    <label className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200/50 p-2.5 rounded-lg hover:bg-slate-100/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={hasCustomArea}
+                        onChange={(e) => setHasCustomArea(e.target.checked)}
+                        className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4"
+                      />
+                      <span>➕ Outra Área</span>
+                    </label>
+                  </div>
+
+                  {hasCustomArea && (
+                    <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 animate-in slide-in-from-top-2 duration-150">
+                      <div className="space-y-1">
+                        <Label htmlFor="custom-area-name" className="text-[11px] font-bold text-slate-600">Nome da Área</Label>
+                        <Input
+                          id="custom-area-name"
+                          value={customAreaName}
+                          onChange={(e) => setCustomAreaName(e.target.value)}
+                          placeholder="Ex: Embalagens Flexíveis"
+                          className="h-8 text-[13px] rounded border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="custom-area-desc" className="text-[11px] font-bold text-slate-600">Descrição</Label>
+                        <Input
+                          id="custom-area-desc"
+                          value={customAreaDesc}
+                          onChange={(e) => setCustomAreaDesc(e.target.value)}
+                          placeholder="Ex: Plásticos e caixas flexíveis"
+                          className="h-8 text-[13px] rounded border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="custom-area-icon" className="text-[11px] font-bold text-slate-600">Emoji / Ícone</Label>
+                          <Input
+                            id="custom-area-icon"
+                            value={customAreaIcon}
+                            onChange={(e) => setCustomAreaIcon(e.target.value)}
+                            placeholder="Ex: 📦"
+                            className="h-8 text-[13px] rounded border-slate-300 focus:ring-teal-500 focus:border-teal-500 text-center"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="custom-area-sort" className="text-[11px] font-bold text-slate-600">Ordem</Label>
+                          <Input
+                            id="custom-area-sort"
+                            type="number"
+                            value={customAreaSortOrder}
+                            onChange={(e) => setCustomAreaSortOrder(Number(e.target.value))}
+                            className="h-8 text-[13px] rounded border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <footer className="pt-4 border-t border-slate-100 flex justify-end gap-2.5">
                 <Button 

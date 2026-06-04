@@ -66,11 +66,12 @@ const STANDARD_TYPES: StandardType[] = [
 ];
 
 export default function ModuleContentManager() {
-  const { orgId, moduleType } = useParams<{ orgId: string; moduleType: string }>();
+  const { orgId, techAreaId, moduleType } = useParams<{ orgId: string; techAreaId: string; moduleType: string }>();
   const navigate = useNavigate();
   
   const { 
     organizations,
+    technicalAreas,
     components, addComponent, updateComponent, deleteComponent,
     documents, addDocument, updateDocument, deleteDocument,
     standards, addStandard, updateStandard, deleteStandard,
@@ -81,13 +82,14 @@ export default function ModuleContentManager() {
   } = useApp();
 
   const org = organizations.find(o => o.id === orgId);
+  const techArea = technicalAreas.find(t => t.id === techAreaId);
 
   // Log page access on component mount/update
   React.useEffect(() => {
     if (org && moduleType) {
-      logPageAccess(`Master - Módulo: ${getModuleTitle()} (${org.name})`);
+      logPageAccess(`Master - Módulo: ${getModuleTitle()} (${org.name} - ${techArea?.name || 'Geral'})`);
     }
-  }, [orgId, moduleType, logPageAccess]);
+  }, [orgId, techAreaId, moduleType, logPageAccess, techArea]);
 
   // States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -156,13 +158,13 @@ export default function ModuleContentManager() {
   const getRecords = () => {
     switch (moduleType) {
       case 'components':
-        return components.filter(c => c.organizationId === orgId);
+        return components.filter(c => c.organizationId === orgId && c.technicalAreaId === techAreaId);
       case 'documentation':
-        return documents.filter(d => d.organizationId === orgId);
+        return documents.filter(d => d.organizationId === orgId && d.technicalAreaId === techAreaId);
       case 'standards':
-        return standards.filter(s => s.organizationId === orgId);
+        return standards.filter(s => s.organizationId === orgId && s.technicalAreaId === techAreaId);
       case 'checklists':
-        return checklists.filter(c => c.organizationId === orgId);
+        return checklists.filter(c => c.organizationId === orgId && c.technicalAreaId === techAreaId);
       case 'reference_projects':
         return referenceProjects.filter(p => p.organizationId === orgId);
       default:
@@ -285,6 +287,7 @@ export default function ModuleContentManager() {
     if (moduleType === 'components') {
       const componentData = {
         organizationId: orgId!,
+        technicalAreaId: techAreaId!,
         name,
         description: description || undefined,
         application: application || undefined,
@@ -305,6 +308,7 @@ export default function ModuleContentManager() {
     } else if (moduleType === 'documentation') {
       const docData = {
         organizationId: orgId!,
+        technicalAreaId: techAreaId!,
         title: name,
         description: description || undefined,
         documentType,
@@ -323,6 +327,7 @@ export default function ModuleContentManager() {
     } else if (moduleType === 'standards') {
       const stdData = {
         organizationId: orgId!,
+        technicalAreaId: techAreaId!,
         title: name,
         description: description || undefined,
         standardType,
@@ -342,6 +347,7 @@ export default function ModuleContentManager() {
     } else if (moduleType === 'checklists') {
       const chkData = {
         organizationId: orgId!,
+        technicalAreaId: techAreaId!,
         name,
         revision,
         status,
@@ -447,17 +453,19 @@ export default function ModuleContentManager() {
         className="inline-flex items-center gap-1.5 text-[13px] font-bold text-teal-600 hover:text-teal-700 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        Voltar para {org.name}
+        Voltar para {org.name} {techArea ? `(${techArea.name})` : ''}
       </Link>
 
       {/* Header Panel */}
       <div className="bg-gradient-to-r from-[#06242c] to-[#0b3b47] text-white p-8 rounded-2xl border border-teal-950 shadow-md relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
         <div className="relative z-10">
-          <span className="text-xs font-bold text-[#00F59B] uppercase tracking-wider">{org.name}</span>
+          <span className="text-xs font-bold text-[#00F59B] uppercase tracking-wider">
+            {org.name} {techArea ? `| ${techArea.icon} ${techArea.name}` : ''}
+          </span>
           <h2 className="text-[26px] font-extrabold tracking-tight mt-1">{getModuleTitle()}</h2>
           <p className="text-slate-300 mt-2 text-[14px] max-w-[650px] leading-relaxed">
-            Gerencie os registros do módulo específico para esta organização.
+            Gerencie os registros do módulo específico para esta área técnica.
           </p>
         </div>
         <Button 
@@ -725,6 +733,14 @@ export default function ModuleContentManager() {
                     required 
                     className="h-10 text-[14px] rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500" 
                   />
+                </div>
+
+                {/* Technical Area Info (Read-only) */}
+                <div className="space-y-1.5 col-span-2">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Área Técnica Escopada</Label>
+                  <div className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-[13px] text-slate-500 flex items-center font-bold">
+                    {techArea ? `${techArea.icon} ${techArea.name}` : 'Nenhuma'}
+                  </div>
                 </div>
 
                 {/* Revision and Status */}

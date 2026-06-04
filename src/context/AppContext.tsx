@@ -19,7 +19,8 @@ import {
   DownloadLog,
   UploadLog,
   PageAccessLog,
-  SupportRequest
+  SupportRequest,
+  TechnicalArea
 } from '../types';
 
 export type {
@@ -41,7 +42,8 @@ export type {
   DownloadLog,
   UploadLog,
   PageAccessLog,
-  SupportRequest
+  SupportRequest,
+  TechnicalArea
 };
 
 export type OEM = Organization;
@@ -75,6 +77,7 @@ interface AppContextType {
   // New State
   organizations: Organization[];
   organizationModules: OrganizationModule[];
+  technicalAreas: TechnicalArea[];
   components: ComponentEntry[];
   documents: DocumentEntry[];
   standards: StandardEntry[];
@@ -114,10 +117,18 @@ interface AppContextType {
   logUpload: (orgId: string, contentType: string, fileName: string) => Promise<void>;
   logPageAccess: (page: string) => Promise<void>;
 
-  // Organization actions
-  addOrganization: (org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>, modules: Record<ModuleType, boolean>) => void;
+  addOrganization: (
+    org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>, 
+    modules: Record<ModuleType, boolean>,
+    initialTechAreas?: Omit<TechnicalArea, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>[]
+  ) => void;
   updateOrganization: (id: string, org: Partial<Organization>, modules?: Record<ModuleType, boolean>) => void;
   deleteOrganization: (id: string) => void;
+  
+  // Technical Area actions
+  addTechnicalArea: (area: Omit<TechnicalArea, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateTechnicalArea: (id: string, area: Partial<TechnicalArea>) => void;
+  deleteTechnicalArea: (id: string) => void;
   
   // Compatibility OEM aliases
   addOEM: (org: any) => void;
@@ -500,6 +511,33 @@ const mapOrgToDb = (ts: Partial<Organization>) => {
   return db;
 };
 
+const mapTechnicalAreaFromDb = (db: any): TechnicalArea => ({
+  id: db.id,
+  organizationId: db.organization_id,
+  name: db.name,
+  description: db.description || undefined,
+  icon: db.icon,
+  status: db.status as 'active' | 'inactive',
+  isDefault: db.is_default,
+  isVisibleToUsers: db.is_visible_to_users,
+  sortOrder: db.sort_order,
+  createdAt: db.created_at,
+  updatedAt: db.updated_at
+});
+
+const mapTechnicalAreaToDb = (ts: Partial<TechnicalArea>) => {
+  const db: any = {};
+  if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.name !== undefined) db.name = ts.name;
+  if (ts.description !== undefined) db.description = ts.description;
+  if (ts.icon !== undefined) db.icon = ts.icon;
+  if (ts.status !== undefined) db.status = ts.status;
+  if (ts.isDefault !== undefined) db.is_default = ts.isDefault;
+  if (ts.isVisibleToUsers !== undefined) db.is_visible_to_users = ts.isVisibleToUsers;
+  if (ts.sortOrder !== undefined) db.sort_order = ts.sortOrder;
+  return db;
+};
+
 const mapModFromDb = (db: any): OrganizationModule => ({
   id: db.id,
   organizationId: db.organization_id,
@@ -511,6 +549,7 @@ const mapModFromDb = (db: any): OrganizationModule => ({
 const mapCompFromDb = (db: any): ComponentEntry => ({
   id: db.id,
   organizationId: db.organization_id,
+  technicalAreaId: db.technical_area_id || undefined,
   name: db.name,
   description: db.description || undefined,
   application: db.application || undefined,
@@ -528,6 +567,7 @@ const mapCompFromDb = (db: any): ComponentEntry => ({
 const mapCompToDb = (ts: Partial<ComponentEntry>) => {
   const db: any = {};
   if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.technicalAreaId !== undefined) db.technical_area_id = ts.technicalAreaId;
   if (ts.name !== undefined) db.name = ts.name;
   if (ts.description !== undefined) db.description = ts.description;
   if (ts.application !== undefined) db.application = ts.application;
@@ -544,6 +584,7 @@ const mapCompToDb = (ts: Partial<ComponentEntry>) => {
 const mapDocFromDb = (db: any): DocumentEntry => ({
   id: db.id,
   organizationId: db.organization_id,
+  technicalAreaId: db.technical_area_id || undefined,
   title: db.title,
   description: db.description || undefined,
   documentType: db.document_type as any,
@@ -559,6 +600,7 @@ const mapDocFromDb = (db: any): DocumentEntry => ({
 const mapDocToDb = (ts: Partial<DocumentEntry>) => {
   const db: any = {};
   if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.technicalAreaId !== undefined) db.technical_area_id = ts.technicalAreaId;
   if (ts.title !== undefined) db.title = ts.title;
   if (ts.description !== undefined) db.description = ts.description;
   if (ts.documentType !== undefined) db.document_type = ts.documentType;
@@ -573,6 +615,7 @@ const mapDocToDb = (ts: Partial<DocumentEntry>) => {
 const mapStdFromDb = (db: any): StandardEntry => ({
   id: db.id,
   organizationId: db.organization_id,
+  technicalAreaId: db.technical_area_id || undefined,
   title: db.title,
   description: db.description || undefined,
   standardType: db.standard_type as any || 'Norma de Embalagem',
@@ -589,6 +632,7 @@ const mapStdFromDb = (db: any): StandardEntry => ({
 const mapStdToDb = (ts: Partial<StandardEntry>) => {
   const db: any = {};
   if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.technicalAreaId !== undefined) db.technical_area_id = ts.technicalAreaId;
   if (ts.title !== undefined) db.title = ts.title;
   if (ts.description !== undefined) db.description = ts.description;
   if (ts.standardType !== undefined) db.standard_type = ts.standardType;
@@ -604,6 +648,7 @@ const mapStdToDb = (ts: Partial<StandardEntry>) => {
 const mapChecklistTemplateFromDb = (db: any): ChecklistTemplate => ({
   id: db.id,
   organizationId: db.organization_id,
+  technicalAreaId: db.technical_area_id || undefined,
   name: db.name,
   revision: db.revision,
   status: db.status as 'active' | 'inactive',
@@ -635,6 +680,7 @@ const mapChecklistTemplateFromDb = (db: any): ChecklistTemplate => ({
 const mapChecklistTemplateToDb = (ts: Partial<ChecklistTemplate>) => {
   const db: any = {};
   if (ts.organizationId !== undefined) db.organization_id = ts.organizationId;
+  if (ts.technicalAreaId !== undefined) db.technical_area_id = ts.technicalAreaId;
   if (ts.name !== undefined) db.name = ts.name;
   if (ts.revision !== undefined) db.revision = ts.revision;
   if (ts.status !== undefined) db.status = ts.status;
@@ -708,6 +754,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [organizationModules, setOrganizationModules] = useState<OrganizationModule[]>(() => {
     const saved = localStorage.getItem('pp_organization_modules_v2');
     return saved ? JSON.parse(saved) : INITIAL_MODULES;
+  });
+
+  const [technicalAreas, setTechnicalAreas] = useState<TechnicalArea[]>(() => {
+    const saved = localStorage.getItem('pp_technical_areas_v1');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [components, setComponents] = useState<ComponentEntry[]>(() => {
@@ -955,6 +1006,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (modsErr) throw modsErr;
         setOrganizationModules((modsData || []).map(mapModFromDb));
 
+        // Fetch Technical Areas
+        const { data: areasData, error: areasErr } = await supabase
+          .from('technical_areas')
+          .select('*')
+          .order('sort_order', { ascending: true });
+        if (areasErr) throw areasErr;
+        setTechnicalAreas((areasData || []).map(mapTechnicalAreaFromDb));
+
         // Fetch Components
         const { data: compsData, error: compsErr } = await supabase
           .from('components')
@@ -1078,6 +1137,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('pp_organization_modules_v2', JSON.stringify(organizationModules));
   }, [organizationModules]);
+
+  useEffect(() => {
+    localStorage.setItem('pp_technical_areas_v1', JSON.stringify(technicalAreas));
+  }, [technicalAreas]);
 
   useEffect(() => {
     localStorage.setItem('pp_components_v2', JSON.stringify(components));
@@ -1501,7 +1564,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Organization Actions
-  const addOrganization = (org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>, modules: Record<ModuleType, boolean>) => {
+  const addOrganization = (
+    org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>, 
+    modules: Record<ModuleType, boolean>,
+    initialTechAreas?: Omit<TechnicalArea, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>[]
+  ) => {
     const newOrgId = crypto.randomUUID();
     const newOrg: Organization = {
       ...org,
@@ -1518,8 +1585,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString()
     }));
 
+    const newTechAreas: TechnicalArea[] = (initialTechAreas || []).map(area => ({
+      ...area,
+      id: crypto.randomUUID(),
+      organizationId: newOrgId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }));
+
     setOrganizations(prev => [newOrg, ...prev]);
     setOrganizationModules(prev => [...prev, ...newModules]);
+    if (newTechAreas.length > 0) {
+      setTechnicalAreas(prev => [...prev, ...newTechAreas]);
+    }
 
     if (supabase) {
       supabase
@@ -1550,6 +1628,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             .then(({ error: modErr }) => {
               if (modErr) console.error('Error adding organization modules to Supabase:', modErr);
             });
+
+          if (newTechAreas.length > 0) {
+            const dbTechAreas = newTechAreas.map(area => ({
+              id: area.id,
+              organization_id: newOrgId,
+              name: area.name,
+              description: area.description || null,
+              icon: area.icon,
+              status: area.status,
+              is_default: area.isDefault,
+              is_visible_to_users: area.isVisibleToUsers,
+              sort_order: area.sortOrder
+            }));
+            supabase
+              .from('technical_areas')
+              .insert(dbTechAreas)
+              .then(({ error: techErr }) => {
+                if (techErr) console.error('Error adding organization technical areas to Supabase:', techErr);
+              });
+          }
         });
     }
   };
@@ -1615,6 +1713,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteOrganization = (id: string) => {
     setOrganizations(prev => prev.filter(item => item.id !== id));
     setOrganizationModules(prev => prev.filter(item => item.organizationId !== id));
+    setTechnicalAreas(prev => prev.filter(item => item.organizationId !== id));
     setComponents(prev => prev.filter(item => item.organizationId !== id));
     setDocuments(prev => prev.filter(item => item.organizationId !== id));
     setStandards(prev => prev.filter(item => item.organizationId !== id));
@@ -1662,6 +1761,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     deleteOrganization(id);
   };
 
+  // Technical Area Actions
+  const addTechnicalArea = (area: Omit<TechnicalArea, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newAreaId = crypto.randomUUID();
+    const newArea: TechnicalArea = {
+      ...area,
+      id: newAreaId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setTechnicalAreas(prev => [...prev, newArea]);
+
+    if (supabase) {
+      supabase
+        .from('technical_areas')
+        .insert({
+          id: newAreaId,
+          organization_id: area.organizationId,
+          name: area.name,
+          description: area.description || null,
+          icon: area.icon,
+          status: area.status,
+          is_default: area.isDefault,
+          is_visible_to_users: area.isVisibleToUsers,
+          sort_order: area.sortOrder
+        })
+        .then(({ error }) => {
+          if (error) console.error('Error adding technical area to Supabase:', error);
+        });
+    }
+  };
+
+  const updateTechnicalArea = (id: string, updatedFields: Partial<TechnicalArea>) => {
+    setTechnicalAreas(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields, updatedAt: new Date().toISOString() } : item));
+
+    if (supabase) {
+      const dbFields = mapTechnicalAreaToDb(updatedFields);
+      supabase
+        .from('technical_areas')
+        .update(dbFields)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error updating technical area in Supabase:', error);
+        });
+    }
+  };
+
+  const deleteTechnicalArea = (id: string) => {
+    setTechnicalAreas(prev => prev.filter(item => item.id !== id));
+    // Clean up content belonging to this technical area
+    setComponents(prev => prev.filter(item => item.technicalAreaId !== id));
+    setDocuments(prev => prev.filter(item => item.technicalAreaId !== id));
+    setStandards(prev => prev.filter(item => item.technicalAreaId !== id));
+    setChecklists(prev => prev.filter(item => item.technicalAreaId !== id));
+
+    if (supabase) {
+      supabase
+        .from('technical_areas')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Error deleting technical area in Supabase:', error);
+        });
+    }
+  };
+
   // Component Actions
   const addComponent = (comp: Omit<ComponentEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newCompId = crypto.randomUUID();
@@ -1679,6 +1843,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .insert({
           id: newCompId,
           organization_id: comp.organizationId,
+          technical_area_id: comp.technicalAreaId || null,
           name: comp.name,
           description: comp.description || null,
           application: comp.application || null,
@@ -1742,6 +1907,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .insert({
           id: newDocId,
           organization_id: doc.organizationId,
+          technical_area_id: doc.technicalAreaId || null,
           title: doc.title,
           description: doc.description || null,
           document_type: doc.documentType,
@@ -1803,6 +1969,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .insert({
           id: newStdId,
           organization_id: std.organizationId,
+          technical_area_id: std.technicalAreaId || null,
           title: std.title,
           description: std.description || null,
           revision: std.revision,
@@ -1888,6 +2055,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .insert({
           id: templateId,
           organization_id: checklist.organizationId,
+          technical_area_id: checklist.technicalAreaId || null,
           name: checklist.name,
           revision: checklist.revision,
           status: checklist.status,
@@ -2278,6 +2446,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         organizations,
         organizationModules,
+        technicalAreas,
         components,
         documents,
         standards,
@@ -2312,6 +2481,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addOrganization,
         updateOrganization,
         deleteOrganization,
+
+        addTechnicalArea,
+        updateTechnicalArea,
+        deleteTechnicalArea,
         
         addOEM,
         updateOEM,

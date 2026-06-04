@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '@/src/context/AppContext';
 import { 
@@ -7,14 +7,21 @@ import {
   FileText, 
   ShieldCheck, 
   CheckSquare, 
-  FolderKanban, 
   ArrowLeft,
   ChevronRight,
-  HardDrive,
-  BookOpen
+  Plus,
+  Edit2,
+  Trash2,
+  Eye,
+  EyeOff,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ModuleType } from '@/src/types';
 
 const ORG_TYPE_LABELS: Record<string, string> = {
@@ -49,22 +56,23 @@ const MODULE_INFO: Record<ModuleType, { title: string; desc: string; icon: React
     icon: CheckSquare,
     color: 'from-emerald-500/10 to-green-500/10 text-emerald-600 border-emerald-100'
   },
+  // Keep declarations for typings but hide in standard module management as required
   reference_projects: {
     title: 'Projetos de Referência',
     desc: 'Estruturas homologadas e desenhos 3D para consulta',
-    icon: FolderKanban,
+    icon: Layers,
     color: 'from-rose-500/10 to-pink-500/10 text-rose-600 border-rose-100'
   },
   cad_library: {
     title: 'Biblioteca CAD',
     desc: 'Arquivos brutos em STEP, DWG e modelagens paramétricas',
-    icon: HardDrive,
+    icon: Layers,
     color: 'from-teal-500/10 to-emerald-500/10 text-teal-600 border-teal-100'
   },
   procedures: {
     title: 'Procedimentos',
     desc: 'Manuais operacionais de montagem e logística',
-    icon: BookOpen,
+    icon: Layers,
     color: 'from-slate-500/10 to-slate-500/10 text-slate-600 border-slate-100'
   }
 };
@@ -76,14 +84,32 @@ export default function OrganizationDetail() {
   const { 
     organizations, 
     organizationModules, 
+    technicalAreas,
+    addTechnicalArea,
+    updateTechnicalArea,
+    deleteTechnicalArea,
     components, 
     documents, 
     standards, 
-    checklists, 
-    referenceProjects 
+    checklists 
   } = useApp();
 
   const org = organizations.find(o => o.id === orgId);
+
+  // Area Modal states
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingArea, setEditingArea] = useState<any | null>(null);
+  
+  // Area Form states
+  const [areaName, setAreaName] = useState('');
+  const [areaDescription, setAreaDescription] = useState('');
+  const [areaIcon, setAreaIcon] = useState('📦');
+  const [areaStatus, setAreaStatus] = useState<'active' | 'inactive'>('active');
+  const [areaIsVisibleToUsers, setAreaIsVisibleToUsers] = useState(true);
+  const [areaSortOrder, setAreaSortOrder] = useState(0);
+
+  // Delete state
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   if (!org) {
     return (
@@ -97,31 +123,84 @@ export default function OrganizationDetail() {
     );
   }
 
-  // Get active modules for this organization
-  const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
+  // Get technical areas for this organization
+  const orgAreas = technicalAreas
+    .filter(area => area.organizationId === orgId)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  // Get active modules list (only the four ones specified in requirements)
+  const allowedModules: ModuleType[] = ['components', 'documentation', 'standards', 'checklists'];
   const activeModules = organizationModules.filter(m => m.organizationId === orgId && m.enabled && allowedModules.includes(m.moduleType));
 
-  // Helper to get real records count per module
-  const getRecordCount = (moduleType: ModuleType) => {
+  // Helper to count records inside a technical area
+  const getRecordCount = (techAreaId: string, moduleType: ModuleType) => {
     switch (moduleType) {
       case 'components':
-        return components.filter(c => c.organizationId === orgId).length;
+        return components.filter(c => c.organizationId === orgId && c.technicalAreaId === techAreaId).length;
       case 'documentation':
-        return documents.filter(d => d.organizationId === orgId).length;
+        return documents.filter(d => d.organizationId === orgId && d.technicalAreaId === techAreaId).length;
       case 'standards':
-        return standards.filter(s => s.organizationId === orgId).length;
+        return standards.filter(s => s.organizationId === orgId && s.technicalAreaId === techAreaId).length;
       case 'checklists':
-        return checklists.filter(c => c.organizationId === orgId).length;
-      case 'reference_projects':
-        return referenceProjects.filter(p => p.organizationId === orgId).length;
+        return checklists.filter(c => c.organizationId === orgId && c.technicalAreaId === techAreaId).length;
       default:
-        return 0; // fallback for cad_library or procedures mock
+        return 0;
     }
+  };
+
+  const openAddModal = () => {
+    setEditingArea(null);
+    setAreaName('');
+    setAreaDescription('');
+    setAreaIcon('📦');
+    setAreaStatus('active');
+    setAreaIsVisibleToUsers(true);
+    setAreaSortOrder(orgAreas.length + 1);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (area: any) => {
+    setEditingArea(area);
+    setAreaName(area.name);
+    setAreaDescription(area.description || '');
+    setAreaIcon(area.icon);
+    setAreaStatus(area.status);
+    setAreaIsVisibleToUsers(area.isVisibleToUsers);
+    setAreaSortOrder(area.sortOrder);
+    setIsModalOpen(true);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!areaName.trim()) return;
+
+    const areaData = {
+      organizationId: orgId!,
+      name: areaName.trim(),
+      description: areaDescription.trim() || undefined,
+      icon: areaIcon.trim() || '📂',
+      status: areaStatus,
+      isDefault: editingArea ? editingArea.isDefault : false,
+      isVisibleToUsers: areaIsVisibleToUsers,
+      sortOrder: areaSortOrder
+    };
+
+    if (editingArea) {
+      updateTechnicalArea(editingArea.id, areaData);
+    } else {
+      addTechnicalArea(areaData);
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteArea = (id: string) => {
+    deleteTechnicalArea(id);
+    setDeletingId(null);
   };
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto">
-      {/* Back to Content list */}
+      {/* Back link */}
       <Link 
         to="/master/content" 
         className="inline-flex items-center gap-1.5 text-[13px] font-bold text-teal-600 hover:text-teal-700 transition-colors"
@@ -130,7 +209,7 @@ export default function OrganizationDetail() {
         Voltar para Organizações
       </Link>
 
-      {/* Organization Info Card */}
+      {/* Org Header Card */}
       <div className="bg-gradient-to-r from-[#06242c] to-[#0b3b47] text-white border border-teal-950 rounded-2xl p-6 shadow-md relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
         <div className="relative z-10 flex items-start md:items-center gap-4">
@@ -153,60 +232,277 @@ export default function OrganizationDetail() {
             </p>
           </div>
         </div>
+        <Button 
+          onClick={openAddModal}
+          className="relative z-10 bg-teal-600 hover:bg-teal-700 text-white font-semibold h-10 px-4 rounded-lg flex items-center gap-2 transition-colors shadow-sm shadow-teal-500/10 shrink-0 self-start md:self-center"
+        >
+          <Plus className="w-4 h-4" />
+          Nova Área Técnica
+        </Button>
       </div>
 
-      {/* Active Modules Cards */}
-      <div>
-        <h3 className="text-[14px] font-bold text-slate-800 uppercase tracking-wider mb-4">Módulos Habilitados</h3>
-        {activeModules.length === 0 ? (
+      {/* Technical Areas Grid */}
+      <div className="space-y-4">
+        <h3 className="text-[14px] font-bold text-slate-800 uppercase tracking-wider">Áreas Técnicas da Organização</h3>
+        
+        {orgAreas.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-400 font-medium">
-            Nenhum módulo habilitado para esta organização. Vá na aba "Organizações" para gerenciar os módulos.
+            Nenhuma área técnica criada para esta organização. Clique em "Nova Área Técnica" para começar.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {activeModules.map((mod) => {
-              const info = MODULE_INFO[mod.moduleType];
-              if (!info) return null;
-              
-              const count = getRecordCount(mod.moduleType);
-              const Icon = info.icon;
-              
-              return (
-                <div
-                  key={mod.id}
-                  onClick={() => navigate(`/master/content/${orgId}/${mod.moduleType}`)}
-                  className="bg-white border border-slate-200 hover:border-teal-400 rounded-xl p-6 shadow-sm hover:shadow-md cursor-pointer transition-all group flex flex-col justify-between h-44"
-                >
-                  <div>
-                    <div className="flex justify-between items-start">
-                      <div className={`p-2.5 bg-gradient-to-br from-white to-slate-50 border rounded-lg shadow-sm ${info.color.split(' ')[2]}`}>
-                        <Icon className="w-5.5 h-5.5" />
+          <div className="grid grid-cols-1 gap-6">
+            {orgAreas.map((area) => (
+              <div key={area.id} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col justify-between">
+                
+                {/* Area Header Row */}
+                <div className="bg-slate-50/75 border-b border-slate-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{area.icon}</span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-extrabold text-[16px] text-slate-900">{area.name}</h4>
+                        {area.isDefault && (
+                          <span className="text-[10px] bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded">Padrão</span>
+                        )}
+                        <Badge className={area.status === 'active' 
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-bold' 
+                          : 'bg-orange-50 text-orange-700 border border-orange-100 text-[10px] font-bold'
+                        }>
+                          {area.status === 'active' ? 'Ativa' : 'Inativa'}
+                        </Badge>
+                        <Badge className={area.isVisibleToUsers
+                          ? 'bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold flex items-center gap-1' 
+                          : 'bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold flex items-center gap-1'
+                        }>
+                          {area.isVisibleToUsers ? (
+                            <>
+                              <Eye className="w-3 h-3" /> Visível
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="w-3 h-3" /> Oculta
+                            </>
+                          )}
+                        </Badge>
                       </div>
-                      <span className="text-[28px] font-black text-slate-800 leading-none">
-                        {count}
-                      </span>
+                      {area.description && (
+                        <p className="text-[13px] text-slate-500 mt-1 font-medium leading-relaxed">{area.description}</p>
+                      )}
                     </div>
-                    
-                    <h4 className="font-extrabold text-[15px] text-slate-900 mt-4 group-hover:text-teal-600 transition-colors">
-                      {info.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-400 font-medium leading-normal mt-0.5">
-                      {info.desc}
-                    </p>
                   </div>
 
-                  <div className="flex items-center justify-end pt-3 mt-3 border-t border-slate-100/60">
-                    <span className="text-[12px] font-bold text-teal-600 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                      Gerenciar
-                      <ChevronRight className="w-4 h-4" />
-                    </span>
+                  {/* Actions for technical area */}
+                  <div className="flex items-center gap-1.5 self-end sm:self-center">
+                    <Button 
+                      onClick={() => openEditModal(area)}
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-8 w-8 p-0 text-slate-500 hover:text-teal-600 hover:bg-teal-50"
+                      title="Editar Área Técnica"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    {!area.isDefault && (
+                      <Button 
+                        onClick={() => setDeletingId(area.id)}
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        title="Excluir Área Técnica"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
-              );
-            })}
+
+                {/* Sub-grid with Content modules */}
+                <div className="p-5">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Módulos de Conteúdo</div>
+                  {activeModules.length === 0 ? (
+                    <div className="text-slate-400 text-xs italic py-2">
+                      Sem módulos de conteúdo habilitados para esta organização.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {activeModules.map((mod) => {
+                        const info = MODULE_INFO[mod.moduleType];
+                        if (!info) return null;
+                        const count = getRecordCount(area.id, mod.moduleType);
+                        const Icon = info.icon;
+                        
+                        return (
+                          <div
+                            key={mod.id}
+                            onClick={() => navigate(`/master/content/${orgId}/${area.id}/${mod.moduleType}`)}
+                            className="bg-white border border-slate-200 hover:border-teal-400 p-4 rounded-xl shadow-sm hover:shadow cursor-pointer transition-all group flex flex-col justify-between h-28"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className={`p-2 bg-gradient-to-br from-white to-slate-50 border rounded-lg shadow-sm ${info.color.split(' ')[2]}`}>
+                                <Icon className="w-4.5 h-4.5" />
+                              </div>
+                              <span className="text-[20px] font-black text-slate-800 leading-none">
+                                {count}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between pt-2">
+                              <span className="font-extrabold text-[13px] text-slate-800 group-hover:text-teal-600 transition-colors">
+                                {info.title}
+                              </span>
+                              <ChevronRight className="w-4 h-4 text-teal-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Tech Area Add/Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-[450px] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <header className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="font-bold text-slate-900 text-[15px]">{editingArea ? 'Editar Área Técnica' : 'Nova Área Técnica'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </header>
+            
+            <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="area-name" className="text-xs font-bold text-slate-700">Nome da Área Técnica</Label>
+                <Input 
+                  id="area-name" 
+                  value={areaName} 
+                  onChange={(e) => setAreaName(e.target.value)}
+                  placeholder="Ex: Embalagens Plásticas, Ergonomia" 
+                  required 
+                  className="h-10 text-[14px] rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500" 
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="area-desc" className="text-xs font-bold text-slate-700">Descrição</Label>
+                <Textarea 
+                  id="area-desc" 
+                  value={areaDescription} 
+                  onChange={(e) => setAreaDescription(e.target.value)}
+                  placeholder="Descreva as especificidades desta área técnica..." 
+                  className="text-[14px] rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500 min-h-[70px]" 
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="area-icon" className="text-xs font-bold text-slate-700">Emoji / Ícone</Label>
+                  <Input 
+                    id="area-icon" 
+                    value={areaIcon} 
+                    onChange={(e) => setAreaIcon(e.target.value)}
+                    placeholder="Ex: 📦" 
+                    required
+                    className="h-10 text-[14px] rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500 text-center" 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="area-sort" className="text-xs font-bold text-slate-700">Ordem de Exibição</Label>
+                  <Input 
+                    id="area-sort" 
+                    type="number" 
+                    value={areaSortOrder} 
+                    onChange={(e) => setAreaSortOrder(Number(e.target.value))}
+                    required
+                    className="h-10 text-[14px] rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500" 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="area-status" className="text-xs font-bold text-slate-700">Status</Label>
+                <select 
+                  id="area-status" 
+                  value={areaStatus} 
+                  onChange={(e) => setAreaStatus(e.target.value as 'active' | 'inactive')}
+                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-[14px] focus:ring-teal-500 focus:border-teal-500 text-slate-800"
+                >
+                  <option value="active">Ativa</option>
+                  <option value="inactive">Inativa</option>
+                </select>
+              </div>
+
+              <label className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200/50 p-2.5 rounded-lg hover:bg-slate-100/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={areaIsVisibleToUsers}
+                  onChange={(e) => setAreaIsVisibleToUsers(e.target.checked)}
+                  className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4"
+                />
+                <span>Visível para Usuários Finais</span>
+              </label>
+
+              <footer className="pt-4 border-t border-slate-100 flex justify-end gap-2.5">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsModalOpen(false)}
+                  className="h-10 rounded-lg text-slate-600 border-slate-300 font-semibold"
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="bg-teal-600 hover:bg-teal-700 text-white font-semibold h-10 px-4 rounded-lg shadow-sm"
+                >
+                  Salvar
+                </Button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Area Delete Confirmation Dialog */}
+      {deletingId && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-[400px] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto border border-red-200">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-extrabold text-slate-900 text-[16px]">Excluir Área Técnica?</h3>
+                <p className="text-[13px] text-slate-500 leading-relaxed">
+                  A exclusão removerá permanentemente esta área técnica e todos os seus componentes, cadernos de encargos, documentações e checklists. Essa ação não pode ser desfeita.
+                </p>
+              </div>
+              <div className="flex gap-2.5 pt-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setDeletingId(null)}
+                  className="flex-1 h-10 rounded-lg text-slate-600 border-slate-300 font-semibold"
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="button" 
+                  onClick={() => handleDeleteArea(deletingId)}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold h-10 rounded-lg shadow-sm"
+                >
+                  Excluir
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

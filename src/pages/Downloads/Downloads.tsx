@@ -168,6 +168,7 @@ export default function Downloads() {
   const { 
     organizations, 
     organizationModules, 
+    technicalAreas,
     components, 
     documents, 
     standards, 
@@ -182,8 +183,8 @@ export default function Downloads() {
 
   const { searchQuery, setSearchQuery, resetTrigger } = useOutletContext<{ searchQuery: string; setSearchQuery: (q: string) => void; resetTrigger: number }>();
 
-  // Steps: 'org_selection' | 'module_selection' | 'content_view' | 'checklist_execution'
-  const [step, setStep] = useState<'org_selection' | 'module_selection' | 'content_view' | 'checklist_execution'>('org_selection');
+  // Steps: 'org_selection' | 'tech_area_selection' | 'module_selection' | 'content_view' | 'checklist_execution'
+  const [step, setStep] = useState<'org_selection' | 'tech_area_selection' | 'module_selection' | 'content_view' | 'checklist_execution'>('org_selection');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const handlePremiumDownload = (e: React.MouseEvent) => {
@@ -194,6 +195,7 @@ export default function Downloads() {
     setShowUpgradeModal(true);
   };
   const [selectedOEM, setSelectedOEM] = useState<string>('');
+  const [selectedTechnicalArea, setSelectedTechnicalArea] = useState<string>('');
   const [selectedItemForModal, setSelectedItemForModal] = useState<{
     type: 'component' | 'document' | 'standard';
     data: any;
@@ -215,6 +217,7 @@ export default function Downloads() {
     if (resetTrigger > 0) {
       setStep('org_selection');
       setSelectedOEM('');
+      setSelectedTechnicalArea('');
       setSelectedModule('components');
       setActiveChecklist(null);
       setSelectedItemForModal(null);
@@ -249,13 +252,13 @@ export default function Downloads() {
     allowedModules.includes(m.moduleType)
   );
 
-  // Helper to get real records count per module
+  // Helper to get real records count per module scoped to technical area
   const getRecordCount = (moduleType: ModuleType) => {
     switch (moduleType) {
-      case 'components': return components.filter(c => c.organizationId === selectedOEM && c.status === 'active').length;
-      case 'documentation': return documents.filter(d => d.organizationId === selectedOEM && d.status === 'active').length;
-      case 'standards': return standards.filter(s => s.organizationId === selectedOEM && s.status === 'active').length;
-      case 'checklists': return checklists.filter(c => c.organizationId === selectedOEM && c.status === 'active').length;
+      case 'components': return components.filter(c => c.organizationId === selectedOEM && c.technicalAreaId === selectedTechnicalArea && c.status === 'active').length;
+      case 'documentation': return documents.filter(d => d.organizationId === selectedOEM && d.technicalAreaId === selectedTechnicalArea && d.status === 'active').length;
+      case 'standards': return standards.filter(s => s.organizationId === selectedOEM && s.technicalAreaId === selectedTechnicalArea && s.status === 'active').length;
+      case 'checklists': return checklists.filter(c => c.organizationId === selectedOEM && c.technicalAreaId === selectedTechnicalArea && c.status === 'active').length;
       case 'reference_projects': return referenceProjects.filter(p => p.organizationId === selectedOEM && p.status === 'active').length;
       default: return 0;
     }
@@ -1040,6 +1043,11 @@ export default function Downloads() {
   // Main navigation helper
   const handleOrgClick = (orgId: string) => {
     setSelectedOEM(orgId);
+    setStep('tech_area_selection');
+  };
+
+  const handleTechAreaClick = (areaId: string) => {
+    setSelectedTechnicalArea(areaId);
     setStep('module_selection');
   };
 
@@ -1144,7 +1152,7 @@ export default function Downloads() {
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-teal-600" />
-                    <span>Documentações Técnicas ({searchResults.documents.length})</span>
+                    <span>Cadernos de Encargos ({searchResults.documents.length})</span>
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {searchResults.documents.map(doc => {
@@ -1164,7 +1172,7 @@ export default function Downloads() {
                           {doc.fileUrl && (
                             <a 
                               href={doc.fileUrl}
-                              onClick={() => logDownload(doc.organizationId, 'Documentação Técnica', doc.id, doc.fileName || 'doc.pdf')}
+                              onClick={() => logDownload(doc.organizationId, 'Caderno de Encargos', doc.id, doc.fileName || 'doc.pdf')}
                               className="bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] px-2 py-1.5 rounded font-bold shrink-0 border border-teal-100"
                             >
                               Download
@@ -1182,7 +1190,7 @@ export default function Downloads() {
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
-                    <span>Normas e Padrões ({searchResults.standards.length})</span>
+                    <span>Documentação Técnica ({searchResults.standards.length})</span>
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {searchResults.standards.map(std => {
@@ -1203,7 +1211,7 @@ export default function Downloads() {
                             <a 
                               href={std.fileUrl}
                               onClick={() => {
-                                logDownload(std.organizationId, 'Normas e Padrões', std.id, std.fileName || 'norma.pdf');
+                                logDownload(std.organizationId, 'Documentação Técnica', std.id, std.fileName || 'norma.pdf');
                               }}
                               className="bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] px-2 py-1.5 rounded font-bold shrink-0 border border-teal-100"
                             >
@@ -1295,10 +1303,10 @@ export default function Downloads() {
         </section>
       )}
 
-      {/* STEP 2: MODULE SELECTION */}
-      {step === 'module_selection' && !searchQuery && selectedOEMObj && (
+      {/* STEP 1.5: TECHNICAL AREA SELECTION */}
+      {step === 'tech_area_selection' && !searchQuery && selectedOEMObj && (
         <section className="space-y-8 animate-in fade-in duration-200">
-          {/* Breadcrumbs / Back button */}
+          {/* Back button */}
           <button 
             onClick={() => setStep('org_selection')}
             className="inline-flex items-center gap-1 text-[13px] font-bold text-teal-600 hover:text-teal-700 transition-colors"
@@ -1309,7 +1317,85 @@ export default function Downloads() {
 
           <div className="space-y-1">
             <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight">
-              {selectedOEMName}
+              Selecione uma Área Técnica
+            </h2>
+            <p className="text-slate-500 text-sm">
+              Escolha a área técnica para acessar padrões, documentos e checklists disponíveis na organização {selectedOEMName}.
+            </p>
+          </div>
+
+          {(() => {
+            const orgAreas = technicalAreas.filter(
+              area => area.organizationId === selectedOEM && 
+              area.status === 'active' && 
+              area.isVisibleToUsers
+            );
+
+            if (orgAreas.length === 0) {
+              return (
+                <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 font-medium italic">
+                  Nenhuma área técnica ativa disponível para esta organização.
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {orgAreas.map((area) => (
+                  <button
+                    key={area.id}
+                    onClick={() => handleTechAreaClick(area.id)}
+                    className="bg-white border border-slate-200 hover:border-teal-400 rounded-2xl p-6 flex items-start gap-4 text-left transition-all duration-200 hover:scale-[1.01] hover:shadow-md shadow-sm cursor-pointer group"
+                  >
+                    <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-2xl group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-inner">
+                      {area.icon}
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="font-extrabold text-[15px] text-slate-850 group-hover:text-teal-600 transition-colors">
+                        {area.name}
+                      </h3>
+                      {area.description && (
+                        <p className="text-[12px] text-slate-500 font-medium leading-relaxed line-clamp-2">
+                          {area.description}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+        </section>
+      )}
+
+      {/* STEP 2: MODULE SELECTION */}
+      {step === 'module_selection' && !searchQuery && selectedOEMObj && (
+        <section className="space-y-8 animate-in fade-in duration-200">
+          {/* Breadcrumbs / Back button */}
+          <button 
+            onClick={() => setStep('tech_area_selection')}
+            className="inline-flex items-center gap-1 text-[13px] font-bold text-teal-600 hover:text-teal-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Voltar para Áreas Técnicas</span>
+          </button>
+
+          <div className="space-y-1">
+            <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              <span>{selectedOEMName}</span>
+              {(() => {
+                const area = technicalAreas.find(t => t.id === selectedTechnicalArea);
+                if (!area) return null;
+                return (
+                  <>
+                    <span className="text-slate-300 text-xl font-normal">&mdash;</span>
+                    <span className="text-teal-600 text-xl font-extrabold flex items-center gap-1.5">
+                      <span>{area.icon}</span>
+                      <span>{area.name}</span>
+                    </span>
+                  </>
+                );
+              })()}
             </h2>
             <p className="text-slate-500 text-sm">
               Biblioteca oficial de padrões, componentes homologados, documentação técnica e critérios de validação.
@@ -1391,8 +1477,15 @@ export default function Downloads() {
               Organizações
             </button>
             <ChevronRight className="w-3.5 h-3.5" />
-            <button onClick={() => setStep('module_selection')} className="hover:text-teal-600 transition-colors">
+            <button onClick={() => setStep('tech_area_selection')} className="hover:text-teal-600 transition-colors">
               {selectedOEMName}
+            </button>
+            <ChevronRight className="w-3.5 h-3.5" />
+            <button onClick={() => setStep('module_selection')} className="hover:text-teal-600 transition-colors">
+              {(() => {
+                const area = technicalAreas.find(t => t.id === selectedTechnicalArea);
+                return area ? `${area.icon} ${area.name}` : '';
+              })()}
             </button>
             <ChevronRight className="w-3.5 h-3.5" />
             <span className="text-teal-600">{MODULE_INFO[selectedModule]?.title}</span>
@@ -1405,12 +1498,15 @@ export default function Downloads() {
                   const Icon = MODULE_INFO[selectedModule]?.icon || Layers;
                   return <Icon className="w-6 h-6 text-teal-600" />;
                 })()}
-                <span>{MODULE_INFO[selectedModule]?.title} &mdash; {selectedOEMName}</span>
+                <span>
+                  {MODULE_INFO[selectedModule]?.title} &mdash; {selectedOEMName} ({(() => {
+                    const area = technicalAreas.find(t => t.id === selectedTechnicalArea);
+                    return area ? `${area.icon} ${area.name}` : 'Sem Área';
+                  })()})
+                </span>
               </h2>
             </div>
           </div>
-
-
 
           {/* MODULE: COMPONENTES HOMOLOGADOS */}
           {selectedModule === 'components' && (
@@ -1418,13 +1514,14 @@ export default function Downloads() {
               {(() => {
                 const filteredList = components.filter(c => 
                   c.organizationId === selectedOEM && 
+                  c.technicalAreaId === selectedTechnicalArea &&
                   c.status === 'active'
                 );
 
                 if (filteredList.length === 0) {
                   return (
                     <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
-                      Nenhum componente cadastrado para esta organização.
+                      Nenhum componente cadastrado para esta área técnica.
                     </div>
                   );
                 }
@@ -1478,19 +1575,20 @@ export default function Downloads() {
             </div>
           )}
 
-          {/* MODULE: DOCUMENTAÇÃO TÉCNICA */}
+          {/* MODULE: CADERNO DE ENCARGOS */}
           {selectedModule === 'documentation' && (
             <div className="w-full">
               {(() => {
                 const filteredList = documents.filter(d => 
                   d.organizationId === selectedOEM && 
+                  d.technicalAreaId === selectedTechnicalArea &&
                   d.status === 'active'
                 );
 
                 if (filteredList.length === 0) {
                   return (
                     <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
-                      Nenhum documento cadastrado para esta organização.
+                      Nenhum documento cadastrado para esta área técnica.
                     </div>
                   );
                 }
@@ -1542,19 +1640,20 @@ export default function Downloads() {
             </div>
           )}
 
-          {/* MODULE: NORMAS E PADRÕES */}
+          {/* MODULE: DOCUMENTAÇÃO TÉCNICA */}
           {selectedModule === 'standards' && (
             <div className="w-full">
               {(() => {
                 const filteredList = standards.filter(s => 
                   s.organizationId === selectedOEM && 
+                  s.technicalAreaId === selectedTechnicalArea &&
                   s.status === 'active'
                 );
 
                 if (filteredList.length === 0) {
                   return (
                     <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 font-medium italic shadow-sm">
-                      Nenhuma norma cadastrada para esta organização.
+                      Nenhuma norma cadastrada para esta área técnica.
                     </div>
                   );
                 }
@@ -1622,6 +1721,7 @@ export default function Downloads() {
                   {(() => {
                     const filteredList = checklists.filter(c => 
                       c.organizationId === selectedOEM && 
+                      c.technicalAreaId === selectedTechnicalArea &&
                       c.status === 'active'
                     );
 
@@ -1629,7 +1729,7 @@ export default function Downloads() {
                       return (
                         <TableRow>
                           <TableCell colSpan={4} className="h-28 text-center text-slate-400 font-medium italic">
-                            Nenhum checklist disponível para esta organização.
+                            Nenhum checklist disponível para esta área técnica nesta organização.
                           </TableCell>
                         </TableRow>
                       );
@@ -2414,7 +2514,7 @@ export default function Downloads() {
                         onClick={() => {
                           logDownload(
                             selectedItemForModal.data.organizationId, 
-                            selectedItemForModal.type === 'document' ? 'Documentação Técnica' : 'Normas e Padrões', 
+                            selectedItemForModal.type === 'document' ? 'Caderno de Encargos' : 'Documentação Técnica', 
                             selectedItemForModal.data.id, 
                             selectedItemForModal.data.fileName || 'file.pdf'
                           );
