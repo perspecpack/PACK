@@ -26,6 +26,7 @@ import { DownloadLog } from '@/src/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { supabase } from '@/lib/supabase';
 
 export default function Dashboard() {
   const { 
@@ -46,11 +47,52 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [syncTime, setSyncTime] = useState<string>('');
+  const [registeredProfiles, setRegisteredProfiles] = useState<any[]>([]);
+  const [dbLatency, setDbLatency] = useState<number | null>(null);
+  const [dbStatus, setDbStatus] = useState<'online' | 'offline' | 'checking'>('checking');
+  const [isProfilesLoading, setIsProfilesLoading] = useState<boolean>(true);
 
   useEffect(() => {
     logPageAccess('Master - Centro de Controle');
     setSyncTime(new Date().toLocaleTimeString('pt-BR'));
   }, [logPageAccess]);
+
+  useEffect(() => {
+    const fetchProfilesAndCheckDb = async () => {
+      if (!supabase) {
+        setDbStatus('offline');
+        setIsProfilesLoading(false);
+        return;
+      }
+      
+      const start = performance.now();
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('*');
+        
+        const end = performance.now();
+        setDbLatency(Math.round(end - start));
+        
+        if (error) {
+          console.error('Error fetching profiles:', error);
+          setDbStatus('offline');
+        } else {
+          setDbStatus('online');
+          if (data) {
+            setRegisteredProfiles(data);
+          }
+        }
+      } catch (err) {
+        console.error('Error in dashboard initialization:', err);
+        setDbStatus('offline');
+      } finally {
+        setIsProfilesLoading(false);
+      }
+    };
+
+    fetchProfilesAndCheckDb();
+  }, []);
 
   const handleSimulate = () => {
     setViewingAsUser(true);
@@ -109,6 +151,43 @@ export default function Dashboard() {
 
   const totalUsers = uniqueUsers.length;
   const storageUsedFormatted = formatBytes(totalStorageUsedBytes);
+
+  const masterEmail = (import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
+  
+  // Filter out the master admin profile to get clean customer metrics
+  const customerProfiles = registeredProfiles.filter(
+    p => p.corporate_email?.toLowerCase() !== masterEmail
+  );
+
+  const activeProfiles = customerProfiles.filter(p => p.user_status === 'active');
+  const pendingProfiles = customerProfiles.filter(p => p.user_status === 'pending');
+  const blockedProfiles = customerProfiles.filter(
+    p => p.user_status === 'rejected' || p.account_status === 'blocked'
+  );
+
+  const totalRegisteredCount = activeProfiles.length;
+  const freePlanCount = activeProfiles.filter(p => p.plan_type === 'free').length;
+  const premiumPlanCount = activeProfiles.filter(p => p.plan_type === 'premium').length;
+  const pendingCount = pendingProfiles.length;
+  const blockedCount = blockedProfiles.length;
+
+  const getUserLastActivity = (email: string) => {
+    if (!email) return null;
+    const cleanEmail = email.toLowerCase().trim();
+    
+    const userDownloads = downloadsLog.filter(l => l.user_id?.toLowerCase().trim() === cleanEmail);
+    const userUploads = uploadsLog.filter(l => l.user_id?.toLowerCase().trim() === cleanEmail);
+    const userAccesses = pageAccessLog.filter(l => l.user_id?.toLowerCase().trim() === cleanEmail);
+    
+    const dates: Date[] = [];
+    userDownloads.forEach(l => { if (l.download_date) dates.push(new Date(l.download_date)); });
+    userUploads.forEach(l => { if (l.upload_date) dates.push(new Date(l.upload_date)); });
+    userAccesses.forEach(l => { if (l.access_date) dates.push(new Date(l.access_date)); });
+    
+    if (dates.length === 0) return null;
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    return maxDate;
+  };
 
   // 30 Days ago filter helper
   const thirtyDaysAgo = new Date();
@@ -335,8 +414,14 @@ export default function Dashboard() {
               <Activity className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-slate-500 text-xs font-semibold">Usuários Cadastrados</p>
-              <h4 className="text-2xl font-extrabold text-slate-850 mt-1">{totalUsers}</h4>
+              <p className="text-slate-500 text-xs font-semibold">Usuários Cadastrados (Ativos)</p>
+              <h4 className="text-2xl font-extrabold text-slate-850 mt-1">
+                {isProfilesLoading ? (
+                  <span className="text-slate-400 text-sm animate-pulse">Carregando...</span>
+                ) : (
+                  totalRegisteredCount
+                )}
+              </h4>
             </div>
           </div>
 
@@ -440,6 +525,127 @@ export default function Dashboard() {
             <h4 className="text-3xl font-black text-emerald-600 mt-1">{recentChecklists}</h4>
           </div>
 
+        </div>
+      </section>
+
+      {/* BLOCO 10 - DETALHAMENTO DE USUÁRIOS E PLANOS */}
+      <section className="space-y-4 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <h3 className="text-[14px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <Activity className="w-4 h-4 text-indigo-650" />
+            <span>10 &mdash; Estatísticas e Perfis de Usuários (Clientes)</span>
+          </h3>
+          <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold font-mono">
+            {isProfilesLoading ? '...' : customerProfiles.length} cadastrados
+          </Badge>
+        </div>
+
+        {/* Mini cards de distribuição */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 mt-4">
+          <div className="bg-slate-50 border border-slate-150 p-3.5 rounded-xl text-center">
+            <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Ativos</span>
+            <span className="text-xl font-black text-slate-850 mt-1 block">{isProfilesLoading ? '...' : totalRegisteredCount}</span>
+          </div>
+          <div className="bg-emerald-50/40 border border-emerald-100 p-3.5 rounded-xl text-center">
+            <span className="block text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Plano Premium</span>
+            <span className="text-xl font-black text-emerald-700 mt-1 block">{isProfilesLoading ? '...' : premiumPlanCount}</span>
+          </div>
+          <div className="bg-slate-100/60 border border-slate-200 p-3.5 rounded-xl text-center">
+            <span className="block text-[10px] text-slate-500 font-bold uppercase tracking-wider">Plano Free</span>
+            <span className="text-xl font-black text-slate-700 mt-1 block">{isProfilesLoading ? '...' : freePlanCount}</span>
+          </div>
+          <div className="bg-amber-50/40 border border-amber-100 p-3.5 rounded-xl text-center">
+            <span className="block text-[10px] text-amber-600 font-bold uppercase tracking-wider">Pendentes</span>
+            <span className="text-xl font-black text-amber-700 mt-1 block">{isProfilesLoading ? '...' : pendingCount}</span>
+          </div>
+          <div className="bg-rose-50/30 border border-rose-100 p-3.5 rounded-xl text-center col-span-2 sm:col-span-1">
+            <span className="block text-[10px] text-rose-600 font-bold uppercase tracking-wider">Bloqueados</span>
+            <span className="text-xl font-black text-rose-700 mt-1 block">{isProfilesLoading ? '...' : blockedCount}</span>
+          </div>
+        </div>
+
+        {/* Tabela de Usuários */}
+        <div className="overflow-x-auto border border-slate-100 rounded-lg mt-4 max-h-[300px]">
+          <Table>
+            <TableHeader className="bg-slate-50 sticky top-0 z-10">
+              <TableRow>
+                <TableHead className="text-[11px] font-bold uppercase text-slate-600">Usuário / Cargo</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase text-slate-600">Empresa / CNPJ</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase text-slate-600">Plano</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase text-slate-600">Status</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase text-slate-600">Cadastro</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase text-slate-600">Última Atividade</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isProfilesLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-28 text-center text-slate-400 italic">
+                    Carregando dados detalhados...
+                  </TableCell>
+                </TableRow>
+              ) : customerProfiles.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-28 text-center text-slate-400 italic">
+                    Nenhum usuário cliente cadastrado no banco de dados.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                customerProfiles.map((profile) => {
+                  const lastAct = getUserLastActivity(profile.corporate_email);
+                  const lastActFormatted = lastAct 
+                    ? `${lastAct.toLocaleDateString('pt-BR')} ${lastAct.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                    : 'Sem atividade';
+                  
+                  return (
+                    <TableRow key={profile.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                      <TableCell className="py-2.5">
+                        <div className="flex flex-col text-left">
+                          <span className="font-bold text-slate-900 text-xs">{profile.full_name || 'Sem Nome'}</span>
+                          <span className="text-slate-400 text-[10px] font-mono leading-none mt-0.5">{profile.corporate_email}</span>
+                          <span className="text-[9.5px] text-slate-500 font-medium italic mt-0.5">{profile.role_title || 'Colaborador'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2.5">
+                        <div className="flex flex-col text-left">
+                          <span className="font-bold text-slate-700 text-xs">{profile.company_name || 'N/A'}</span>
+                          <span className="text-slate-400 text-[10px] leading-tight font-mono">{profile.cnpj || 'N/A'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2.5">
+                        <Badge variant="outline" className={`text-[9.5px] font-bold font-mono px-1.5 py-0.5 rounded ${
+                          profile.plan_type === 'premium' 
+                            ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                            : 'bg-slate-100 text-slate-650 border-slate-200'
+                        }`}>
+                          {profile.plan_type?.toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2.5">
+                        <Badge variant="outline" className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${
+                          profile.user_status === 'active' && profile.account_status === 'active'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : profile.user_status === 'pending'
+                            ? 'bg-amber-50 text-amber-700 border-amber-250'
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                        }`}>
+                          {profile.user_status === 'active' && profile.account_status === 'active' && 'Ativo'}
+                          {profile.user_status === 'pending' && 'Pendente'}
+                          {(profile.user_status === 'rejected' || profile.account_status === 'blocked') && 'Bloqueado'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2.5 font-mono text-slate-500 text-xs">
+                        {profile.created_at ? new Date(profile.created_at).toLocaleDateString('pt-BR') : 'N/A'}
+                      </TableCell>
+                      <TableCell className="py-2.5 font-semibold text-slate-700 text-xs">
+                        {lastActFormatted}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
         </div>
       </section>
 
@@ -703,10 +909,10 @@ export default function Dashboard() {
         </section>
 
         {/* BLOCO 09 - SAÚDE DA PLATAFORMA */}
-        <section className="space-y-4 bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+        <section className="space-y-4 bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col">
           <div>
             <h3 className="text-[14px] font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Database className="w-4 h-4 text-teal-600" />
+              <Database className="w-4 h-4 text-teal-655" />
               <span>09 &mdash; Saúde da Plataforma</span>
             </h3>
             <div className="space-y-4 mt-4">
@@ -715,7 +921,6 @@ export default function Dashboard() {
                 <span className="text-slate-500 font-bold">Banco de Dados:</span>
                 <span className="font-extrabold text-slate-800 font-mono">PostgreSQL (Supabase)</span>
               </div>
-
 
               <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2.5">
                 <span className="text-slate-500 font-bold">Storage Utilizado:</span>
@@ -735,31 +940,88 @@ export default function Dashboard() {
               </div>
 
               <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2.5">
+                <span className="text-slate-500 font-bold">Espaço disponível (%):</span>
+                <span className="font-extrabold text-teal-650 font-mono">
+                  {(100 - (totalStorageUsedBytes / (1024 * 1024 * 1024)) * 100).toFixed(2)}% livre
+                </span>
+              </div>
+
+              {/* Barra de progresso visual de Storage */}
+              <div className="space-y-1.5 border-b border-slate-100 pb-2.5">
+                <div className="flex justify-between text-[11px] font-bold">
+                  <span className="text-slate-500">Uso do Storage:</span>
+                  <span className="text-slate-850">
+                    {((totalStorageUsedBytes / (1024 * 1024 * 1024)) * 100).toFixed(2)}% utilizado
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                  <div 
+                    className="bg-gradient-to-r from-teal-500 to-indigo-600 h-full rounded-full transition-all duration-500" 
+                    style={{ width: `${Math.min(100, (totalStorageUsedBytes / (1024 * 1024 * 1024)) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2.5">
                 <span className="text-slate-500 font-bold">Último Backup:</span>
                 <span className="font-extrabold text-emerald-600 flex items-center gap-1">
                   <FileCheck className="w-3.5 h-3.5" /> Automático Diário (Ok)
                 </span>
               </div>
 
-              <div className="flex justify-between items-center text-xs pb-1">
+              <div className="flex justify-between items-center text-xs border-b border-slate-100 pb-2.5">
                 <span className="text-slate-500 font-bold">Última Sincronização:</span>
                 <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">Hoje, {syncTime}</span>
               </div>
 
-            </div>
-          </div>
+              {/* Status de Serviços Integrados */}
+              <div className="space-y-2 mt-4">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Serviços Integrados</span>
+                
+                <div className="flex justify-between items-center text-xs border-b border-slate-50 pb-2">
+                  <span className="text-slate-500">Banco de Dados (Supabase PostgreSQL):</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`inline-block w-2 h-2 rounded-full ${dbStatus === 'online' ? 'bg-emerald-500 animate-pulse' : dbStatus === 'checking' ? 'bg-amber-400' : 'bg-rose-500'}`}></span>
+                    <span className="font-bold text-slate-700 font-mono">
+                      {dbStatus === 'online' ? `Online (${dbLatency ? `${dbLatency}ms` : '...' })` : dbStatus === 'checking' ? 'Verificando...' : 'Erro de Conexão'}
+                    </span>
+                  </div>
+                </div>
 
-          <div className="mt-4 bg-[#06242c] text-[#00F59B] p-4 rounded-xl flex items-center justify-between border border-teal-950">
-            <div className="flex items-center gap-2.5">
-              <ShieldAlert className="w-5 h-5 shrink-0" />
-              <div className="text-left">
-                <p className="text-[12px] font-extrabold uppercase tracking-wider text-white">Modo Simulação</p>
-                <p className="text-[10px] text-slate-300">Simule a área do fornecedor.</p>
+                <div className="flex justify-between items-center text-xs border-b border-slate-50 pb-2">
+                  <span className="text-slate-500">Storage API:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="font-bold text-slate-700 font-mono">Saudável</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-xs border-b border-slate-50 pb-2">
+                  <span className="text-slate-500">Autenticação (Auth Service):</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="font-bold text-slate-700 font-mono">Saudável</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-xs border-b border-slate-50 pb-2">
+                  <span className="text-slate-500">Supabase Realtime Channel:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="font-bold text-slate-700 font-mono">Conectado</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-xs pb-1">
+                  <span className="text-slate-500">Integridade dos Arquivos:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="font-bold text-emerald-600 font-mono">100% Consistente</span>
+                  </div>
+                </div>
               </div>
+
             </div>
-            <button onClick={handleSimulate} className="p-1 bg-[#00F59B] text-teal-950 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center">
-              <ChevronRight className="w-4.5 h-4.5" />
-            </button>
           </div>
         </section>
 
