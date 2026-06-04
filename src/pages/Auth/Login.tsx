@@ -188,7 +188,7 @@ export default function Login() {
             </h1>
             
             <p className="text-[16px] text-gray-600 leading-relaxed mb-2">
-              Acesse padrões, componentes homologados, normas técnicas e critérios de validação para o desenvolvimento de <strong className="font-bold text-[#0c3944]">embalagens metálicas</strong> das principais montadoras do país.
+              Acesse padrões, componentes homologados, documentação técnica e critérios de validação das principais <strong className="font-bold text-[#0c3944]">organizações industriais</strong> do país.
             </p>
 
             {/* Conceptual image */}
