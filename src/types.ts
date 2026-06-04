@@ -270,3 +270,22 @@ export interface SupportRequest {
   user_company_name?: string;
 }
 
+export interface PasswordResetRequest {
+  id: string;
+  user_id: string;
+  email: string;
+  preferred_contact: 'whatsapp' | 'email';
+  status: 'pending' | 'approved' | 'completed' | 'cancelled';
+  temporary_password?: string | null;
+  requested_at: string;
+  processed_at?: string | null;
+  processed_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Join fields for Master UI
+  full_name?: string;
+  company_name?: string;
+  phone?: string;
+}
+
+

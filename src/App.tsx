@@ -7,6 +7,8 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ResetPassword from './pages/Auth/ResetPassword';
 import CompleteProfile from './pages/Auth/CompleteProfile';
+import DefineNewPassword from './pages/Auth/DefineNewPassword';
+import PasswordResets from './pages/Master/PasswordResets';
 import Downloads from './pages/Downloads/Downloads';
 import Profile from './pages/Auth/Profile';
 import MyPlan from './pages/Auth/MyPlan';
@@ -32,10 +34,14 @@ interface ProtectedRouteProps {
 }
 
 function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
-  const { user, profile } = useApp();
+  const { user, profile, resetRequiredRequestId } = useApp();
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (resetRequiredRequestId) {
+    return <Navigate to="/definir-nova-senha" replace />;
   }
 
   if (user.role === 'master') {
@@ -59,10 +65,14 @@ function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
 }
 
 function ProfileCompletionRoute({ children }: { children: React.ReactNode }) {
-  const { user, profile } = useApp();
+  const { user, profile, resetRequiredRequestId } = useApp();
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (resetRequiredRequestId) {
+    return <Navigate to="/definir-nova-senha" replace />;
   }
 
   if (user.role === 'master') {
@@ -97,6 +107,7 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/definir-nova-senha" element={<DefineNewPassword />} />
         <Route path="/validar/:validationCode" element={<Login />} />
         
         {/* Profile Completion Flow */}
@@ -140,6 +151,7 @@ function AppRoutes() {
           <Route path="/master/dashboard" element={<Dashboard />} />
           <Route path="/master/users" element={<Users />} />
           <Route path="/master/solicitacoes" element={<RegistrationRequests />} />
+          <Route path="/master/recuperacao" element={<PasswordResets />} />
           <Route path="/master/oems" element={<Organizations />} />
           <Route path="/master/content" element={<Content />} />
           <Route path="/master/content/:orgId" element={<OrganizationDetail />} />

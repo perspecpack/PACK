@@ -23,13 +23,13 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [pendingStatusMsg, setPendingStatusMsg] = useState<'pending' | 'rejected' | null>(null);
+  const [pendingStatusMsg, setPendingStatusMsg] = useState<'pending' | 'rejected' | 'expired_reset' | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const statusParam = params.get('status');
-    if (statusParam === 'pending' || statusParam === 'rejected') {
-      setPendingStatusMsg(statusParam);
+    if (statusParam === 'pending' || statusParam === 'rejected' || statusParam === 'expired_reset') {
+      setPendingStatusMsg(statusParam as any);
     }
   }, []);
 
@@ -44,6 +44,7 @@ export default function Login() {
   // Password Reset State
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [resetPreferredContact, setResetPreferredContact] = useState<'whatsapp' | 'email'>('whatsapp');
   const [isResetSubmitting, setIsResetSubmitting] = useState(false);
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
@@ -64,18 +65,37 @@ export default function Login() {
         throw new Error('Cliente Supabase não inicializado.');
       }
       
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      
-      if (error) throw error;
-      
+      // 1. Verify if user email exists in user_profiles
+      const { data: profData, error: profErr } = await supabase
+        .from('user_profiles')
+        .select('user_id, corporate_email')
+        .eq('corporate_email', resetEmail.trim().toLowerCase())
+        .maybeSingle();
+
+      if (profErr) throw profErr;
+
+      if (!profData) {
+        throw new Error('Este e-mail não está cadastrado na plataforma.');
+      }
+
+      // 2. Insert request in password_reset_requests
+      const { error: insertErr } = await supabase
+        .from('password_reset_requests')
+        .insert({
+          user_id: profData.user_id,
+          email: resetEmail.trim().toLowerCase(),
+          preferred_contact: resetPreferredContact,
+          status: 'pending'
+        });
+
+      if (insertErr) throw insertErr;
+
       setResetSuccessMessage(
-        'Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.'
+        'Solicitação recebida com sucesso. Nossa equipe analisará sua solicitação e enviará uma senha temporária para o canal informado.'
       );
     } catch (err: any) {
       console.error('Error requesting password reset:', err);
-      setResetError(err.message || 'Erro ao enviar solicitação de recuperação de senha.');
+      setResetError(err.message || 'Erro ao enviar solicitação de recuperação de acesso.');
     } finally {
       setIsResetSubmitting(false);
     }
@@ -303,6 +323,27 @@ export default function Login() {
                 </div>
               </div>
             )}
+
+            {pendingStatusMsg === 'expired_reset' && (
+              <div className="bg-rose-50 border border-rose-250 text-rose-900 text-xs font-semibold p-4 rounded-xl space-y-3.5 animate-in fade-in duration-200 text-left">
+                <div className="flex items-center gap-2 text-rose-700">
+                  <AlertTriangle className="w-4.5 h-4.5 shrink-0" />
+                  <span className="font-extrabold text-[13px]">Senha Temporária Expirada</span>
+                </div>
+                <p className="leading-relaxed text-slate-700">
+                  Sua senha temporária expirou (validade de 24 horas). Solicite uma nova recuperação de acesso.
+                </p>
+                <div className="pt-2.5 border-t border-rose-200/55 space-y-1 text-slate-600 font-medium">
+                  <span className="block font-bold text-slate-750 text-[11px]">Dúvidas sobre seu acesso?</span>
+                  <span className="block">
+                    WhatsApp: <a href="https://wa.me/5514998892017" target="_blank" rel="noreferrer" className="text-teal-700 font-bold hover:underline font-mono">(14) 99889-2017</a>
+                  </span>
+                  <span className="block">
+                    E-mail: <a href="mailto:perspecpack@gmail.com" className="text-teal-700 font-bold hover:underline font-mono">perspecpack@gmail.com</a>
+                  </span>
+                </div>
+              </div>
+            )}
             
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="space-y-2">
@@ -345,6 +386,7 @@ export default function Login() {
                   type="button" 
                   onClick={() => {
                     setResetEmail('');
+                    setResetPreferredContact('whatsapp');
                     setResetError(null);
                     setResetSuccessMessage(null);
                     setShowResetModal(true);
@@ -570,7 +612,7 @@ export default function Login() {
             <div className="bg-[#06242c] text-white p-5 border-b border-teal-950 flex justify-between items-center shrink-0">
               <h3 className="text-base font-bold flex items-center gap-2">
                 <HelpCircle className="w-5 h-5 text-[#00F59B]" />
-                <span>Recuperar Senha</span>
+                <span>Recuperação de Acesso</span>
               </h3>
               <button 
                 onClick={() => setShowResetModal(false)}
@@ -605,9 +647,14 @@ export default function Login() {
             ) : (
               <form onSubmit={handleResetPasswordRequest}>
                 <div className="p-6 space-y-4 text-left">
-                  <p className="text-xs text-slate-550 leading-relaxed font-semibold">
-                    Informe seu e-mail cadastrado. Enviaremos um link seguro para redefinição da sua senha.
-                  </p>
+                  <div className="space-y-2">
+                    <h4 className="text-[13px] font-bold text-slate-800">Recuperação de Acesso</h4>
+                    <p className="text-[11px] text-slate-550 leading-relaxed font-semibold">
+                      Informe o e-mail cadastrado na plataforma.<br />
+                      Após a validação dos dados cadastrais, nossa equipe enviará uma senha temporária para o WhatsApp ou e-mail informado no seu cadastro.<br />
+                      No primeiro acesso será obrigatório definir uma nova senha.
+                    </p>
+                  </div>
 
                   {resetError && (
                     <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs font-semibold p-3 rounded-lg flex items-center gap-2">
@@ -627,6 +674,34 @@ export default function Login() {
                       required 
                       className="h-10 text-xs rounded-lg border-slate-350 shadow-inner focus:ring-teal-500 focus:border-teal-500" 
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-gray-800 block">Canal Preferencial</Label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 text-xs text-slate-650 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="preferredContact"
+                          value="whatsapp"
+                          checked={resetPreferredContact === 'whatsapp'}
+                          onChange={() => setResetPreferredContact('whatsapp')}
+                          className="text-teal-650 focus:ring-teal-500"
+                        />
+                        <span>WhatsApp</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-slate-650 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="preferredContact"
+                          value="email"
+                          checked={resetPreferredContact === 'email'}
+                          onChange={() => setResetPreferredContact('email')}
+                          className="text-teal-650 focus:ring-teal-500"
+                        />
+                        <span>E-mail</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -648,7 +723,7 @@ export default function Login() {
                     {isResetSubmitting ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
-                      'Enviar Link'
+                      <span>Solicitar Recuperação</span>
                     )}
                   </Button>
                 </div>

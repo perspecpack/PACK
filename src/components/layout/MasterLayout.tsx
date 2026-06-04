@@ -13,6 +13,7 @@ import {
   Shield,
   Users,
   UserCheck,
+  Key,
   HelpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,7 @@ export function MasterLayout() {
     { name: 'Visualizar Plataforma', href: '/master/dashboard', icon: Eye },
     { name: 'Usuários', href: '/master/users', icon: Users },
     { name: 'Solicitações de Cadastro', href: '/master/solicitacoes', icon: UserCheck },
+    { name: 'Recuperação de Senha', href: '/master/recuperacao', icon: Key },
     { name: 'Organizações', href: '/master/oems', icon: Building2 },
     { name: 'Conteúdo', href: '/master/content', icon: Layers },
     { name: 'Uploads', href: '/master/uploads', icon: FileText },
@@ -129,6 +131,7 @@ export function MasterLayout() {
               {location.pathname.startsWith('/master/dashboard') && 'Centro de Controle'}
               {location.pathname.startsWith('/master/users') && 'Gestão de Usuários'}
               {location.pathname.startsWith('/master/solicitacoes') && 'Solicitações de Cadastro'}
+              {location.pathname.startsWith('/master/recuperacao') && 'Recuperação de Senha'}
               {location.pathname.startsWith('/master/oems') && 'Gestão de Organizações'}
               {location.pathname.startsWith('/master/content') && 'Gestão de Conteúdo por Organização'}
               {location.pathname.startsWith('/master/uploads') && 'Central de Uploads'}

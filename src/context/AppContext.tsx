@@ -100,6 +100,8 @@ interface AppContextType {
   viewingAsUser: boolean;
   syncError: string | null;
   supportRequests: SupportRequest[];
+  resetRequiredRequestId: string | null;
+  setResetRequiredRequestId: (id: string | null) => void;
   
   // Auth actions
   login: (email: string, role: 'master' | 'user') => Promise<void>;
@@ -825,6 +827,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [resetRequiredRequestId, setResetRequiredRequestId] = useState<string | null>(null);
 
   const seedDatabaseToSupabase = async () => {
     if (!supabase) return;
@@ -1270,6 +1273,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       if (!supabase) return;
+
+      // Check for active password reset requests
+      const { data: resetReq, error: resetErr } = await supabase
+        .from('password_reset_requests')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .eq('status', 'approved')
+        .order('requested_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!resetErr && resetReq) {
+        const processedTime = new Date(resetReq.processed_at || resetReq.updated_at);
+        const timeDiff = Date.now() - processedTime.getTime();
+        const diffHours = timeDiff / (1000 * 60 * 60);
+
+        if (diffHours > 24) {
+          // Expired temporary password!
+          await supabase.auth.signOut();
+          setUser(null);
+          setProfile(null);
+          localStorage.removeItem('pp_session');
+          setViewingAsUser(false);
+          window.location.href = '/login?status=expired_reset';
+          return;
+        } else {
+          // Valid temporary password! Force redirect to /definir-nova-senha
+          setResetRequiredRequestId(resetReq.id);
+          setProfile(null);
+          if (window.location.pathname !== '/definir-nova-senha') {
+            window.location.href = '/definir-nova-senha';
+            return;
+          }
+        }
+      }
+
       const { data: profData, error: profErr } = await supabase
         .from('user_profiles')
         .select('*')
@@ -2482,6 +2521,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         profile,
         viewingAsUser,
         syncError,
+        resetRequiredRequestId,
+        setResetRequiredRequestId,
         login,
         logout,
         setViewingAsUser,
