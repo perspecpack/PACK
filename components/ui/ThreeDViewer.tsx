@@ -1,6 +1,21 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'model-viewer': any;
+    }
+  }
+  namespace React {
+    namespace JSX {
+      interface IntrinsicElements {
+        'model-viewer': any;
+      }
+    }
+  }
+}
+
 interface ThreeDViewerProps {
   url: string;
   poster?: string;

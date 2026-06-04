@@ -1251,7 +1251,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const email = authUser.email || '';
     const masterEmail = cleanEnvVar(import.meta.env.MASTER_EMAIL || import.meta.env.VITE_MASTER_EMAIL || 'perspec03d@gmail.com').toLowerCase();
     const isMaster = masterEmail && email.toLowerCase() === masterEmail;
-    const role = isMaster ? 'master' : 'user';
+    const role: 'master' | 'user' = isMaster ? 'master' : 'user';
     
     const userSession = {
       id: authUser.id,
