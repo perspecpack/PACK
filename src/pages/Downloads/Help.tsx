@@ -258,16 +258,7 @@ export default function Help() {
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="border-t border-slate-100"></div>
 
-            {/* Institutional info */}
-            <div className="space-y-2">
-              <h4 className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">PERSPECPACK</h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                Plataforma desenvolvida para centralizar normas, cadernos de encargos, componentes homologados e checklists de validação utilizados no desenvolvimento de embalagens metálicas para a indústria.
-              </p>
-            </div>
 
             {/* Divider */}
             <div className="border-t border-slate-100"></div>
@@ -594,7 +585,7 @@ export default function Help() {
                   className="group border border-slate-200 hover:border-teal-400 rounded-2xl p-4 flex flex-col justify-between hover:bg-slate-50/50 transition-all text-left shadow-sm min-h-[110px]"
                 >
                   <span className="font-extrabold text-[14px] text-slate-800 group-hover:text-teal-650 transition-colors block">Responsabilidade Técnica</span>
-                  <span className="text-slate-450 text-[11px] font-medium leading-relaxed block mt-1">Atribuições legais na aprovação de embalagens.</span>
+                  <span className="text-slate-450 text-[11px] font-medium leading-relaxed block mt-1">Atribuições legais na aprovação de projetos e padrões industriais.</span>
                   <span className="text-[10px] font-bold text-teal-600 hover:underline inline-flex items-center gap-0.5 mt-3">
                     Acessar documento &rarr;
                   </span>
@@ -621,7 +612,7 @@ export default function Help() {
 
                 <div className="text-sm text-slate-650 leading-relaxed space-y-4">
                   <p>
-                    Plataforma de conformidade para embalagens industriais desenvolvida para centralizar cadernos de encargos, componentes homologados, normas técnicas e checklists de validação utilizados no desenvolvimento de embalagens metálicas para a indústria.
+                    Plataforma de conformidade técnica desenvolvida para centralizar requisitos de clientes, cadernos de encargos, componentes homologados, normas técnicas e checklists de validação utilizados em processos de engenharia e desenvolvimento industrial.
                   </p>
                   <p>
                     O sistema permite que empresas consultem padrões técnicos, validem projetos de acordo com requisitos específicos de cada organização e gerem relatórios rastreáveis de conformidade, contribuindo para a redução de retrabalho, padronização de processos e aumento da qualidade dos projetos.
