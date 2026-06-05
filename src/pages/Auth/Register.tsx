@@ -105,7 +105,7 @@ export default function Register() {
               </div>
               
               <h1 className="text-[36px] font-extrabold text-gray-900 leading-[1.15] tracking-tight mb-6">
-                Faça parte da maior rede de embalagens industriais do país.
+                Faça parte da maior rede de padrões industriais do país.
               </h1>
               
               <p className="text-[16px] text-gray-600 leading-relaxed">
@@ -173,7 +173,7 @@ export default function Register() {
             </div>
             
             <h1 className="text-[36px] font-extrabold text-gray-900 leading-[1.15] tracking-tight mb-6">
-              Faça parte da maior rede de embalagens industriais do país.
+              Faça parte da maior rede de padrões industriais do país.
             </h1>
             
             <p className="text-[16px] text-gray-600 leading-relaxed mb-2">
