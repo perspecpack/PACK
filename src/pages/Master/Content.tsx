@@ -20,7 +20,12 @@ export default function Content() {
 
   const getEnabledModulesCount = (orgId: string) => {
     const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
-    return organizationModules.filter(m => m.organizationId === orgId && m.enabled && allowedModules.includes(m.moduleType)).length;
+    const enabledTypes = new Set(
+      organizationModules
+        .filter(m => m.organizationId === orgId && m.enabled && allowedModules.includes(m.moduleType))
+        .map(m => m.moduleType)
+    );
+    return enabledTypes.size;
   };
 
   const handleOrgClick = (id: string) => {

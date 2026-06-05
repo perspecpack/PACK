@@ -27,10 +27,11 @@ export default function Files() {
     checklists 
   } = useApp();
 
-  // Helper to check if a module is enabled for an organization
-  const isModuleEnabledForOrg = (orgId: string, moduleType: ModuleType) => {
+  // Helper to check if a module is enabled for an organization/area
+  const isModuleEnabledForArea = (orgId: string, technicalAreaId: string | undefined, moduleType: ModuleType) => {
+    if (!technicalAreaId) return false;
     const mod = organizationModules.find(
-      m => m.organizationId === orgId && m.moduleType === moduleType
+      m => m.organizationId === orgId && m.technicalAreaId === technicalAreaId && m.moduleType === moduleType
     );
     return mod ? mod.enabled : false;
   };
@@ -84,7 +85,7 @@ export default function Files() {
 
   // 1. Components (Module: components)
   components.forEach(comp => {
-    if (isOrgActive(comp.organizationId) && isModuleEnabledForOrg(comp.organizationId, 'components')) {
+    if (isOrgActive(comp.organizationId) && isModuleEnabledForArea(comp.organizationId, comp.technicalAreaId, 'components')) {
       if (isRealUpload(comp.stepFileUrl)) {
         gatheredFiles.push({
           id: `${comp.id}-step`,
@@ -129,7 +130,7 @@ export default function Files() {
 
   // 2. Documents (Module: documentation)
   documents.forEach(doc => {
-    if (isOrgActive(doc.organizationId) && isModuleEnabledForOrg(doc.organizationId, 'documentation')) {
+    if (isOrgActive(doc.organizationId) && isModuleEnabledForArea(doc.organizationId, doc.technicalAreaId, 'documentation')) {
       if (isRealUpload(doc.fileUrl)) {
         gatheredFiles.push({
           id: doc.id,
@@ -148,7 +149,7 @@ export default function Files() {
 
   // 3. Standards (Module: standards)
   standards.forEach(std => {
-    if (isOrgActive(std.organizationId) && isModuleEnabledForOrg(std.organizationId, 'standards')) {
+    if (isOrgActive(std.organizationId) && isModuleEnabledForArea(std.organizationId, std.technicalAreaId, 'standards')) {
       if (isRealUpload(std.fileUrl)) {
         gatheredFiles.push({
           id: std.id,
@@ -167,7 +168,7 @@ export default function Files() {
 
   // 4. Checklists (Module: checklists)
   checklists.forEach(chk => {
-    if (isOrgActive(chk.organizationId) && isModuleEnabledForOrg(chk.organizationId, 'checklists')) {
+    if (isOrgActive(chk.organizationId) && isModuleEnabledForArea(chk.organizationId, chk.technicalAreaId, 'checklists')) {
       if (isRealUpload(chk.fileUrl)) {
         gatheredFiles.push({
           id: chk.id,

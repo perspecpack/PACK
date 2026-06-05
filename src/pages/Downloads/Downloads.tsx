@@ -247,10 +247,11 @@ export default function Downloads() {
   const selectedOEMObj = activeOems.find(o => o.id === selectedOEM);
   const selectedOEMName = selectedOEMObj?.name || '';
 
-  // Get active modules for selected OEM (only components, documentation, standards, checklists)
+  // Get active modules for selected OEM and Technical Area (only components, documentation, standards, checklists)
   const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
   const activeModules = organizationModules.filter(m => 
     m.organizationId === selectedOEM && 
+    m.technicalAreaId === selectedTechnicalArea &&
     m.enabled && 
     allowedModules.includes(m.moduleType)
   );

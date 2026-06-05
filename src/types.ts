@@ -30,6 +30,7 @@ export type ModuleType =
 export interface OrganizationModule {
   id: string;
   organizationId: string;
+  technicalAreaId: string;
   moduleType: ModuleType;
   enabled: boolean;
   createdAt: string;

@@ -107,6 +107,15 @@ export default function OrganizationDetail() {
   const [areaStatus, setAreaStatus] = useState<'active' | 'inactive'>('active');
   const [areaIsVisibleToUsers, setAreaIsVisibleToUsers] = useState(true);
   const [areaSortOrder, setAreaSortOrder] = useState(0);
+  const [areaModules, setAreaModules] = useState<Record<ModuleType, boolean>>({
+    components: true,
+    documentation: true,
+    standards: true,
+    checklists: true,
+    reference_projects: true,
+    cad_library: false,
+    procedures: false
+  });
 
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -130,7 +139,6 @@ export default function OrganizationDetail() {
 
   // Get active modules list (only the four ones specified in requirements)
   const allowedModules: ModuleType[] = ['components', 'documentation', 'standards', 'checklists'];
-  const activeModules = organizationModules.filter(m => m.organizationId === orgId && m.enabled && allowedModules.includes(m.moduleType));
 
   // Helper to count records inside a technical area
   const getRecordCount = (techAreaId: string, moduleType: ModuleType) => {
@@ -156,6 +164,15 @@ export default function OrganizationDetail() {
     setAreaStatus('active');
     setAreaIsVisibleToUsers(true);
     setAreaSortOrder(orgAreas.length + 1);
+    setAreaModules({
+      components: true,
+      documentation: true,
+      standards: true,
+      checklists: true,
+      reference_projects: true,
+      cad_library: false,
+      procedures: false
+    });
     setIsModalOpen(true);
   };
 
@@ -167,6 +184,23 @@ export default function OrganizationDetail() {
     setAreaStatus(area.status);
     setAreaIsVisibleToUsers(area.isVisibleToUsers);
     setAreaSortOrder(area.sortOrder);
+    
+    // Load modules for this area
+    const areaMods = organizationModules.filter(m => m.organizationId === orgId && m.technicalAreaId === area.id);
+    const modMap: Record<ModuleType, boolean> = {
+      components: false,
+      documentation: false,
+      standards: false,
+      checklists: false,
+      reference_projects: false,
+      cad_library: false,
+      procedures: false
+    };
+    areaMods.forEach(m => {
+      modMap[m.moduleType] = m.enabled;
+    });
+    setAreaModules(modMap);
+    
     setIsModalOpen(true);
   };
 
@@ -186,9 +220,9 @@ export default function OrganizationDetail() {
     };
 
     if (editingArea) {
-      updateTechnicalArea(editingArea.id, areaData);
+      updateTechnicalArea(editingArea.id, areaData, areaModules);
     } else {
-      addTechnicalArea(areaData);
+      addTechnicalArea(areaData, areaModules);
     }
     setIsModalOpen(false);
   };
@@ -319,43 +353,46 @@ export default function OrganizationDetail() {
                 {/* Sub-grid with Content modules */}
                 <div className="p-5">
                   <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Módulos de Conteúdo</div>
-                  {activeModules.length === 0 ? (
-                    <div className="text-slate-400 text-xs italic py-2">
-                      Sem módulos de conteúdo habilitados para esta organização.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {activeModules.map((mod) => {
-                        const info = MODULE_INFO[mod.moduleType];
-                        if (!info) return null;
-                        const count = getRecordCount(area.id, mod.moduleType);
-                        const Icon = info.icon;
-                        
-                        return (
-                          <div
-                            key={mod.id}
-                            onClick={() => navigate(`/master/content/${orgId}/${area.id}/${mod.moduleType}`)}
-                            className="bg-white border border-slate-200 hover:border-teal-400 p-4 rounded-xl shadow-sm hover:shadow cursor-pointer transition-all group flex flex-col justify-between h-28"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className={`p-2 bg-gradient-to-br from-white to-slate-50 border rounded-lg shadow-sm ${info.color.split(' ')[2]}`}>
-                                <Icon className="w-4.5 h-4.5" />
+                  {(() => {
+                    const areaActiveModules = organizationModules.filter(m => m.organizationId === orgId && m.technicalAreaId === area.id && m.enabled && allowedModules.includes(m.moduleType));
+                    return areaActiveModules.length === 0 ? (
+                      <div className="text-slate-400 text-xs italic py-2">
+                        Sem módulos de conteúdo habilitados para esta área técnica.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {areaActiveModules.map((mod) => {
+                          const info = MODULE_INFO[mod.moduleType];
+                          if (!info) return null;
+                          const count = getRecordCount(area.id, mod.moduleType);
+                          const Icon = info.icon;
+                          
+                          return (
+                            <div
+                              key={mod.id}
+                              onClick={() => navigate(`/master/content/${orgId}/${area.id}/${mod.moduleType}`)}
+                              className="bg-white border border-slate-200 hover:border-teal-400 p-4 rounded-xl shadow-sm hover:shadow cursor-pointer transition-all group flex flex-col justify-between h-28"
+                            >
+                              <div className="flex justify-between items-start">
+                                <div className={`p-2 bg-gradient-to-br from-white to-slate-50 border rounded-lg shadow-sm ${info.color.split(' ')[2]}`}>
+                                  <Icon className="w-4.5 h-4.5" />
+                                </div>
+                                <span className="text-[20px] font-black text-slate-800 leading-none">
+                                  {count}
+                                </span>
                               </div>
-                              <span className="text-[20px] font-black text-slate-800 leading-none">
-                                {count}
-                              </span>
+                              <div className="flex items-center justify-between pt-2">
+                                <span className="font-extrabold text-[13px] text-slate-800 group-hover:text-teal-600 transition-colors">
+                                  {info.title}
+                                </span>
+                                <ChevronRight className="w-4 h-4 text-teal-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                              </div>
                             </div>
-                            <div className="flex items-center justify-between pt-2">
-                              <span className="font-extrabold text-[13px] text-slate-800 group-hover:text-teal-600 transition-colors">
-                                {info.title}
-                              </span>
-                              <ChevronRight className="w-4 h-4 text-teal-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
 
               </div>
@@ -435,6 +472,28 @@ export default function OrganizationDetail() {
                   <option value="active">Ativa</option>
                   <option value="inactive">Inativa</option>
                 </select>
+              </div>
+
+              <div className="space-y-2 border-t border-slate-100 pt-4">
+                <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Módulos Habilitados nesta Área</Label>
+                <div className="grid grid-cols-2 gap-3 mt-1.5 mb-2">
+                  {[
+                    { id: 'components', label: 'Componentes Homologados' },
+                    { id: 'documentation', label: 'Caderno de Encargos' },
+                    { id: 'standards', label: 'Documentação Técnica' },
+                    { id: 'checklists', label: 'Checklist de Validação' }
+                  ].map((mod) => (
+                    <label key={mod.id} className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200/50 p-2.5 rounded-lg hover:bg-slate-100/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={areaModules[mod.id as ModuleType] || false}
+                        onChange={(e) => setAreaModules(prev => ({ ...prev, [mod.id]: e.target.checked }))}
+                        className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4"
+                      />
+                      <span>{mod.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <label className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200/50 p-2.5 rounded-lg hover:bg-slate-100/50 transition-colors">

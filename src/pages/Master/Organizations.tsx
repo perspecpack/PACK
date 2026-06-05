@@ -361,27 +361,29 @@ export default function Organizations() {
                 </select>
               </div>
 
-              <div className="space-y-2 border-t border-slate-100 pt-4">
-                <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Módulos Habilitados</Label>
-                <div className="grid grid-cols-2 gap-3 mt-1.5">
-                  {[
-                    { id: 'components', label: 'Componentes Homologados' },
-                    { id: 'documentation', label: 'Caderno de Encargos' },
-                    { id: 'standards', label: 'Documentação Técnica' },
-                    { id: 'checklists', label: 'Checklist de Validação' }
-                  ].map((mod) => (
-                    <label key={mod.id} className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200/50 p-2.5 rounded-lg hover:bg-slate-100/50 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={modules[mod.id as ModuleType] || false}
-                        onChange={(e) => setModules(prev => ({ ...prev, [mod.id]: e.target.checked }))}
-                        className="rounded border-slate-300 text-[#00a86b] focus:ring-[#00a86b] w-4 h-4"
-                      />
-                      <span>{mod.label}</span>
-                    </label>
-                  ))}
+              {!editingOEM && (
+                <div className="space-y-2 border-t border-slate-100 pt-4">
+                  <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Módulos Habilitados</Label>
+                  <div className="grid grid-cols-2 gap-3 mt-1.5">
+                    {[
+                      { id: 'components', label: 'Componentes Homologados' },
+                      { id: 'documentation', label: 'Caderno de Encargos' },
+                      { id: 'standards', label: 'Documentação Técnica' },
+                      { id: 'checklists', label: 'Checklist de Validação' }
+                    ].map((mod) => (
+                      <label key={mod.id} className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200/50 p-2.5 rounded-lg hover:bg-slate-100/50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={modules[mod.id as ModuleType] || false}
+                          onChange={(e) => setModules(prev => ({ ...prev, [mod.id]: e.target.checked }))}
+                          className="rounded border-slate-300 text-[#00a86b] focus:ring-[#00a86b] w-4 h-4"
+                        />
+                        <span>{mod.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               
               {!editingOEM && (
                 <div className="space-y-2 border-t border-slate-100 pt-4">

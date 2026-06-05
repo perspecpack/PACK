@@ -128,8 +128,8 @@ interface AppContextType {
   deleteOrganization: (id: string) => void;
   
   // Technical Area actions
-  addTechnicalArea: (area: Omit<TechnicalArea, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateTechnicalArea: (id: string, area: Partial<TechnicalArea>) => void;
+  addTechnicalArea: (area: Omit<TechnicalArea, 'id' | 'createdAt' | 'updatedAt'>, modules?: Record<ModuleType, boolean>) => void;
+  updateTechnicalArea: (id: string, area: Partial<TechnicalArea>, modules?: Record<ModuleType, boolean>) => void;
   deleteTechnicalArea: (id: string) => void;
   
   // Compatibility OEM aliases
@@ -182,18 +182,51 @@ const INITIAL_ORGANIZATIONS: Organization[] = [
 
 const MODULE_TYPES: ModuleType[] = ['components', 'documentation', 'standards', 'checklists', 'reference_projects', 'cad_library', 'procedures'];
 
+const INITIAL_TECHNICAL_AREAS: TechnicalArea[] = [];
 const INITIAL_MODULES: OrganizationModule[] = [];
+
 INITIAL_ORGANIZATIONS.forEach(org => {
-  MODULE_TYPES.forEach(mod => {
-    // Default enabled modules based on specification:
-    // components, documentation (standards in spec as 'standards'), checklists are active by default
-    const isDefaultEnabled = ['components', 'documentation', 'standards', 'checklists'].includes(mod);
-    INITIAL_MODULES.push({
-      id: crypto.randomUUID(),
-      organizationId: org.id,
-      moduleType: mod,
-      enabled: isDefaultEnabled,
-      createdAt: new Date().toISOString()
+  const metalAreaId = crypto.randomUUID();
+  INITIAL_TECHNICAL_AREAS.push({
+    id: metalAreaId,
+    organizationId: org.id,
+    name: 'Embalagens Metálicas',
+    description: 'Padrões de embalagens metálicas, racks e skids.',
+    icon: '📦',
+    status: 'active',
+    isDefault: true,
+    isVisibleToUsers: true,
+    sortOrder: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+
+  const machineAreaId = crypto.randomUUID();
+  INITIAL_TECHNICAL_AREAS.push({
+    id: machineAreaId,
+    organizationId: org.id,
+    name: 'Máquinas e Equipamentos',
+    description: 'Normas e especificações de máquinas e equipamentos industriais.',
+    icon: '⚙️',
+    status: 'active',
+    isDefault: false,
+    isVisibleToUsers: true,
+    sortOrder: 2,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+
+  [metalAreaId, machineAreaId].forEach(areaId => {
+    MODULE_TYPES.forEach(mod => {
+      const isDefaultEnabled = ['components', 'documentation', 'standards', 'checklists'].includes(mod);
+      INITIAL_MODULES.push({
+        id: crypto.randomUUID(),
+        organizationId: org.id,
+        technicalAreaId: areaId,
+        moduleType: mod,
+        enabled: isDefaultEnabled,
+        createdAt: new Date().toISOString()
+      });
     });
   });
 });
@@ -543,6 +576,7 @@ const mapTechnicalAreaToDb = (ts: Partial<TechnicalArea>) => {
 const mapModFromDb = (db: any): OrganizationModule => ({
   id: db.id,
   organizationId: db.organization_id,
+  technicalAreaId: db.technical_area_id,
   moduleType: db.module_type as any,
   enabled: db.enabled,
   createdAt: db.created_at
@@ -847,10 +881,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error: orgsErr } = await supabase.from('organizations').insert(dbOrgs);
       if (orgsErr) throw orgsErr;
 
+      // Seed Technical Areas
+      const dbTechAreas = INITIAL_TECHNICAL_AREAS.map(area => ({
+        id: area.id,
+        organization_id: area.organizationId,
+        name: area.name,
+        description: area.description || null,
+        icon: area.icon,
+        status: area.status,
+        is_default: area.isDefault,
+        is_visible_to_users: area.isVisibleToUsers,
+        sort_order: area.sortOrder
+      }));
+      const { error: techErr } = await supabase.from('technical_areas').insert(dbTechAreas);
+      if (techErr) throw techErr;
+
       // Seed Modules
       const dbModules = INITIAL_MODULES.map(m => ({
         id: m.id,
         organization_id: m.organizationId,
+        technical_area_id: m.technicalAreaId,
         module_type: m.moduleType,
         enabled: m.enabled
       }));
@@ -963,6 +1013,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Force update context state to mock seed data to prevent loading an empty state
       setOrganizations(INITIAL_ORGANIZATIONS);
+      setTechnicalAreas(INITIAL_TECHNICAL_AREAS);
       setOrganizationModules(INITIAL_MODULES);
       setComponents(INITIAL_COMPONENTS);
       setDocuments(INITIAL_DOCUMENTS);
@@ -1632,14 +1683,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: new Date().toISOString()
     };
     
-    const newModules: OrganizationModule[] = MODULE_TYPES.map(mod => ({
-      id: crypto.randomUUID(),
-      organizationId: newOrgId,
-      moduleType: mod,
-      enabled: !!modules[mod],
-      createdAt: new Date().toISOString()
-    }));
-
     const newTechAreas: TechnicalArea[] = (initialTechAreas || []).map(area => ({
       ...area,
       id: crypto.randomUUID(),
@@ -1647,6 +1690,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }));
+
+    const newModules: OrganizationModule[] = [];
+    newTechAreas.forEach(area => {
+      MODULE_TYPES.forEach(modType => {
+        newModules.push({
+          id: crypto.randomUUID(),
+          organizationId: newOrgId,
+          technicalAreaId: area.id,
+          moduleType: modType,
+          enabled: !!modules[modType],
+          createdAt: new Date().toISOString()
+        });
+      });
+    });
 
     setOrganizations(prev => [newOrg, ...prev]);
     setOrganizationModules(prev => [...prev, ...newModules]);
@@ -1671,18 +1728,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             console.error('Error adding organization to Supabase:', error);
             return;
           }
-          const dbModules = newModules.map(m => ({
-            id: m.id,
-            organization_id: newOrgId,
-            module_type: m.moduleType,
-            enabled: m.enabled
-          }));
-          supabase
-            .from('organization_modules')
-            .insert(dbModules)
-            .then(({ error: modErr }) => {
-              if (modErr) console.error('Error adding organization modules to Supabase:', modErr);
-            });
+          
+          const proceedToModules = () => {
+            const dbModules = newModules.map(m => ({
+              id: m.id,
+              organization_id: newOrgId,
+              technical_area_id: m.technicalAreaId,
+              module_type: m.moduleType,
+              enabled: m.enabled
+            }));
+            supabase
+              .from('organization_modules')
+              .insert(dbModules)
+              .then(({ error: modErr }) => {
+                if (modErr) console.error('Error adding organization modules to Supabase:', modErr);
+              });
+          };
 
           if (newTechAreas.length > 0) {
             const dbTechAreas = newTechAreas.map(area => ({
@@ -1700,8 +1761,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               .from('technical_areas')
               .insert(dbTechAreas)
               .then(({ error: techErr }) => {
-                if (techErr) console.error('Error adding organization technical areas to Supabase:', techErr);
+                if (techErr) {
+                  console.error('Error adding organization technical areas to Supabase:', techErr);
+                  return;
+                }
+                proceedToModules();
               });
+          } else {
+            proceedToModules();
           }
         });
     }
@@ -1709,59 +1776,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateOrganization = (id: string, updatedFields: Partial<Organization>, modules?: Record<ModuleType, boolean>) => {
     setOrganizations(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields, updatedAt: new Date().toISOString() } : item));
-    
-    let updatedModules: OrganizationModule[] = [];
-    if (modules) {
-      updatedModules = MODULE_TYPES.map(mod => ({
-        id: crypto.randomUUID(),
-        organizationId: id,
-        moduleType: mod,
-        enabled: !!modules[mod],
-        createdAt: new Date().toISOString()
-      }));
-      setOrganizationModules(prev => {
-        const filtered = prev.filter(m => m.organizationId !== id);
-        return [...filtered, ...updatedModules];
-      });
-    }
 
     if (supabase) {
       const dbFields = mapOrgToDb(updatedFields);
-      const updatePromise = Object.keys(dbFields).length > 0
-        ? supabase.from('organizations').update(dbFields).eq('id', id)
-        : Promise.resolve({ error: null });
-
-      updatePromise.then(({ error }) => {
-        if (error) {
-          console.error('Error updating organization in Supabase:', error);
-          return;
-        }
-
-        if (modules) {
-          supabase
-            .from('organization_modules')
-            .delete()
-            .eq('organization_id', id)
-            .then(({ error: delErr }) => {
-              if (delErr) {
-                console.error('Error deleting organization modules in Supabase:', delErr);
-                return;
-              }
-              const dbModules = updatedModules.map(m => ({
-                id: m.id,
-                organization_id: id,
-                module_type: m.moduleType,
-                enabled: m.enabled
-              }));
-              supabase
-                .from('organization_modules')
-                .insert(dbModules)
-                .then(({ error: insErr }) => {
-                  if (insErr) console.error('Error inserting organization modules in Supabase:', insErr);
-                });
-            });
-        }
-      });
+      if (Object.keys(dbFields).length > 0) {
+        supabase
+          .from('organizations')
+          .update(dbFields)
+          .eq('id', id)
+          .then(({ error }) => {
+            if (error) console.error('Error updating organization in Supabase:', error);
+          });
+      }
     }
   };
 
@@ -1817,7 +1843,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Technical Area Actions
-  const addTechnicalArea = (area: Omit<TechnicalArea, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addTechnicalArea = (
+    area: Omit<TechnicalArea, 'id' | 'createdAt' | 'updatedAt'>,
+    modules?: Record<ModuleType, boolean>
+  ) => {
     const newAreaId = crypto.randomUUID();
     const newArea: TechnicalArea = {
       ...area,
@@ -1825,7 +1854,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+    
+    const allowedModules: ModuleType[] = ['components', 'documentation', 'standards', 'checklists'];
+    const defaultModules = {
+      components: true,
+      documentation: true,
+      standards: true,
+      checklists: true,
+      reference_projects: true,
+      cad_library: false,
+      procedures: false
+    };
+    const activeMods = modules || defaultModules;
+
+    const newModules: OrganizationModule[] = allowedModules.map(mod => ({
+      id: crypto.randomUUID(),
+      organizationId: area.organizationId,
+      technicalAreaId: newAreaId,
+      moduleType: mod,
+      enabled: !!activeMods[mod],
+      createdAt: new Date().toISOString()
+    }));
+
     setTechnicalAreas(prev => [...prev, newArea]);
+    setOrganizationModules(prev => [...prev, ...newModules]);
 
     if (supabase) {
       supabase
@@ -1842,28 +1894,95 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           sort_order: area.sortOrder
         })
         .then(({ error }) => {
-          if (error) console.error('Error adding technical area to Supabase:', error);
+          if (error) {
+            console.error('Error adding technical area to Supabase:', error);
+            return;
+          }
+          const dbModules = newModules.map(m => ({
+            id: m.id,
+            organization_id: m.organizationId,
+            technical_area_id: newAreaId,
+            module_type: m.moduleType,
+            enabled: m.enabled
+          }));
+          supabase
+            .from('organization_modules')
+            .insert(dbModules)
+            .then(({ error: modErr }) => {
+              if (modErr) console.error('Error adding organization modules for tech area to Supabase:', modErr);
+            });
         });
     }
   };
 
-  const updateTechnicalArea = (id: string, updatedFields: Partial<TechnicalArea>) => {
+  const updateTechnicalArea = (
+    id: string, 
+    updatedFields: Partial<TechnicalArea>,
+    modules?: Record<ModuleType, boolean>
+  ) => {
     setTechnicalAreas(prev => prev.map(item => item.id === id ? { ...item, ...updatedFields, updatedAt: new Date().toISOString() } : item));
+
+    let updatedModules: OrganizationModule[] = [];
+    if (modules && updatedFields.organizationId) {
+      const allowedModules: ModuleType[] = ['components', 'documentation', 'standards', 'checklists'];
+      updatedModules = allowedModules.map(mod => ({
+        id: crypto.randomUUID(),
+        organizationId: updatedFields.organizationId!,
+        technicalAreaId: id,
+        moduleType: mod,
+        enabled: !!modules[mod],
+        createdAt: new Date().toISOString()
+      }));
+      setOrganizationModules(prev => {
+        const filtered = prev.filter(m => m.technicalAreaId !== id);
+        return [...filtered, ...updatedModules];
+      });
+    }
 
     if (supabase) {
       const dbFields = mapTechnicalAreaToDb(updatedFields);
-      supabase
-        .from('technical_areas')
-        .update(dbFields)
-        .eq('id', id)
-        .then(({ error }) => {
-          if (error) console.error('Error updating technical area in Supabase:', error);
-        });
+      const updatePromise = Object.keys(dbFields).length > 0
+        ? supabase.from('technical_areas').update(dbFields).eq('id', id)
+        : Promise.resolve({ error: null });
+
+      updatePromise.then(({ error }) => {
+        if (error) {
+          console.error('Error updating technical area in Supabase:', error);
+          return;
+        }
+
+        if (modules) {
+          supabase
+            .from('organization_modules')
+            .delete()
+            .eq('technical_area_id', id)
+            .then(({ error: delErr }) => {
+              if (delErr) {
+                console.error('Error deleting organization modules in Supabase:', delErr);
+                return;
+              }
+              const dbModules = updatedModules.map(m => ({
+                id: m.id,
+                organization_id: updatedFields.organizationId!,
+                technical_area_id: id,
+                module_type: m.moduleType,
+                enabled: m.enabled
+              }));
+              supabase
+                .from('organization_modules')
+                .insert(dbModules)
+                .then(({ error: insErr }) => {
+                  if (insErr) console.error('Error inserting organization modules in Supabase:', insErr);
+                });
+            });
+        }
+      });
     }
   };
 
   const deleteTechnicalArea = (id: string) => {
     setTechnicalAreas(prev => prev.filter(item => item.id !== id));
+    setOrganizationModules(prev => prev.filter(item => item.technicalAreaId !== id));
     // Clean up content belonging to this technical area
     setComponents(prev => prev.filter(item => item.technicalAreaId !== id));
     setDocuments(prev => prev.filter(item => item.technicalAreaId !== id));
