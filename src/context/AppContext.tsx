@@ -1380,7 +1380,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setProfile(null);
           localStorage.removeItem('pp_session');
           setViewingAsUser(false);
-          window.location.href = `/login?status=${mapped.userStatus}`;
+          if (window.location.pathname !== '/cadastro') {
+            window.location.href = `/login?status=${mapped.userStatus}`;
+          }
           return;
         }
 
