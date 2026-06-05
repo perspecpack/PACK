@@ -12,6 +12,11 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    optimizeDeps: {
+      esbuildOptions: {
+        external: ['core-js', 'core-js/*']
+      }
+    },
     build: {
       chunkSizeWarningLimit: 1600,
       rollupOptions: {

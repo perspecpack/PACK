@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Box, 
@@ -19,6 +20,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/src/context/AppContext';
+import { supabase } from '@/lib/supabase';
 import logoImage from '@/logo.png';
 import brandTextImg from '@/PERSPECPACK.png';
 
@@ -28,6 +30,51 @@ export function MasterLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, setViewingAsUser, user, syncError } = useApp();
+
+  const [pendingRegistrationsCount, setPendingRegistrationsCount] = useState(0);
+  const [pendingResetsCount, setPendingResetsCount] = useState(0);
+  const [pendingSupportCount, setPendingSupportCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPendingCounts = async () => {
+      try {
+        if (!supabase) return;
+
+        // 1. Pending registration requests (user_status = 'pending')
+        const { count: regCount, error: regError } = await supabase
+          .from('user_profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_status', 'pending');
+        if (!regError && regCount !== null) {
+          setPendingRegistrationsCount(regCount);
+        }
+
+        // 2. Pending password reset requests (status = 'pending')
+        const { count: resetCount, error: resetError } = await supabase
+          .from('password_reset_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending');
+        if (!resetError && resetCount !== null) {
+          setPendingResetsCount(resetCount);
+        }
+
+        // 3. Pending support requests (status = 'novo')
+        const { count: supportCount, error: supportError } = await supabase
+          .from('support_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'novo');
+        if (!supportError && supportCount !== null) {
+          setPendingSupportCount(supportCount);
+        }
+      } catch (err) {
+        console.error('Error fetching pending counts:', err);
+      }
+    };
+
+    fetchPendingCounts();
+    const interval = setInterval(fetchPendingCounts, 15000); // 15s polling
+    return () => clearInterval(interval);
+  }, [location.pathname]);
 
   const navigation = [
     { name: 'Visualizar Plataforma', href: '/master/dashboard', icon: Eye },
@@ -67,6 +114,16 @@ export function MasterLayout() {
         <nav className="flex-1 space-y-1 overflow-y-auto px-2">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href || (item.href === '/master/content' && location.pathname.startsWith('/master/content'));
+            
+            let pendingCount = 0;
+            if (item.name === 'Solicitações de Cadastro') {
+              pendingCount = pendingRegistrationsCount;
+            } else if (item.name === 'Recuperação de Senha') {
+              pendingCount = pendingResetsCount;
+            } else if (item.name === 'Solicitações de Suporte') {
+              pendingCount = pendingSupportCount;
+            }
+
             return (
               <Link
                 key={item.name}
@@ -86,6 +143,15 @@ export function MasterLayout() {
                   aria-hidden="true"
                 />
                 <span className="truncate flex-1">{item.name}</span>
+                {pendingCount > 0 && (
+                  <span className="flex items-center gap-1.5 bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+                    </span>
+                    {pendingCount}
+                  </span>
+                )}
               </Link>
             );
           })}
