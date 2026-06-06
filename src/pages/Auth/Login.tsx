@@ -565,15 +565,17 @@ export default function Login() {
                       </div>
 
                       {/* Display project header_data if available */}
-                      {validationResult.header_data && Object.keys(validationResult.header_data).length > 0 && (
+                      {validationResult.header_data && Object.keys(validationResult.header_data).filter(k => !k.startsWith('_')).length > 0 && (
                         <div className="pt-2.5 mt-2.5 border-t border-slate-200 space-y-2 text-xs">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Informações do Projeto</span>
-                          {Object.entries(validationResult.header_data).map(([label, val]: any) => (
-                            <div key={label} className="flex justify-between items-center border-b border-slate-100 pb-1.5 last:border-b-0 last:pb-0">
-                              <span className="font-semibold text-slate-550">{label}:</span>
-                              <span className="font-bold text-slate-800 text-right">{String(val || 'N/A')}</span>
-                            </div>
-                          ))}
+                          {Object.entries(validationResult.header_data)
+                            .filter(([label]) => !label.startsWith('_'))
+                            .map(([label, val]: any) => (
+                              <div key={label} className="flex justify-between items-center border-b border-slate-100 pb-1.5 last:border-b-0 last:pb-0">
+                                <span className="font-semibold text-slate-550">{label}:</span>
+                                <span className="font-bold text-slate-800 text-right">{String(val || 'N/A')}</span>
+                              </div>
+                            ))}
                         </div>
                       )}
                     </div>

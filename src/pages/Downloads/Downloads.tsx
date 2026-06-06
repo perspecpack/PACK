@@ -26,7 +26,8 @@ import {
   Loader2,
   Sparkles,
   LayoutGrid,
-  List
+  List,
+  Camera
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -242,6 +243,63 @@ export default function Downloads() {
   const [generatedValCode, setGeneratedValCode] = useState('');
   const [generatedVerCode, setGeneratedVerCode] = useState('');
   const [isSubmittingChecklist, setIsSubmittingChecklist] = useState(false);
+  const [evidencePhotos, setEvidencePhotos] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState<boolean[]>([]);
+
+  // Photo upload handlers
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    if (!activeChecklist || !selectedOEMObj) return;
+
+    const files = Array.from(e.target.files);
+    
+    // Check if adding these files exceeds the limit of 3
+    if (evidencePhotos.length + files.length > 3) {
+      alert('Você pode anexar no máximo 3 fotos.');
+      return;
+    }
+
+    for (const file of files) {
+      // Validate type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      if (!validTypes.includes(file.type)) {
+        alert(`Arquivo "${file.name}" inválido. Apenas fotos nos formatos JPEG, JPG ou PNG são permitidas.`);
+        continue;
+      }
+
+      // Validate size (2MB = 2097152 bytes)
+      if (file.size > 2 * 1024 * 1024) {
+        alert(`Arquivo "${file.name}" excede o limite de 2MB.`);
+        continue;
+      }
+
+      // Upload
+      setUploadingPhotos(prev => [...prev, true]);
+      try {
+        const { publicUrl } = await uploadFileToStorage(
+          file,
+          'checklist-evidencias',
+          selectedOEMObj.slug || 'oem',
+          'checklists'
+        );
+
+        setEvidencePhotos(prev => [...prev, publicUrl]);
+      } catch (error: any) {
+        console.error('Error uploading photo:', error);
+        alert('Erro ao fazer upload da foto: ' + error.message);
+      } finally {
+        setUploadingPhotos(prev => {
+          const next = [...prev];
+          next.pop();
+          return next;
+        });
+      }
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setEvidencePhotos(prev => prev.filter((_, idx) => idx !== index));
+  };
 
   const activeOems = organizations.filter(o => o.status === 'active');
   const selectedOEMObj = activeOems.find(o => o.id === selectedOEM);
@@ -282,6 +340,8 @@ export default function Downloads() {
       return;
     }
     setActiveChecklist(checklist);
+    setEvidencePhotos([]);
+    setUploadingPhotos([]);
     
     // Initialize header answers
     const initialHeaderAnswers: Record<string, string> = {};
@@ -408,43 +468,6 @@ export default function Downloads() {
     return `${randBlock()}-${randBlock()}-${randBlock()}`;
   };
 
-  const handleFileUpload = async (critId: string, file: File) => {
-    if (!activeChecklist || !selectedOEMObj) return;
-
-    // Set loading
-    setChecklistAnswers(prev => ({
-      ...prev,
-      [critId]: { ...prev[critId], evidenceLoading: true }
-    }));
-
-    try {
-      const { publicUrl } = await uploadFileToStorage(
-        file,
-        'checklist-evidencias',
-        selectedOEMObj.slug || 'oem',
-        'checklists'
-      );
-
-      setChecklistAnswers(prev => ({
-        ...prev,
-        [critId]: { ...prev[critId], evidenceUrl: publicUrl, evidenceLoading: false }
-      }));
-    } catch (error: any) {
-      console.error('Error uploading evidence:', error);
-      alert('Erro ao fazer upload da evidência: ' + error.message);
-      setChecklistAnswers(prev => ({
-        ...prev,
-        [critId]: { ...prev[critId], evidenceLoading: false }
-      }));
-    }
-  };
-
-  const handleRemoveEvidence = (critId: string) => {
-    setChecklistAnswers(prev => ({
-      ...prev,
-      [critId]: { ...prev[critId], evidenceUrl: undefined }
-    }));
-  };
 
   const handleOpenConfirmation = () => {
     if (!activeChecklist) return;
@@ -531,6 +554,17 @@ export default function Downloads() {
           issuerLogoImg = await loadImage(companyLogoUrl);
         } catch (e) {
           console.error('Error preloading issuer logo:', e);
+        }
+      }
+
+      // Preload checklist evidence photos
+      const loadedPhotos: HTMLImageElement[] = [];
+      for (const url of evidencePhotos) {
+        try {
+          const img = await loadImage(url);
+          loadedPhotos.push(img);
+        } catch (e) {
+          console.error('Error preloading evidence photo:', e);
         }
       }
 
@@ -707,6 +741,42 @@ export default function Downloads() {
         y += boxHeight + 10;
       }
 
+      // Render evidence photos in PDF (side-by-side) if there are any
+      if (loadedPhotos.length > 0) {
+        checkPageBreak(50);
+        
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(6, 36, 44);
+        doc.text('REGISTRO FOTOGRÁFICO DE EVIDÊNCIAS', margin, y + 6);
+        y += 10;
+
+        const imgWidth = 55;
+        const imgHeight = 35;
+        const imgGap = 5;
+
+        loadedPhotos.forEach((img, index) => {
+          const imgX = margin + index * (imgWidth + imgGap);
+          try {
+            // Draw image border
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.3);
+            doc.rect(imgX, y, imgWidth, imgHeight, 'S');
+            
+            // Add image
+            doc.addImage(img, 'JPEG', imgX + 0.5, y + 0.5, imgWidth - 1, imgHeight - 1, undefined, 'FAST');
+          } catch (e) {
+            console.error('Error rendering image in PDF:', e);
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(7);
+            doc.setTextColor(100, 116, 139);
+            doc.rect(imgX, y, imgWidth, imgHeight, 'S');
+            doc.text(`[Erro Imagem ${index + 1}]`, imgX + imgWidth / 2, y + imgHeight / 2, { align: 'center' });
+          }
+        });
+        y += imgHeight + 10;
+      }
+
       // Table Title
       checkPageBreak(12);
       doc.setFont('Helvetica', 'bold');
@@ -758,11 +828,7 @@ export default function Downloads() {
           else if (ans.status === 'NC') statusText = 'Não Conforme';
           else if (ans.status === 'NA') statusText = 'N.A.';
 
-          let noteText = ans.note || '';
-          if (ans.evidenceUrl) {
-            noteText += (noteText ? ' | ' : '') + `Evidência anexa: ${ans.evidenceUrl}`;
-          }
-          if (!noteText) noteText = '-';
+          let noteText = ans.note || '-';
 
           // Split texts to wrap columns
           const descLines = doc.splitTextToSize(critDesc, 85);
@@ -940,7 +1006,10 @@ export default function Downloads() {
           pdf_url: pdfUrl,
           report_status: currentStatus.text,
           generated_at: new Date().toISOString(),
-          header_data: activeChecklist.headerConfig?.enabled ? headerAnswers : null
+          header_data: {
+            ...(activeChecklist.headerConfig?.enabled ? headerAnswers : {}),
+            _evidence_photos: evidencePhotos
+          }
         })
         .select()
         .single();
@@ -955,7 +1024,7 @@ export default function Downloads() {
           criterion_id: critId,
           result: ans.status || null,
           observation: ans.note || null,
-          evidence_url: ans.evidenceUrl || null
+          evidence_url: null
         };
       }).filter(item => item.result !== null);
 
@@ -2237,37 +2306,99 @@ export default function Downloads() {
             </div>
           </div>
 
-          {/* Project Header fields form */}
-          {activeChecklist.headerConfig?.enabled && activeChecklist.headerConfig.fields && activeChecklist.headerConfig.fields.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4 animate-in fade-in duration-150">
-              <div className="border-b border-slate-100 pb-3 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-teal-600" />
-                <h3 className="font-extrabold text-[14px] text-slate-800">Informações do Projeto (Cabeçalho)</h3>
+          {/* Project Header fields form & Photographic Evidences */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6 animate-in fade-in duration-150">
+            {activeChecklist.headerConfig?.enabled && activeChecklist.headerConfig.fields && activeChecklist.headerConfig.fields.length > 0 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-3 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-teal-600" />
+                  <h3 className="font-extrabold text-[14px] text-slate-800">Informações do Projeto (Cabeçalho)</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {activeChecklist.headerConfig.fields.map((field, fIdx) => (
+                    <div key={fIdx} className="space-y-1.5">
+                      <Label htmlFor={`header-field-${fIdx}`} className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                        <span>{field.label}</span>
+                        {field.required && <span className="text-red-500 font-extrabold">*</span>}
+                      </Label>
+                      <input
+                        id={`header-field-${fIdx}`}
+                        type={field.type === 'number' ? 'number' : 'text'}
+                        value={headerAnswers[field.label] || ''}
+                        onChange={(e) => setHeaderAnswers({
+                          ...headerAnswers,
+                          [field.label]: e.target.value
+                        })}
+                        placeholder={`Preencha o/a ${field.label.toLowerCase()}`}
+                        className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-705 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 focus:bg-white transition-all shadow-inner"
+                        required={field.required}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {activeChecklist.headerConfig.fields.map((field, fIdx) => (
-                  <div key={fIdx} className="space-y-1.5">
-                    <Label htmlFor={`header-field-${fIdx}`} className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                      <span>{field.label}</span>
-                      {field.required && <span className="text-red-500 font-extrabold">*</span>}
-                    </Label>
-                    <input
-                      id={`header-field-${fIdx}`}
-                      type={field.type === 'number' ? 'number' : 'text'}
-                      value={headerAnswers[field.label] || ''}
-                      onChange={(e) => setHeaderAnswers({
-                        ...headerAnswers,
-                        [field.label]: e.target.value
-                      })}
-                      placeholder={`Preencha o/a ${field.label.toLowerCase()}`}
-                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-705 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 focus:bg-white transition-all shadow-inner"
-                      required={field.required}
-                    />
+            )}
+
+            {/* Photo Uploader */}
+            <div className={cn("space-y-4", activeChecklist.headerConfig?.enabled && activeChecklist.headerConfig.fields && activeChecklist.headerConfig.fields.length > 0 ? "border-t border-slate-100 pt-6" : "")}>
+              <div className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-teal-600" />
+                <h3 className="font-extrabold text-[14px] text-slate-800">Evidências Fotográficas do Projeto</h3>
+                <span className="text-slate-400 text-xs font-medium">
+                  (Anexe até 3 fotos &bull; JPEG, JPG ou PNG &bull; Máx. 2MB)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {/* Photo Previews */}
+                {evidencePhotos.map((photoUrl, idx) => (
+                  <div key={idx} className="relative aspect-video sm:aspect-square bg-slate-150 border border-slate-200 rounded-xl overflow-hidden group shadow-sm flex items-center justify-center">
+                    <img src={photoUrl} alt={`Evidência ${idx + 1}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoto(idx)}
+                        className="p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors shadow"
+                        title="Remover foto"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
+
+                {/* Uploading placeholders */}
+                {uploadingPhotos.map((_, idx) => (
+                  <div key={`uploading-${idx}`} className="relative aspect-video sm:aspect-square bg-slate-50 rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center gap-2 animate-pulse">
+                    <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                    <span className="text-[10px] font-bold text-slate-500">Carregando...</span>
+                  </div>
+                ))}
+
+                {/* Add Photo slot */}
+                {evidencePhotos.length + uploadingPhotos.length < 3 && (
+                  <div className="relative aspect-video sm:aspect-square">
+                    <input
+                      type="file"
+                      id="checklist-photo-uploader"
+                      accept="image/jpeg,image/jpg,image/png"
+                      multiple
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                      disabled={evidencePhotos.length + uploadingPhotos.length >= 3}
+                    />
+                    <label
+                      htmlFor="checklist-photo-uploader"
+                      className="cursor-pointer h-full w-full bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all group shadow-sm"
+                    >
+                      <Camera className="w-5 h-5 text-slate-400 group-hover:text-teal-600 transition-colors" />
+                      <span className="text-[11px] font-bold text-slate-500 group-hover:text-teal-700 transition-colors">Anexar Foto</span>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+          </div>
 
           {/* Visual Summary Panel */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -2338,8 +2469,8 @@ export default function Downloads() {
                             </p>
                           )}
  
-                          {/* Notes/Evidences input */}
-                          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                          {/* Observações técnicas */}
+                          <div className="pt-2">
                             <input 
                               type="text"
                               placeholder="Adicionar observações técnicas..."
@@ -2348,57 +2479,8 @@ export default function Downloads() {
                                 ...checklistAnswers,
                                 [crit.id]: { ...ans, note: e.target.value }
                               })}
-                              className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-705 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 focus:bg-white transition-all min-h-[36px]"
+                              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-705 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 focus:bg-white transition-all min-h-[36px]"
                             />
-                            
-                            {/* Evidence attachment widget */}
-                            <div className="shrink-0 flex items-center">
-                              {ans.evidenceLoading ? (
-                                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 min-h-[36px]">
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
-                                  <span>Enviando...</span>
-                                </div>
-                              ) : ans.evidenceUrl ? (
-                                <div className="flex items-center gap-1.5">
-                                  <a 
-                                    href={ans.evidenceUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-1 text-[11px] font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg border border-teal-205 min-h-[36px] transition-colors"
-                                  >
-                                    <Paperclip className="w-3.5 h-3.5" />
-                                    <span>Ver Anexo</span>
-                                  </a>
-                                  <button
-                                    onClick={() => handleRemoveEvidence(crit.id)}
-                                    className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 min-h-[36px] transition-colors"
-                                    title="Remover anexo"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div>
-                                  <input
-                                    type="file"
-                                    id={`file-${crit.id}`}
-                                    accept=".png,.jpg,.jpeg,.pdf"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) handleFileUpload(crit.id, file);
-                                    }}
-                                    className="hidden"
-                                  />
-                                  <label
-                                    htmlFor={`file-${crit.id}`}
-                                    className="cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 min-h-[36px] transition-colors shadow-sm"
-                                  >
-                                    <Paperclip className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>Anexar Evidência</span>
-                                  </label>
-                                </div>
-                              )}
-                            </div>
                           </div>
                         </div>
  
