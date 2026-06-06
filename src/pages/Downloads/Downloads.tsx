@@ -982,31 +982,55 @@ export default function Downloads() {
   };
 
   // Helper to render static vector logos or abbreviations
-  const renderOEMLogo = (name: string, logoUrl?: string, large?: boolean) => {
+  const renderOEMLogo = (name: string, logoUrl?: string, large?: boolean, huge?: boolean) => {
     if (logoUrl) {
+      if (huge) {
+        return <img src={logoUrl} alt={name} className="h-[144px] w-[288px] object-contain" />;
+      }
       return <img src={logoUrl} alt={name} className={large ? "h-28 w-56 object-contain" : "h-16 w-32 object-contain"} />;
     }
 
     const n = name.toLowerCase();
     if (n.includes('volkswagen') || n === 'vw') {
+      if (huge) {
+        return <div className="font-bold font-serif text-blue-900 border-[5px] border-blue-900 rounded-full flex items-center justify-center bg-blue-50/50 text-7xl w-32 h-32">W</div>;
+      }
       return <div className={cn("font-bold font-serif text-blue-900 border-4 border-blue-900 rounded-full flex items-center justify-center bg-blue-50/50", large ? "text-5xl w-24 h-24 border-[5px]" : "text-3xl w-16 h-16")}>W</div>;
     }
     if (n.includes('hyundai')) {
+      if (huge) {
+        return <div className="font-serif italic text-blue-800 font-black text-8xl leading-none">H</div>;
+      }
       return <div className={cn("font-serif italic text-blue-800 font-black", large ? "text-6xl" : "text-3xl")}>H</div>;
     }
     if (n.includes('nissan')) {
+      if (huge) {
+        return <div className="font-bold border-[3px] border-gray-800 rounded-full bg-slate-50 tracking-wider text-center text-4xl px-9 py-3 border-[4px]">NISSAN</div>;
+      }
       return <div className={cn("font-bold border-2 border-gray-800 rounded-full bg-slate-50 tracking-wider text-center", large ? "text-2xl px-6 py-2 border-[3px]" : "text-[14px] px-3 py-1")}>NISSAN</div>;
     }
     if (n.includes('renault')) {
+      if (huge) {
+        return <div className="border-[5px] border-yellow-500 transform rotate-45 bg-yellow-50/20 shrink-0 w-16 h-24"></div>;
+      }
       return <div className={cn("border-4 border-yellow-500 transform rotate-45 bg-yellow-50/20 shrink-0", large ? "w-12 h-18 border-[5px]" : "w-8 h-12")}></div>;
     }
     if (n.includes('scania')) {
+      if (huge) {
+        return <div className="font-black text-red-600 tracking-wide border-b-[4px] border-red-600 text-5xl">SCANIA</div>;
+      }
       return <div className={cn("font-black text-red-600 tracking-wide border-b-2 border-red-600", large ? "text-3xl border-b-[3px]" : "text-lg")}>SCANIA</div>;
     }
     if (n.includes('gestamp')) {
+      if (huge) {
+        return <div className="font-bold text-blue-700 tracking-tighter uppercase text-5xl">Gestamp</div>;
+      }
       return <div className={cn("font-bold text-blue-700 tracking-tighter uppercase", large ? "text-3xl" : "text-lg")}>Gestamp</div>;
     }
 
+    if (huge) {
+      return <div className="font-black text-slate-700 uppercase bg-slate-100 rounded text-6xl px-10 py-5">{name.substring(0, 2)}</div>;
+    }
     return <div className={cn("font-black text-slate-700 uppercase bg-slate-100 rounded", large ? "text-4xl px-6 py-3" : "text-2xl px-4 py-2")}>{name.substring(0, 2)}</div>;
   };
 
@@ -1041,7 +1065,7 @@ export default function Downloads() {
     const totalItems = orgComponentsCount + orgDocumentsCount + orgStandardsCount + orgChecklistsCount;
 
     return (
-      <div className="bg-white border border-slate-100 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-4 shadow-md relative overflow-hidden transition-all duration-300 hover:shadow-lg w-full mb-6">
+      <div className="bg-white border border-slate-100 rounded-2xl py-3 px-6 md:px-10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-4 shadow-md relative overflow-hidden transition-all duration-300 hover:shadow-lg w-full mb-6">
         {/* Top accent line */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-teal-600" />
         
@@ -1053,7 +1077,7 @@ export default function Downloads() {
 
         {/* Center: Brand Logo */}
         <div className="flex-1 flex justify-center items-center max-w-full relative z-10">
-          {renderOEMLogo(selectedOEMObj.name, selectedOEMObj.logoUrl, true)}
+          {renderOEMLogo(selectedOEMObj.name, selectedOEMObj.logoUrl, true, true)}
         </div>
 
         {/* Right: Indicators */}
