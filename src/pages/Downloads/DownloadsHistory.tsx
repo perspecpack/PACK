@@ -23,7 +23,17 @@ import { supabase } from '@/lib/supabase';
 
 export default function DownloadsHistory() {
   const navigate = useNavigate();
-  const { user, profile, downloadsLog, organizations, logPageAccess } = useApp();
+  const { 
+    user, 
+    profile, 
+    downloadsLog, 
+    organizations, 
+    components, 
+    documents, 
+    standards, 
+    checklists, 
+    logPageAccess 
+  } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modal states
@@ -39,6 +49,11 @@ export default function DownloadsHistory() {
   const [estimatedUsers, setEstimatedUsers] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
 
+  const [checklistExecutions, setChecklistExecutions] = useState<any[]>([]);
+  const [loadingChecklists, setLoadingChecklists] = useState(false);
+
+  const isPremium = profile?.planType === 'premium' || user?.role === 'master';
+
   React.useEffect(() => {
     logPageAccess('Fornecedor - Histórico de Downloads');
   }, [logPageAccess]);
@@ -51,6 +66,33 @@ export default function DownloadsHistory() {
       setEmail(profile.corporateEmail || '');
     }
   }, [profile, isRequestModalOpen]);
+
+  React.useEffect(() => {
+    async function fetchChecklistExecutions() {
+      if (!supabase || !user?.email) return;
+      setLoadingChecklists(true);
+      try {
+        const { data, error } = await supabase
+          .from('checklist_executions')
+          .select('*')
+          .eq('user_id', user.email)
+          .order('generated_at', { ascending: false });
+
+        if (error) throw error;
+        if (data) {
+          setChecklistExecutions(data);
+        }
+      } catch (err) {
+        console.error('Error fetching checklist executions:', err);
+      } finally {
+        setLoadingChecklists(false);
+      }
+    }
+
+    if (isPremium) {
+      fetchChecklistExecutions();
+    }
+  }, [user, isPremium]);
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,12 +136,60 @@ export default function DownloadsHistory() {
 
   const userLogs = downloadsLog.filter(log => log.user_id === user?.email);
 
-  const filteredLogs = userLogs.filter(log => {
-    const filename = log.file_name?.toLowerCase() || '';
-    const contentType = log.content_type?.toLowerCase() || '';
+  const getDownloadUrl = (type: string, contentId: string) => {
+    const t = type.toLowerCase();
+    if (t.includes('component')) {
+      const comp = components?.find(c => c.id === contentId);
+      if (!comp) return null;
+      if (t.includes('step')) return comp.stepFileUrl;
+      if (t.includes('pdf')) return comp.pdfFileUrl;
+      if (t.includes('dwg')) return comp.dwgFileUrl;
+      return null;
+    }
+    if (t.includes('caderno') || t.includes('encargo')) {
+      const doc = documents?.find(d => d.id === contentId);
+      return doc?.fileUrl || null;
+    }
+    if (t.includes('norma') || t.includes('padrão') || t.includes('documentação')) {
+      const std = standards?.find(s => s.id === contentId);
+      return std?.fileUrl || null;
+    }
+    return null;
+  };
+
+  const unifiedList = [
+    ...userLogs.map(log => ({
+      id: log.id,
+      date: log.download_date,
+      name: log.file_name,
+      type: log.content_type,
+      organizationId: log.organization_id,
+      isChecklist: false,
+      contentId: log.content_id,
+      fileUrl: getDownloadUrl(log.content_type, log.content_id),
+    })),
+    ...checklistExecutions.map(exec => {
+      const checklistName = checklists?.find(c => c.id === exec.checklist_id)?.name || 'Checklist de Validação';
+      const fileName = exec.pdf_url ? decodeURIComponent(exec.pdf_url.split('/').pop() || '') : `Relatorio_Conformidade_${checklistName.replace(/\s+/g, '_')}_${exec.validation_code}.pdf`;
+      return {
+        id: exec.id,
+        date: exec.generated_at,
+        name: fileName,
+        type: `Checklist (${exec.report_status || 'Auditoria'})`,
+        organizationId: exec.organization_id,
+        isChecklist: true,
+        contentId: exec.checklist_id,
+        fileUrl: exec.pdf_url,
+      };
+    })
+  ];
+
+  const filteredList = unifiedList.filter(item => {
+    const name = item.name?.toLowerCase() || '';
+    const type = item.type?.toLowerCase() || '';
     const term = searchTerm.toLowerCase();
-    return filename.includes(term) || contentType.includes(term);
-  });
+    return name.includes(term) || type.includes(term);
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const getOrgName = (orgId: string) => {
     return organizations.find(o => o.id === orgId)?.name || 'N/A';
@@ -107,6 +197,7 @@ export default function DownloadsHistory() {
 
   const getIcon = (type: string) => {
     const t = type.toLowerCase();
+    if (t.includes('checklist')) return <CheckCircle className="w-4 h-4 text-emerald-500" />;
     if (t.includes('step') || t.includes('component')) return <Layers className="w-4 h-4 text-indigo-500" />;
     if (t.includes('norma') || t.includes('padrão')) return <ShieldCheck className="w-4 h-4 text-purple-500" />;
     return <FileText className="w-4 h-4 text-teal-500" />;
@@ -121,8 +212,6 @@ export default function DownloadsHistory() {
       return dateStr;
     }
   };
-
-  const isPremium = profile?.planType === 'premium' || user?.role === 'master';
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12 font-sans animate-in fade-in duration-200">
@@ -147,7 +236,7 @@ export default function DownloadsHistory() {
       {showRequestSuccess && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in zoom-in-95 duration-200 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-inner shrink-0 text-emerald-500">
+            <div className="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-inner shrink-0">
               <CheckCircle className="w-5 h-5 text-[#00F59B]" />
             </div>
             <div>
@@ -184,15 +273,15 @@ export default function DownloadsHistory() {
             <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
                 <span className="text-emerald-500 font-bold shrink-0">✓</span>
-                <p className="text-slate-650"><strong className="text-slate-800">Rastreabilidade Completa:</strong> Acesse todas as datas, arquivos e organizações das normas baixadas.</p>
+                <p className="text-slate-655"><strong className="text-slate-805">Rastreabilidade Completa:</strong> Acesse todas as datas, arquivos e organizações das normas baixadas.</p>
               </div>
               <div className="flex items-start gap-2.5">
                 <span className="text-emerald-500 font-bold shrink-0">✓</span>
-                <p className="text-slate-650"><strong className="text-slate-800">Arquivos 3D STEP e Vetoriais:</strong> Habilite downloads ilimitados de componentes e CAD.</p>
+                <p className="text-slate-655"><strong className="text-slate-805">Arquivos 3D STEP e Vetoriais:</strong> Habilite downloads ilimitados de componentes e CAD.</p>
               </div>
               <div className="flex items-start gap-2.5">
                 <span className="text-emerald-500 font-bold shrink-0">✓</span>
-                <p className="text-slate-650"><strong className="text-slate-800">Checklists e Laudos:</strong> Crie, execute e exporte checklists de validação OEM.</p>
+                <p className="text-slate-655"><strong className="text-slate-805">Checklists e Laudos:</strong> Crie, execute e exporte checklists de validação OEM.</p>
               </div>
             </div>
           </div>
@@ -208,7 +297,7 @@ export default function DownloadsHistory() {
             <Button 
               onClick={() => navigate('/')}
               variant="outline"
-              className="w-full sm:w-auto bg-white border-slate-250 hover:border-slate-350 text-slate-700 font-bold h-11 px-6 text-xs rounded-xl animate-none"
+              className="w-full sm:w-auto bg-white border-slate-255 hover:border-slate-355 text-slate-700 font-bold h-11 px-6 text-xs rounded-xl animate-none"
             >
               Voltar ao Início
             </Button>
@@ -216,14 +305,14 @@ export default function DownloadsHistory() {
         </div>
       ) : (
         /* Normal Table View */
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in fade-in duration-150">
           {/* Header Filter */}
           <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
             <div className="relative w-full sm:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input 
                 type="text" 
-                placeholder="Pesquisar por nome de arquivo ou módulo..." 
+                placeholder="Pesquisar por nome de arquivo ou tipo..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 h-10 text-xs rounded-xl border-slate-300 focus:ring-teal-500 focus:border-teal-500 shadow-sm animate-none"
@@ -237,19 +326,26 @@ export default function DownloadsHistory() {
                 </button>
               )}
             </div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-              Total de Downloads: {userLogs.length}
-            </span>
+            {loadingChecklists ? (
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+                <span>Atualizando laudos...</span>
+              </div>
+            ) : (
+              <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider shrink-0 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                Total de Itens: {unifiedList.length}
+              </span>
+            )}
           </div>
 
           {/* Table / List */}
-          {filteredLogs.length === 0 ? (
+          {filteredList.length === 0 ? (
             <div className="text-center py-20 text-slate-400 space-y-3 font-medium">
               <div className="w-14 h-14 bg-slate-100 border border-slate-200/80 rounded-full flex items-center justify-center mx-auto shadow-inner text-slate-400">
                 <History className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-slate-700">Nenhum download encontrado</p>
+                <p className="text-sm font-bold text-slate-700">Nenhum registro encontrado</p>
                 <p className="text-xs text-slate-400">Tente buscar por termos diferentes ou realize downloads no catálogo.</p>
               </div>
             </div>
@@ -262,28 +358,47 @@ export default function DownloadsHistory() {
                     <th className="py-4 px-6">Arquivo</th>
                     <th className="py-4 px-6">Tipo</th>
                     <th className="py-4 px-6">Organização</th>
+                    <th className="py-4 px-6 text-right pr-8">Ação</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
-                  {filteredLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                  {filteredList.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="py-3.5 px-6 font-medium text-slate-500 whitespace-nowrap">
-                        {formatDate(log.download_date)}
+                        {formatDate(item.date)}
                       </td>
                       <td className="py-3.5 px-6 font-bold text-slate-800 break-all max-w-xs">
-                        {log.file_name}
+                        {item.name}
                       </td>
                       <td className="py-3.5 px-6">
                         <span className="inline-flex items-center gap-1.5 font-semibold text-slate-650 bg-slate-100/80 px-2.5 py-1 rounded-full border border-slate-200/60">
-                          {getIcon(log.content_type)}
-                          <span>{log.content_type}</span>
+                          {getIcon(item.type)}
+                          <span>{item.type}</span>
                         </span>
                       </td>
                       <td className="py-3.5 px-6">
                         <span className="inline-flex items-center gap-1.5 font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-100">
                           <Building2 className="w-3 h-3 text-teal-600" />
-                          <span>{getOrgName(log.organization_id)}</span>
+                          <span>{getOrgName(item.organizationId)}</span>
                         </span>
+                      </td>
+                      <td className="py-3.5 px-6 text-right pr-8">
+                        {item.fileUrl ? (
+                          <a 
+                            href={item.fileUrl}
+                            target="_blank" 
+                            rel="noreferrer"
+                            download={item.name}
+                            className="inline-flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 font-bold px-3 py-1.5 rounded-lg text-[11px] transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5 text-teal-600" />
+                            <span>Baixar</span>
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-medium italic">
+                            Indisponível
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
