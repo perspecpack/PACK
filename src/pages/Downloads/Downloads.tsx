@@ -1460,6 +1460,19 @@ export default function Downloads() {
               })}
             </div>
           )}
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 border-t border-slate-100 text-center sm:text-left mt-8">
+            <span className="text-slate-500 text-sm font-medium">Não encontrou a organização desejada?</span>
+            <Button 
+              onClick={() => navigate('/ajuda', { state: { defaultCategory: 'Solicitação de Conteúdo' } })}
+              variant="outline" 
+              size="sm"
+              className="bg-white border-slate-200 hover:bg-slate-50 hover:border-teal-500 text-slate-700 hover:text-teal-700 font-bold gap-2 rounded-xl transition-all"
+            >
+              <span>📩</span>
+              <span>Solicitar Conteúdo</span>
+            </Button>
+          </div>
         </section>
       )}
 
@@ -1527,6 +1540,18 @@ export default function Downloads() {
               </div>
             );
           })()}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 border-t border-slate-100 text-center sm:text-left mt-8">
+            <span className="text-slate-500 text-sm font-medium">Não encontrou a área técnica desejada?</span>
+            <Button 
+              onClick={() => navigate('/ajuda', { state: { defaultCategory: 'Solicitação de Conteúdo' } })}
+              variant="outline" 
+              size="sm"
+              className="bg-white border-slate-200 hover:bg-slate-50 hover:border-teal-500 text-slate-700 hover:text-teal-700 font-bold gap-2 rounded-xl transition-all"
+            >
+              <span>📩</span>
+              <span>Solicitar Conteúdo</span>
+            </Button>
+          </div>
         </section>
       )}
 
@@ -1818,6 +1843,19 @@ export default function Downloads() {
                   );
                 }
               })()}
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 border-t border-slate-100 text-center sm:text-left mt-8 w-full">
+                <span className="text-slate-500 text-sm font-medium">Não encontrou o componente desejado?</span>
+                <Button 
+                  onClick={() => navigate('/ajuda', { state: { defaultCategory: 'Solicitação de Conteúdo' } })}
+                  variant="outline" 
+                  size="sm"
+                  className="bg-white border-slate-200 hover:bg-slate-50 hover:border-teal-500 text-slate-700 hover:text-teal-700 font-bold gap-2 rounded-xl transition-all"
+                >
+                  <span>📩</span>
+                  <span>Solicitar Conteúdo</span>
+                </Button>
+              </div>
             </div>
           )}
 
@@ -1927,6 +1965,19 @@ export default function Downloads() {
                   );
                 }
               })()}
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 border-t border-slate-100 text-center sm:text-left mt-8 w-full">
+                <span className="text-slate-500 text-sm font-medium">Não encontrou o conteúdo desejado?</span>
+                <Button 
+                  onClick={() => navigate('/ajuda', { state: { defaultCategory: 'Solicitação de Conteúdo' } })}
+                  variant="outline" 
+                  size="sm"
+                  className="bg-white border-slate-200 hover:bg-slate-50 hover:border-teal-500 text-slate-700 hover:text-teal-700 font-bold gap-2 rounded-xl transition-all"
+                >
+                  <span>📩</span>
+                  <span>Solicitar Conteúdo</span>
+                </Button>
+              </div>
             </div>
           )}
 
@@ -2036,62 +2087,90 @@ export default function Downloads() {
                   );
                 }
               })()}
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 border-t border-slate-100 text-center sm:text-left mt-8 w-full">
+                <span className="text-slate-500 text-sm font-medium">Precisa de um documento específico?</span>
+                <Button 
+                  onClick={() => navigate('/ajuda', { state: { defaultCategory: 'Solicitação de Conteúdo' } })}
+                  variant="outline" 
+                  size="sm"
+                  className="bg-white border-slate-200 hover:bg-slate-50 hover:border-teal-500 text-slate-700 hover:text-teal-700 font-bold gap-2 rounded-xl transition-all"
+                >
+                  <span>📩</span>
+                  <span>Solicitar Conteúdo</span>
+                </Button>
+              </div>
             </div>
           )}
 
           {/* MODULE: CHECKLISTS DE VALIDAÇÃO */}
           {selectedModule === 'checklists' && (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full">
-              <Table>
-                <TableHeader className="bg-slate-50 border-b border-slate-200">
-                  <TableRow>
-                    <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Modelo de Checklist</TableHead>
-                    <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Requisitos de Conformidade</TableHead>
-                    <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px] text-center">Rev.</TableHead>
-                    <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[180px] text-right pr-6">Ação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    const filteredList = checklists.filter(c => 
-                      c.organizationId === selectedOEM && 
-                      c.technicalAreaId === selectedTechnicalArea &&
-                      c.status === 'active'
-                    );
+            <>
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full">
+                <Table>
+                  <TableHeader className="bg-slate-50 border-b border-slate-200">
+                    <TableRow>
+                      <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Modelo de Checklist</TableHead>
+                      <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11">Requisitos de Conformidade</TableHead>
+                      <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[80px] text-center">Rev.</TableHead>
+                      <TableHead className="text-[12px] font-bold text-slate-600 uppercase h-11 w-[180px] text-right pr-6">Ação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      const filteredList = checklists.filter(c => 
+                        c.organizationId === selectedOEM && 
+                        c.technicalAreaId === selectedTechnicalArea &&
+                        c.status === 'active'
+                      );
 
-                    if (filteredList.length === 0) {
-                      return (
-                        <TableRow>
-                          <TableCell colSpan={4} className="h-28 text-center text-slate-400 font-medium italic">
-                            Nenhum checklist disponível para esta área técnica nesta organização.
+                      if (filteredList.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={4} className="h-28 text-center text-slate-400 font-medium italic">
+                              Nenhum checklist disponível para esta área técnica nesta organização.
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
+                      return filteredList.map(chk => (
+                        <TableRow key={chk.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                          <TableCell className="align-middle font-bold text-[13px] text-slate-900">{chk.name}</TableCell>
+                          <TableCell className="align-middle text-[13px] text-slate-505">
+                            {chk.sections?.reduce((sum, s) => sum + (s.criteria?.length || 0), 0) || 0} critérios técnicos de inspeção
+                          </TableCell>
+                          <TableCell className="align-middle text-[12px] text-slate-700 font-bold font-mono text-center">{chk.revision}</TableCell>
+                          <TableCell className="align-middle text-right pr-6">
+                            <Button 
+                              onClick={() => startChecklistExecution(chk)}
+                              size="sm"
+                              className="bg-teal-600 hover:bg-teal-700 text-white font-bold h-8 px-4 rounded-lg text-xs flex gap-1 items-center ml-auto"
+                            >
+                              <ClipboardCheck className="w-4 h-4" />
+                              <span>Executar Inspeção</span>
+                            </Button>
                           </TableCell>
                         </TableRow>
-                      );
-                    }
+                      ));
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
 
-                    return filteredList.map(chk => (
-                      <TableRow key={chk.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                        <TableCell className="align-middle font-bold text-[13px] text-slate-900">{chk.name}</TableCell>
-                        <TableCell className="align-middle text-[13px] text-slate-500">
-                          {chk.sections?.reduce((sum, s) => sum + (s.criteria?.length || 0), 0) || 0} critérios técnicos de inspeção
-                        </TableCell>
-                        <TableCell className="align-middle text-[12px] text-slate-700 font-bold font-mono text-center">{chk.revision}</TableCell>
-                        <TableCell className="align-middle text-right pr-6">
-                          <Button 
-                            onClick={() => startChecklistExecution(chk)}
-                            size="sm"
-                            className="bg-teal-600 hover:bg-teal-700 text-white font-bold h-8 px-4 rounded-lg text-xs flex gap-1 items-center ml-auto"
-                          >
-                            <ClipboardCheck className="w-4 h-4" />
-                            <span>Executar Inspeção</span>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ));
-                  })()}
-                </TableBody>
-              </Table>
-            </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 border-t border-slate-100 text-center sm:text-left mt-8 w-full">
+                <span className="text-slate-500 text-sm font-medium">Precisa de um checklist específico?</span>
+                <Button 
+                  onClick={() => navigate('/ajuda', { state: { defaultCategory: 'Solicitação de Conteúdo' } })}
+                  variant="outline" 
+                  size="sm"
+                  className="bg-white border-slate-200 hover:bg-slate-50 hover:border-teal-500 text-slate-700 hover:text-teal-700 font-bold gap-2 rounded-xl transition-all"
+                >
+                  <span>📩</span>
+                  <span>Solicitar Conteúdo</span>
+                </Button>
+              </div>
+            </>
           )}
 
         </section>

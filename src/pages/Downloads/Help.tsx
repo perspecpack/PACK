@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   HelpCircle, 
   FileText, 
@@ -30,6 +30,7 @@ type SupportSubTabType = 'novo' | 'acompanhar';
 
 export default function Help() {
   const { user, profile, addSupportRequest, logPageAccess, supportRequests } = useApp();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabType>('suporte');
   const [supportSubTab, setSupportSubTab] = useState<SupportSubTabType>('novo');
 
@@ -40,6 +41,18 @@ export default function Help() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const state = location.state as { defaultCategory?: string } | null;
+    const searchParams = new URLSearchParams(location.search);
+    const categoryParam = searchParams.get('category') || state?.defaultCategory;
+
+    if (categoryParam) {
+      setCategory(categoryParam);
+      setActiveTab('suporte');
+      setSupportSubTab('novo');
+    }
+  }, [location]);
 
   // Expanded ticket ID state
   const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
@@ -397,7 +410,7 @@ export default function Help() {
                           <option value="Problema Técnico">Problema Técnico</option>
                           <option value="Sugestão de Melhoria">Sugestão de Melhoria</option>
                           <option value="Solicitação Comercial">Solicitação Comercial</option>
-                          <option value="Solicitação de Conteúdo">Solicitação de Conteúdo</option>
+                          <option value="Solicitação de Conteúdo">Solicitação de Novo Conteúdo</option>
                         </select>
                       </div>
 
