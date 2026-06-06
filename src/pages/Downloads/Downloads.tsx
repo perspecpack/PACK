@@ -1372,7 +1372,7 @@ export default function Downloads() {
               Nenhuma organização ativa disponível. Cadastre no painel master.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {activeOems.map((org) => {
                 const orgAreasCount = technicalAreas.filter(
                   area => area.organizationId === org.id && area.status === 'active' && area.isVisibleToUsers
@@ -1419,7 +1419,7 @@ export default function Downloads() {
                       {orgAreasCount > 0 && (
                         <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-900 bg-slate-50 border border-slate-100/70 w-full px-2.5 py-1.5 rounded-lg shadow-sm justify-start">
                           <span>📁</span>
-                          <span>{orgAreasCount} {orgAreasCount === 1 ? 'Área' : 'Áreas'}</span>
+                          <span>{orgAreasCount} {orgAreasCount === 1 ? 'Área Técnica' : 'Áreas Técnicas'}</span>
                         </div>
                       )}
 
@@ -1427,7 +1427,7 @@ export default function Downloads() {
                       {orgComponentsCount > 0 && (
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-semibold justify-start pl-1">
                           <span>🧩</span>
-                          <span>{orgComponentsCount} {orgComponentsCount === 1 ? 'Componente' : 'Componentes'}</span>
+                          <span>{orgComponentsCount} {orgComponentsCount === 1 ? 'Componente Homologado' : 'Componentes Homologados'}</span>
                         </div>
                       )}
 
@@ -1435,7 +1435,7 @@ export default function Downloads() {
                       {orgDocumentsCount > 0 && (
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-semibold justify-start pl-1">
                           <span>📘</span>
-                          <span>{orgDocumentsCount} {orgDocumentsCount === 1 ? 'Caderno' : 'Cadernos'}</span>
+                          <span>{orgDocumentsCount} {orgDocumentsCount === 1 ? 'Caderno de Encargos' : 'Cadernos de Encargos'}</span>
                         </div>
                       )}
 
@@ -1443,7 +1443,7 @@ export default function Downloads() {
                       {orgStandardsCount > 0 && (
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-semibold justify-start pl-1">
                           <span>📄</span>
-                          <span>{orgStandardsCount} {orgStandardsCount === 1 ? 'Documento' : 'Documentos'}</span>
+                          <span>{orgStandardsCount} {orgStandardsCount === 1 ? 'Documento Técnico' : 'Documentos Técnicos'}</span>
                         </div>
                       )}
 
@@ -1451,7 +1451,7 @@ export default function Downloads() {
                       {orgChecklistsCount > 0 && (
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-semibold justify-start pl-1">
                           <span>✅</span>
-                          <span>{orgChecklistsCount} {orgChecklistsCount === 1 ? 'Checklist' : 'Checklists'}</span>
+                          <span>{orgChecklistsCount} {orgChecklistsCount === 1 ? 'Checklist de Validação' : 'Checklists de Validação'}</span>
                         </div>
                       )}
                     </div>
