@@ -1319,12 +1319,76 @@ export default function Downloads() {
             <span>Voltar para Organizações</span>
           </button>
 
+          {/* CARD INSTITUCIONAL DA ORGANIZAÇÃO */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-8 md:p-10 flex flex-col items-center justify-center text-center shadow-md relative overflow-hidden transition-all duration-300 hover:shadow-lg">
+            {/* Soft background glow or decorative element for premium feel */}
+            <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[radial-gradient(#0f766e_1px,transparent_1px)] [background-size:16px_16px]" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-600" />
+            
+            <div className="h-28 flex items-center justify-center mb-6 max-w-full">
+              {renderOEMLogo(selectedOEMObj.name, selectedOEMObj.logoUrl, true)}
+            </div>
+            
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-wider uppercase mb-2">
+              {selectedOEMObj.name}
+            </h1>
+            
+            {/* INDICATORS (INFORMAÇÕES COMPLEMENTARES) */}
+            {(() => {
+              const orgAreas = technicalAreas.filter(
+                area => area.organizationId === selectedOEM && 
+                area.status === 'active' && 
+                area.isVisibleToUsers
+              );
+              
+              const areasCount = orgAreas.length;
+              
+              // Count all items in enabled modules for this OEM across all active technical areas
+              const orgComponentsCount = components.filter(
+                c => c.organizationId === selectedOEM && c.status === 'active'
+              ).length;
+
+              const orgDocumentsCount = documents.filter(
+                d => d.organizationId === selectedOEM && d.status === 'active'
+              ).length;
+
+              const orgStandardsCount = standards.filter(
+                s => s.organizationId === selectedOEM && s.status === 'active'
+              ).length;
+
+              const orgChecklistsCount = checklists.filter(
+                c => c.organizationId === selectedOEM && c.status === 'active'
+              ).length;
+              
+              const totalItems = orgComponentsCount + orgDocumentsCount + orgStandardsCount + orgChecklistsCount;
+
+              if (areasCount === 0 && totalItems === 0) return null;
+
+              return (
+                <div className="flex flex-wrap gap-3 mt-4 justify-center relative z-10">
+                  {areasCount > 0 && (
+                    <div className="bg-slate-50 border border-slate-200 text-slate-600 px-4 py-1.5 rounded-full text-[12px] font-semibold flex items-center gap-2 shadow-inner">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      <span>Áreas Técnicas Disponíveis: <strong className="text-slate-800 font-bold">{areasCount}</strong></span>
+                    </div>
+                  )}
+                  {totalItems > 0 && (
+                    <div className="bg-teal-50/60 border border-teal-100 text-teal-850 px-4 py-1.5 rounded-full text-[12px] font-semibold flex items-center gap-2 shadow-inner">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                      <span>Documentação Disponível: <strong className="text-teal-900 font-bold">{totalItems} {totalItems === 1 ? 'item' : 'itens'}</strong></span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
           <div className="space-y-1">
             <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight">
               Selecione uma Área Técnica
             </h2>
             <p className="text-slate-500 text-sm">
-              Escolha a área técnica para acessar padrões, documentos e checklists disponíveis na organização {selectedOEMName}.
+              Escolha a área desejada para acessar padrões, componentes homologados, documentação técnica e checklists de validação.
             </p>
           </div>
 
