@@ -1372,7 +1372,7 @@ export default function Downloads() {
               Nenhuma organização ativa disponível. Cadastre no painel master.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {activeOems.map((org) => {
                 const orgAreasCount = technicalAreas.filter(
                   area => area.organizationId === org.id && area.status === 'active' && area.isVisibleToUsers
@@ -1394,66 +1394,64 @@ export default function Downloads() {
                   c => c.organizationId === org.id && c.status === 'active'
                 ).length;
 
-                const formatNum = (num: number) => num < 10 ? `0${num}` : String(num);
-
                 return (
                   <button
                     key={org.id}
                     onClick={() => handleOrgClick(org.id)}
-                    className="bg-white border border-slate-200 hover:border-teal-400 rounded-2xl p-6 flex flex-col items-center text-center transition-all duration-200 hover:scale-[1.02] hover:shadow-lg shadow-sm cursor-pointer group gap-4 w-full"
+                    className="bg-white border border-slate-200 hover:border-teal-400 rounded-2xl p-4 flex flex-col items-center text-center transition-all duration-200 hover:scale-[1.02] hover:shadow-lg shadow-sm cursor-pointer group gap-2.5 w-full"
                   >
-                    <div className="h-28 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity">
-                      {renderOEMLogo(org.name, org.logoUrl, true)}
+                    <div className="h-16 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity">
+                      {renderOEMLogo(org.name, org.logoUrl, false)}
                     </div>
                     
-                    <div className="space-y-1">
-                      <h3 className="font-extrabold text-[15px] text-slate-800 group-hover:text-teal-600 transition-colors">
+                    <div className="space-y-0.5">
+                      <h3 className="font-extrabold text-[13px] text-slate-800 group-hover:text-teal-600 transition-colors">
                         {org.name}
                       </h3>
                     </div>
 
                     {/* Divider */}
-                    <div className="w-full border-t border-slate-100 my-1" />
+                    <div className="w-full border-t border-slate-100 my-0.5" />
 
                     {/* Indicators list (aligned left) */}
-                    <div className="w-full flex flex-col items-start gap-2.5 px-2">
+                    <div className="w-full flex flex-col items-start gap-1.5 px-1">
                       {/* Highlighted Technical Areas count */}
                       {orgAreasCount > 0 && (
-                        <div className="flex items-center gap-2.5 text-[13px] font-extrabold text-slate-900 bg-slate-50 border border-slate-100/70 w-full px-3 py-2 rounded-xl shadow-sm justify-start">
-                          <span className="text-[14px]">📁</span>
-                          <span>{orgAreasCount} {orgAreasCount === 1 ? 'Área Técnica' : 'Áreas Técnicas'}</span>
+                        <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-900 bg-slate-50 border border-slate-100/70 w-full px-2.5 py-1.5 rounded-lg shadow-sm justify-start">
+                          <span>📁</span>
+                          <span>{orgAreasCount} {orgAreasCount === 1 ? 'Área' : 'Áreas'}</span>
                         </div>
                       )}
 
                       {/* Componentes Homologados */}
                       {orgComponentsCount > 0 && (
-                        <div className="flex items-center gap-2.5 text-[12px] text-slate-600 font-semibold justify-start pl-1">
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-semibold justify-start pl-1">
                           <span>🧩</span>
-                          <span>{formatNum(orgComponentsCount)} Componentes Homologados</span>
+                          <span>{orgComponentsCount} {orgComponentsCount === 1 ? 'Componente' : 'Componentes'}</span>
                         </div>
                       )}
 
                       {/* Cadernos de Encargos */}
                       {orgDocumentsCount > 0 && (
-                        <div className="flex items-center gap-2.5 text-[12px] text-slate-600 font-semibold justify-start pl-1">
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-semibold justify-start pl-1">
                           <span>📘</span>
-                          <span>{formatNum(orgDocumentsCount)} Cadernos de Encargos</span>
+                          <span>{orgDocumentsCount} {orgDocumentsCount === 1 ? 'Caderno' : 'Cadernos'}</span>
                         </div>
                       )}
 
                       {/* Documentos Técnicos */}
                       {orgStandardsCount > 0 && (
-                        <div className="flex items-center gap-2.5 text-[12px] text-slate-600 font-semibold justify-start pl-1">
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-semibold justify-start pl-1">
                           <span>📄</span>
-                          <span>{formatNum(orgStandardsCount)} Documentos Técnicos</span>
+                          <span>{orgStandardsCount} {orgStandardsCount === 1 ? 'Documento' : 'Documentos'}</span>
                         </div>
                       )}
 
                       {/* Checklists de Validação */}
                       {orgChecklistsCount > 0 && (
-                        <div className="flex items-center gap-2.5 text-[12px] text-slate-600 font-semibold justify-start pl-1">
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-semibold justify-start pl-1">
                           <span>✅</span>
-                          <span>{formatNum(orgChecklistsCount)} Checklists de Validação</span>
+                          <span>{orgChecklistsCount} {orgChecklistsCount === 1 ? 'Checklist' : 'Checklists'}</span>
                         </div>
                       )}
                     </div>
