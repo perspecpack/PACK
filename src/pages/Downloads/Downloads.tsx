@@ -1374,19 +1374,88 @@ export default function Downloads() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeOems.map((org) => {
+                const orgAreasCount = technicalAreas.filter(
+                  area => area.organizationId === org.id && area.status === 'active' && area.isVisibleToUsers
+                ).length;
+                
+                const orgComponentsCount = components.filter(
+                  c => c.organizationId === org.id && c.status === 'active'
+                ).length;
+
+                const orgDocumentsCount = documents.filter(
+                  d => d.organizationId === org.id && d.status === 'active'
+                ).length;
+
+                const orgStandardsCount = standards.filter(
+                  s => s.organizationId === org.id && s.status === 'active'
+                ).length;
+
+                const orgChecklistsCount = checklists.filter(
+                  c => c.organizationId === org.id && c.status === 'active'
+                ).length;
+
+                const formatNum = (num: number) => num < 10 ? `0${num}` : String(num);
+
                 return (
                   <button
                     key={org.id}
                     onClick={() => handleOrgClick(org.id)}
-                    className="bg-white border border-slate-200 hover:border-teal-400 rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all duration-200 hover:scale-[1.02] hover:shadow-lg shadow-sm cursor-pointer group min-h-[260px] gap-6"
+                    className="bg-white border border-slate-200 hover:border-teal-400 rounded-2xl p-6 flex flex-col items-center text-center transition-all duration-200 hover:scale-[1.02] hover:shadow-lg shadow-sm cursor-pointer group gap-4 w-full"
                   >
-                    <div className="h-32 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity">
+                    <div className="h-28 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity">
                       {renderOEMLogo(org.name, org.logoUrl, true)}
                     </div>
-                    <div>
-                      <h3 className="font-bold text-[13px] text-slate-700 group-hover:text-teal-600 transition-colors">
+                    
+                    <div className="space-y-1">
+                      <h3 className="font-extrabold text-[15px] text-slate-800 group-hover:text-teal-600 transition-colors">
                         {org.name}
                       </h3>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="w-full border-t border-slate-100 my-1" />
+
+                    {/* Indicators list (aligned left) */}
+                    <div className="w-full flex flex-col items-start gap-2.5 px-2">
+                      {/* Highlighted Technical Areas count */}
+                      {orgAreasCount > 0 && (
+                        <div className="flex items-center gap-2.5 text-[13px] font-extrabold text-slate-900 bg-slate-50 border border-slate-100/70 w-full px-3 py-2 rounded-xl shadow-sm justify-start">
+                          <span className="text-[14px]">📁</span>
+                          <span>{orgAreasCount} {orgAreasCount === 1 ? 'Área Técnica' : 'Áreas Técnicas'}</span>
+                        </div>
+                      )}
+
+                      {/* Componentes Homologados */}
+                      {orgComponentsCount > 0 && (
+                        <div className="flex items-center gap-2.5 text-[12px] text-slate-600 font-semibold justify-start pl-1">
+                          <span>🧩</span>
+                          <span>{formatNum(orgComponentsCount)} Componentes Homologados</span>
+                        </div>
+                      )}
+
+                      {/* Cadernos de Encargos */}
+                      {orgDocumentsCount > 0 && (
+                        <div className="flex items-center gap-2.5 text-[12px] text-slate-600 font-semibold justify-start pl-1">
+                          <span>📘</span>
+                          <span>{formatNum(orgDocumentsCount)} Cadernos de Encargos</span>
+                        </div>
+                      )}
+
+                      {/* Documentos Técnicos */}
+                      {orgStandardsCount > 0 && (
+                        <div className="flex items-center gap-2.5 text-[12px] text-slate-600 font-semibold justify-start pl-1">
+                          <span>📄</span>
+                          <span>{formatNum(orgStandardsCount)} Documentos Técnicos</span>
+                        </div>
+                      )}
+
+                      {/* Checklists de Validação */}
+                      {orgChecklistsCount > 0 && (
+                        <div className="flex items-center gap-2.5 text-[12px] text-slate-600 font-semibold justify-start pl-1">
+                          <span>✅</span>
+                          <span>{formatNum(orgChecklistsCount)} Checklists de Validação</span>
+                        </div>
+                      )}
                     </div>
                   </button>
                 );
