@@ -48,7 +48,7 @@ interface DbProfile {
   main_interests: string[];
   main_interest_other?: string;
   profile_completed: boolean;
-  account_status: 'active' | 'pending' | 'blocked';
+  account_status: 'active' | 'pending' | 'blocked' | 'rejected';
   user_status?: 'active' | 'pending' | 'blocked' | 'rejected';
   plan_type: 'free' | 'premium';
   premium_until?: string | null;
@@ -1927,7 +1927,17 @@ export default function Users() {
                       </>
                     ) : (
                       <span>Gerar e Aplicar Senha</span>
-                          {/* DELETE USER CONFIRMATION MODAL */}
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* DELETE USER CONFIRMATION MODAL */}
       {deletingUser && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[440px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col animate-none">
