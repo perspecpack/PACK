@@ -1262,12 +1262,16 @@ export default function Downloads() {
                     {searchResults.components.map(comp => {
                       const orgName = organizations.find(o => o.id === comp.organizationId)?.name || 'N/A';
                       return (
-                        <div key={comp.id} className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 flex justify-between items-center gap-3">
+                        <div 
+                          key={comp.id} 
+                          onClick={() => setSelectedItemForModal({ type: 'component', data: comp })}
+                          className="border border-slate-100 hover:border-teal-500 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50/80 flex justify-between items-center gap-3 transition-all cursor-pointer group"
+                        >
                           <div>
                             <span className="text-[9px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded uppercase">
                               {orgName}
                             </span>
-                            <h4 className="font-bold text-[13px] text-slate-850 mt-1">{comp.name}</h4>
+                            <h4 className="font-bold text-[13px] text-slate-850 mt-1 group-hover:text-teal-700 transition-colors">{comp.name}</h4>
                             <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{comp.application || comp.description}</p>
                           </div>
                           <div className="flex gap-1 shrink-0">
@@ -1275,6 +1279,7 @@ export default function Downloads() {
                               <a 
                                 href={comp.stepFileUrl}
                                 onClick={(e) => {
+                                  e.stopPropagation();
                                   if (!(user?.role === 'master' || profile?.planType === 'premium')) {
                                     e.preventDefault();
                                     setShowUpgradeModal(true);
@@ -1291,6 +1296,7 @@ export default function Downloads() {
                               <a 
                                 href={comp.pdfFileUrl}
                                 onClick={(e) => {
+                                  e.stopPropagation();
                                   if (!(user?.role === 'master' || profile?.planType === 'premium')) {
                                     e.preventDefault();
                                     setShowUpgradeModal(true);
@@ -1322,7 +1328,11 @@ export default function Downloads() {
                     {searchResults.documents.map(doc => {
                       const orgName = organizations.find(o => o.id === doc.organizationId)?.name || 'N/A';
                       return (
-                        <div key={doc.id} className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 flex justify-between items-center gap-3">
+                        <div 
+                          key={doc.id} 
+                          onClick={() => setSelectedItemForModal({ type: 'document', data: doc })}
+                          className="border border-slate-100 hover:border-teal-500 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50/80 flex justify-between items-center gap-3 transition-all cursor-pointer group"
+                        >
                           <div>
                             <span className="text-[9px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded uppercase mr-1.5">
                               {orgName}
@@ -1330,13 +1340,16 @@ export default function Downloads() {
                             <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase">
                               {doc.documentType}
                             </span>
-                            <h4 className="font-bold text-[13px] text-slate-850 mt-1">{doc.title}</h4>
+                            <h4 className="font-bold text-[13px] text-slate-850 mt-1 group-hover:text-teal-700 transition-colors">{doc.title}</h4>
                             <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{doc.description}</p>
                           </div>
                           {doc.fileUrl && (
                             <a 
                               href={doc.fileUrl}
-                              onClick={() => logDownload(doc.organizationId, 'Caderno de Encargos', doc.id, doc.fileName || 'doc.pdf')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                logDownload(doc.organizationId, 'Caderno de Encargos', doc.id, doc.fileName || 'doc.pdf');
+                              }}
                               className="bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] px-2 py-1.5 rounded font-bold shrink-0 border border-teal-100"
                             >
                               Download
@@ -1360,7 +1373,11 @@ export default function Downloads() {
                     {searchResults.standards.map(std => {
                       const orgName = organizations.find(o => o.id === std.organizationId)?.name || 'N/A';
                       return (
-                        <div key={std.id} className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 flex justify-between items-center gap-3">
+                        <div 
+                          key={std.id} 
+                          onClick={() => setSelectedItemForModal({ type: 'standard', data: std })}
+                          className="border border-slate-100 hover:border-teal-500 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50/80 flex justify-between items-center gap-3 transition-all cursor-pointer group"
+                        >
                           <div>
                             <span className="text-[9px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded uppercase mr-1.5">
                               {orgName}
@@ -1368,13 +1385,14 @@ export default function Downloads() {
                             <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase">
                               {std.standardType}
                             </span>
-                            <h4 className="font-bold text-[13px] text-slate-850 mt-1">{std.title}</h4>
+                            <h4 className="font-bold text-[13px] text-slate-850 mt-1 group-hover:text-teal-700 transition-colors">{std.title}</h4>
                             <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{std.description}</p>
                           </div>
                           {std.fileUrl && (
                             <a 
                               href={std.fileUrl}
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 logDownload(std.organizationId, 'Documentação Técnica', std.id, std.fileName || 'norma.pdf');
                               }}
                               className="bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] px-2 py-1.5 rounded font-bold shrink-0 border border-teal-100"
