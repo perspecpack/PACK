@@ -109,6 +109,9 @@ export default function Users() {
   const [viewingUser, setViewingUser] = useState<DbProfile | null>(null);
   const [editingUser, setEditingUser] = useState<DbProfile | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<DbProfile | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Temporary Password State
   const [resettingPasswordUser, setResettingPasswordUser] = useState<DbProfile | null>(null);
@@ -357,29 +360,42 @@ export default function Users() {
     }
   };
 
-  const handleDeleteUser = async (targetUser: DbProfile) => {
-    const confirmDelete = window.confirm(`ATENÇÃO: Tem certeza que deseja excluir permanentemente o usuário ${targetUser.full_name || 'Sem Nome'} (${targetUser.corporate_email}) e todos os seus dados? Esta ação não pode ser desfeita.`);
-    if (!confirmDelete) return;
+  const openDeleteModal = (targetUser: DbProfile) => {
+    setDeletingUser(targetUser);
+    setDeleteConfirmationText('');
+    setIsDeleting(false);
+  };
 
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    if (deleteConfirmationText.trim().toUpperCase() !== 'EXCLUIR') {
+      alert('Por favor, digite EXCLUIR para confirmar.');
+      return;
+    }
+
+    setIsDeleting(true);
     try {
       if (!supabase) throw new Error('Cliente Supabase não inicializado.');
       
       const { error } = await supabase.rpc('delete_user_by_admin', {
-        target_user_id: targetUser.user_id
+        target_user_id: deletingUser.user_id
       });
 
       if (error) throw error;
 
-      alert('Usuário excluído com sucesso!');
+      alert('Usuário excluído definitivamente com sucesso!');
       
       // Update local state
-      setUsers(prev => prev.filter(u => u.user_id !== targetUser.user_id));
-      if (viewingUser?.user_id === targetUser.user_id) {
+      setUsers(prev => prev.filter(u => u.user_id !== deletingUser.user_id));
+      if (viewingUser?.user_id === deletingUser.user_id) {
         setViewingUser(null);
       }
+      setDeletingUser(null);
     } catch (err: any) {
       console.error('Error deleting user:', err);
       alert('Erro ao excluir usuário: ' + err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -850,7 +866,7 @@ export default function Users() {
 
                               {/* Delete User */}
                               <button
-                                onClick={() => handleDeleteUser(profile)}
+                                onClick={() => openDeleteModal(profile)}
                                 title="Excluir Usuário"
                                 className="text-rose-600 hover:text-rose-800 p-1.5 hover:bg-rose-50 rounded-lg transition-all"
                               >
@@ -1829,6 +1845,92 @@ export default function Users() {
                   </Button>
                 </>
               )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* DELETE USER CONFIRMATION MODAL */}
+      {deletingUser && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[440px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col animate-none">
+            
+            {/* Header */}
+            <div className="bg-[#5b0f19] text-white p-5 border-b border-[#731622] flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-rose-400" />
+                <span>Excluir usuário definitivamente?</span>
+              </h3>
+              <button 
+                onClick={() => setDeletingUser(null)}
+                className="text-rose-200 hover:text-white hover:bg-rose-955/50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                disabled={isDeleting}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 text-left">
+              <p className="text-xs text-slate-650 leading-relaxed font-medium">
+                Esta ação removerá permanentemente todos os dados relacionados a este usuário, incluindo cadastro, histórico de downloads, checklists, relatórios e solicitações. Esta ação não poderá ser desfeita.
+              </p>
+              
+              <div className="bg-rose-50/50 border border-rose-100 rounded-xl p-3.5 flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">Usuário a ser excluído:</span>
+                <div className="text-xs text-rose-950 font-semibold leading-normal">
+                  <span className="font-bold text-[13px]">{deletingUser.full_name || 'Sem Nome'}</span>
+                  <span className="block text-[11px] text-slate-500 font-medium mt-0.5">{deletingUser.corporate_email}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="delete-confirm-input" className="text-[11px] font-bold text-slate-700 block">
+                  Digite <span className="text-rose-600 font-extrabold uppercase">EXCLUIR</span> para confirmar:
+                </Label>
+                <Input
+                  id="delete-confirm-input"
+                  type="text"
+                  placeholder="Digite EXCLUIR"
+                  value={deleteConfirmationText}
+                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                  className="h-10 text-xs rounded-xl border-slate-300 shadow-inner w-full font-semibold focus-visible:ring-rose-500"
+                  disabled={isDeleting}
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+              <Button 
+                variant="outline"
+                onClick={() => setDeletingUser(null)}
+                className="bg-white border-slate-250 text-slate-700 text-xs font-semibold h-10 px-5 rounded-xl"
+                disabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleDeleteUser}
+                className={cn(
+                  "text-white text-xs font-bold h-10 px-6 rounded-xl flex items-center gap-1.5 justify-center transition-all",
+                  deleteConfirmationText.trim().toUpperCase() === 'EXCLUIR' 
+                    ? "bg-rose-600 hover:bg-rose-700 cursor-pointer shadow-md"
+                    : "bg-slate-350 cursor-not-allowed text-slate-500"
+                )}
+                disabled={isDeleting || deleteConfirmationText.trim().toUpperCase() !== 'EXCLUIR'}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <span>Excluir Definitivamente</span>
+                )}
+              </Button>
             </div>
 
           </div>
