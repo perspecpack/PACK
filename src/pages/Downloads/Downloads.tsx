@@ -1116,21 +1116,23 @@ export default function Downloads() {
     
     const areasCount = orgAreas.length;
     
+    const activeTechAreaIds = orgAreas.map(a => a.id);
+    
     // Count all items in enabled modules for this OEM across all active technical areas
     const orgComponentsCount = components.filter(
-      c => c.organizationId === selectedOEM && c.status === 'active'
+      c => c.organizationId === selectedOEM && c.status === 'active' && c.technicalAreaId && activeTechAreaIds.includes(c.technicalAreaId)
     ).length;
 
     const orgDocumentsCount = documents.filter(
-      d => d.organizationId === selectedOEM && d.status === 'active'
+      d => d.organizationId === selectedOEM && d.status === 'active' && d.technicalAreaId && activeTechAreaIds.includes(d.technicalAreaId)
     ).length;
 
     const orgStandardsCount = standards.filter(
-      s => s.organizationId === selectedOEM && s.status === 'active'
+      s => s.organizationId === selectedOEM && s.status === 'active' && s.technicalAreaId && activeTechAreaIds.includes(s.technicalAreaId)
     ).length;
 
     const orgChecklistsCount = checklists.filter(
-      c => c.organizationId === selectedOEM && c.status === 'active'
+      c => c.organizationId === selectedOEM && c.status === 'active' && c.technicalAreaId && activeTechAreaIds.includes(c.technicalAreaId)
     ).length;
     
     const totalItems = orgComponentsCount + orgDocumentsCount + orgStandardsCount + orgChecklistsCount;
@@ -1463,24 +1465,26 @@ export default function Downloads() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {activeOems.map((org) => {
-                const orgAreasCount = technicalAreas.filter(
+                const orgAreas = technicalAreas.filter(
                   area => area.organizationId === org.id && area.status === 'active' && area.isVisibleToUsers
-                ).length;
+                );
+                const orgAreasCount = orgAreas.length;
+                const activeTechAreaIds = orgAreas.map(a => a.id);
                 
                 const orgComponentsCount = components.filter(
-                  c => c.organizationId === org.id && c.status === 'active'
+                  c => c.organizationId === org.id && c.status === 'active' && c.technicalAreaId && activeTechAreaIds.includes(c.technicalAreaId)
                 ).length;
 
                 const orgDocumentsCount = documents.filter(
-                  d => d.organizationId === org.id && d.status === 'active'
+                  d => d.organizationId === org.id && d.status === 'active' && d.technicalAreaId && activeTechAreaIds.includes(d.technicalAreaId)
                 ).length;
 
                 const orgStandardsCount = standards.filter(
-                  s => s.organizationId === org.id && s.status === 'active'
+                  s => s.organizationId === org.id && s.status === 'active' && s.technicalAreaId && activeTechAreaIds.includes(s.technicalAreaId)
                 ).length;
 
                 const orgChecklistsCount = checklists.filter(
-                  c => c.organizationId === org.id && c.status === 'active'
+                  c => c.organizationId === org.id && c.status === 'active' && c.technicalAreaId && activeTechAreaIds.includes(c.technicalAreaId)
                 ).length;
 
                 return (
