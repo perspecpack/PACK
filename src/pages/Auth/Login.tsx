@@ -23,12 +23,12 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [pendingStatusMsg, setPendingStatusMsg] = useState<'pending' | 'rejected' | 'expired_reset' | null>(null);
+  const [pendingStatusMsg, setPendingStatusMsg] = useState<'pending' | 'rejected' | 'expired_reset' | 'blocked' | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const statusParam = params.get('status');
-    if (statusParam === 'pending' || statusParam === 'rejected' || statusParam === 'expired_reset') {
+    if (statusParam === 'pending' || statusParam === 'rejected' || statusParam === 'expired_reset' || statusParam === 'blocked') {
       setPendingStatusMsg(statusParam as any);
     }
   }, []);
@@ -200,6 +200,11 @@ export default function Login() {
         setPendingStatusMsg('rejected');
         setIsSubmitting(false);
         return;
+      } else if (status === 'blocked') {
+        await supabase.auth.signOut();
+        setPendingStatusMsg('blocked');
+        setIsSubmitting(false);
+        return;
       }
 
       // 3. Login succeeded & user is active -> set session in AppContext
@@ -341,6 +346,39 @@ export default function Login() {
                   <span className="block">
                     E-mail: <a href="mailto:perspecpack@gmail.com" className="text-teal-700 font-bold hover:underline font-mono">perspecpack@gmail.com</a>
                   </span>
+                </div>
+              </div>
+            )}
+
+            {pendingStatusMsg === 'blocked' && (
+              <div className="bg-rose-50 border border-rose-250 text-rose-900 text-xs font-semibold p-4.5 rounded-xl space-y-3.5 animate-in fade-in duration-200 text-left">
+                <div className="flex items-center gap-2 text-rose-700">
+                  <AlertTriangle className="w-4.5 h-4.5 shrink-0" />
+                  <span className="font-extrabold text-[14px]">Acesso bloqueado</span>
+                </div>
+                <p className="leading-relaxed text-slate-700 text-[12px] font-medium">
+                  Seu acesso à plataforma PERSPECPACK foi bloqueado pela administração.
+                </p>
+                <p className="leading-relaxed text-slate-500 text-[11px] font-semibold">
+                  Para mais informações, entre em contato com o suporte técnico.
+                </p>
+                <div className="pt-2.5 border-t border-rose-200/55 space-y-1.5 text-slate-600 font-medium">
+                  <span className="block">
+                    WhatsApp: <a href="https://wa.me/5514998892017" target="_blank" rel="noreferrer" className="text-teal-700 font-bold hover:underline font-mono">(14) 99889-2017</a>
+                  </span>
+                  <span className="block">
+                    E-mail: <a href="mailto:perspecpack@gmail.com" className="text-teal-700 font-bold hover:underline font-mono">perspecpack@gmail.com</a>
+                  </span>
+                </div>
+                <div className="pt-1.5">
+                  <a
+                    href="https://wa.me/5514998892017?text=Olá,%20meu%20acesso%20à%20plataforma%20PERSPECPACK%20foi%20bloqueado.%20Gostaria%20de%20obter%20mais%20informações."
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-750 text-white text-[12px] font-bold transition-all flex items-center justify-center gap-2 shadow-sm rounded-xl cursor-pointer text-center"
+                  >
+                    Falar com Suporte
+                  </a>
                 </div>
               </div>
             )}

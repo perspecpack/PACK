@@ -49,6 +49,7 @@ interface DbProfile {
   main_interest_other?: string;
   profile_completed: boolean;
   account_status: 'active' | 'pending' | 'blocked';
+  user_status?: 'active' | 'pending' | 'blocked' | 'rejected';
   plan_type: 'free' | 'premium';
   premium_until?: string | null;
   created_at: string;
@@ -103,7 +104,7 @@ export default function Users() {
   // Filtering & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [planFilter, setPlanFilter] = useState<'all' | 'free' | 'premium'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'blocked'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'blocked' | 'rejected'>('all');
 
   // Modals
   const [viewingUser, setViewingUser] = useState<DbProfile | null>(null);
@@ -112,6 +113,8 @@ export default function Users() {
   const [deletingUser, setDeletingUser] = useState<DbProfile | null>(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [blockingUser, setBlockingUser] = useState<DbProfile | null>(null);
+  const [unblockingUser, setUnblockingUser] = useState<DbProfile | null>(null);
 
   // Temporary Password State
   const [resettingPasswordUser, setResettingPasswordUser] = useState<DbProfile | null>(null);
@@ -320,7 +323,6 @@ export default function Users() {
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
-        .eq('user_status', 'active')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -333,7 +335,7 @@ export default function Users() {
     }
   };
 
-  const handleUpdateStatus = async (userId: string, status: 'active' | 'pending' | 'blocked') => {
+  const handleUpdateStatus = async (userId: string, status: 'active' | 'pending' | 'blocked' | 'rejected') => {
     try {
       if (!supabase) return;
       
@@ -342,18 +344,31 @@ export default function Users() {
           target_user_id: userId
         });
         if (error) throw error;
+        
+        // Garante que o status no perfil seja ativado
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .update({
+            user_status: 'active',
+            account_status: 'active'
+          })
+          .eq('user_id', userId);
+        if (profileError) throw profileError;
       } else {
         const { error } = await supabase
           .from('user_profiles')
-          .update({ account_status: status })
+          .update({ 
+            user_status: status,
+            account_status: status 
+          })
           .eq('user_id', userId);
         if (error) throw error;
       }
       
       // Update local state
-      setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, account_status: status } : u));
+      setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, user_status: status, account_status: status } : u));
       if (viewingUser?.user_id === userId) {
-        setViewingUser(prev => prev ? { ...prev, account_status: status } : null);
+        setViewingUser(prev => prev ? { ...prev, user_status: status, account_status: status } : null);
       }
     } catch (err: any) {
       alert('Erro ao atualizar status: ' + err.message);
@@ -396,6 +411,62 @@ export default function Users() {
       alert('Erro ao excluir usuário: ' + err.message);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleConfirmBlock = async () => {
+    if (!blockingUser) return;
+    setIsUpdatingStatus(true);
+    try {
+      if (!supabase) throw new Error('Cliente Supabase não inicializado.');
+      
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ 
+          user_status: 'blocked',
+          account_status: 'blocked'
+        })
+        .eq('user_id', blockingUser.user_id);
+        
+      if (error) throw error;
+      
+      alert('Usuário bloqueado com sucesso.');
+      
+      // Update local state
+      setUsers(prev => prev.map(u => u.user_id === blockingUser.user_id ? { ...u, user_status: 'blocked', account_status: 'blocked' } : u));
+      setBlockingUser(null);
+    } catch (err: any) {
+      alert('Erro ao bloquear usuário: ' + err.message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleConfirmUnblock = async () => {
+    if (!unblockingUser) return;
+    setIsUpdatingStatus(true);
+    try {
+      if (!supabase) throw new Error('Cliente Supabase não inicializado.');
+      
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ 
+          user_status: 'active',
+          account_status: 'active'
+        })
+        .eq('user_id', unblockingUser.user_id);
+        
+      if (error) throw error;
+      
+      alert('Usuário desbloqueado com sucesso.');
+      
+      // Update local state
+      setUsers(prev => prev.map(u => u.user_id === unblockingUser.user_id ? { ...u, user_status: 'active', account_status: 'active' } : u));
+      setUnblockingUser(null);
+    } catch (err: any) {
+      alert('Erro ao desbloquear usuário: ' + err.message);
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -564,7 +635,7 @@ export default function Users() {
     const matchesPlan = planFilter === 'all' || u.plan_type === planFilter;
 
     // Status Filter
-    const matchesStatus = statusFilter === 'all' || u.account_status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || (u.user_status || u.account_status) === statusFilter;
 
     return matchesSearch && matchesPlan && matchesStatus;
   });
@@ -691,8 +762,9 @@ export default function Users() {
               >
                 <option value="all">Todos os Status</option>
                 <option value="active">Ativo</option>
-                <option value="pending">Pendente</option>
                 <option value="blocked">Bloqueado</option>
+                <option value="pending">Pendente</option>
+                <option value="rejected">Rejeitado</option>
               </select>
 
               <Button 
@@ -774,21 +846,29 @@ export default function Users() {
                             </div>
                           </td>
 
-                          {/* Status */}
-                          <td className="py-3.5 px-6">
-                            <span className={cn(
-                              "inline-flex items-center px-2 py-0.5 rounded text-[9.5px] font-bold uppercase border",
-                              profile.account_status === 'active'
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : profile.account_status === 'pending'
-                                ? "bg-amber-50 text-amber-700 border-amber-250"
-                                : "bg-rose-50 text-rose-700 border-rose-200"
-                            )}>
-                              {profile.account_status === 'active' && 'Ativo'}
-                              {profile.account_status === 'pending' && 'Pendente'}
-                              {profile.account_status === 'blocked' && 'Bloqueado'}
-                            </span>
-                          </td>
+                           {/* Status */}
+                           <td className="py-3.5 px-6">
+                             {(() => {
+                               const status = profile.user_status || (profile.account_status as any) || 'pending';
+                               return (
+                                 <span className={cn(
+                                   "inline-flex items-center px-2 py-0.5 rounded text-[9.5px] font-bold uppercase border",
+                                   status === 'active'
+                                     ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                     : status === 'pending'
+                                     ? "bg-amber-55 text-amber-700 border-amber-250"
+                                     : status === 'blocked'
+                                     ? "bg-rose-50 text-rose-700 border-rose-200"
+                                     : "bg-slate-100 text-slate-650 border-slate-200" // rejected
+                                 )}>
+                                   {status === 'active' && 'ATIVO'}
+                                   {status === 'blocked' && 'BLOQUEADO'}
+                                   {status === 'pending' && 'PENDENTE'}
+                                   {status === 'rejected' && 'REJEITADO'}
+                                 </span>
+                               );
+                             })()}
+                           </td>
 
                           {/* Date */}
                           <td className="py-3.5 px-6 font-mono text-slate-500 whitespace-nowrap">
@@ -819,21 +899,21 @@ export default function Users() {
                               )}
 
                               {/* Block/Activate */}
-                              {profile.account_status === 'active' ? (
+                              {((profile.user_status || profile.account_status) === 'blocked') ? (
                                 <button
-                                  onClick={() => handleUpdateStatus(profile.user_id, 'blocked')}
+                                  onClick={() => setUnblockingUser(profile)}
+                                  title="Desbloquear Usuário"
+                                  className="text-emerald-600 hover:text-emerald-700 p-1.5 hover:bg-emerald-50 rounded-lg transition-all"
+                                >
+                                  <CheckCircle className="w-4.5 h-4.5" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setBlockingUser(profile)}
                                   title="Bloquear Usuário"
                                   className="text-rose-500 hover:text-rose-700 p-1.5 hover:bg-rose-50 rounded-lg transition-all"
                                 >
                                   <Ban className="w-4.5 h-4.5" />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleUpdateStatus(profile.user_id, 'active')}
-                                  title="Ativar Usuário"
-                                  className="text-emerald-600 hover:text-emerald-700 p-1.5 hover:bg-emerald-50 rounded-lg transition-all"
-                                >
-                                  <CheckCircle className="w-4.5 h-4.5" />
                                 </button>
                               )}
 
@@ -1253,19 +1333,25 @@ export default function Users() {
                   </Button>
                 )}
 
-                {viewingUser.account_status === 'active' ? (
+                {(viewingUser.user_status || viewingUser.account_status) === 'blocked' ? (
                   <Button 
-                    onClick={() => handleUpdateStatus(viewingUser.user_id, 'blocked')}
-                    className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold h-9 px-4 rounded-xl"
+                    onClick={() => {
+                      setUnblockingUser(viewingUser);
+                      setViewingUser(null);
+                    }}
+                    className="bg-emerald-650 hover:bg-emerald-750 text-white text-xs font-bold h-9 px-4 rounded-xl"
                   >
-                    Bloquear Usuário
+                    Desbloquear Usuário
                   </Button>
                 ) : (
                   <Button 
-                    onClick={() => handleUpdateStatus(viewingUser.user_id, 'active')}
-                    className="bg-emerald-650 hover:bg-emerald-700 text-white text-xs font-bold h-9 px-4 rounded-xl"
+                    onClick={() => {
+                      setBlockingUser(viewingUser);
+                      setViewingUser(null);
+                    }}
+                    className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold h-9 px-4 rounded-xl"
                   >
-                    Ativar Usuário
+                    Bloquear Usuário
                   </Button>
                 )}
 
@@ -1841,17 +1927,7 @@ export default function Users() {
                       </>
                     ) : (
                       <span>Gerar e Aplicar Senha</span>
-                    )}
-                  </Button>
-                </>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* DELETE USER CONFIRMATION MODAL */}
+                          {/* DELETE USER CONFIRMATION MODAL */}
       {deletingUser && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[440px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col animate-none">
@@ -1929,6 +2005,136 @@ export default function Users() {
                   </>
                 ) : (
                   <span>Excluir Definitivamente</span>
+                )}
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* BLOCK USER CONFIRMATION MODAL */}
+      {blockingUser && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[440px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col animate-none">
+            
+            {/* Header */}
+            <div className="bg-[#5b0f19] text-white p-5 border-b border-[#731622] flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <Ban className="w-5 h-5 text-rose-455" />
+                <span>Bloquear usuário?</span>
+              </h3>
+              <button 
+                onClick={() => setBlockingUser(null)}
+                className="text-rose-205 hover:text-white hover:bg-rose-955/50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                disabled={isUpdatingStatus}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 text-left">
+              <p className="text-xs text-slate-655 leading-relaxed font-semibold">
+                Este usuário perderá imediatamente o acesso à plataforma. Seus dados, históricos, downloads, checklists e relatórios serão mantidos.
+              </p>
+              
+              <div className="bg-rose-50/40 border border-rose-100 rounded-xl p-3.5 flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">Usuário a ser bloqueado:</span>
+                <div className="text-xs text-rose-950 font-semibold leading-normal">
+                  <span className="font-bold text-[13px]">{blockingUser.full_name || 'Sem Nome'}</span>
+                  <span className="block text-[11px] text-slate-500 font-medium mt-0.5">{blockingUser.corporate_email}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+              <Button 
+                variant="outline"
+                onClick={() => setBlockingUser(null)}
+                className="bg-white border-slate-250 text-slate-700 text-xs font-semibold h-10 px-5 rounded-xl animate-none"
+                disabled={isUpdatingStatus}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleConfirmBlock}
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold h-10 px-6 rounded-xl flex items-center gap-1.5 justify-center cursor-pointer shadow-md"
+                disabled={isUpdatingStatus}
+              >
+                {isUpdatingStatus ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Bloqueando...</span>
+                  </>
+                ) : (
+                  <span>Bloquear Usuário</span>
+                )}
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* UNBLOCK USER CONFIRMATION MODAL */}
+      {unblockingUser && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-[440px] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col animate-none">
+            
+            {/* Header */}
+            <div className="bg-[#06242c] text-white p-5 border-b border-teal-950 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-[#00F59B]" />
+                <span>Desbloquear usuário?</span>
+              </h3>
+              <button 
+                onClick={() => setUnblockingUser(null)}
+                className="text-slate-300 hover:text-white hover:bg-teal-950/50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                disabled={isUpdatingStatus}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 text-left">
+              <p className="text-xs text-slate-655 leading-relaxed font-semibold">
+                Este usuário voltará a ter acesso à plataforma conforme seu plano atual.
+              </p>
+              
+              <div className="bg-teal-50/40 border border-teal-100/50 rounded-xl p-3.5 flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider">Usuário a ser desbloqueado:</span>
+                <div className="text-xs text-teal-950 font-semibold leading-normal">
+                  <span className="font-bold text-[13px]">{unblockingUser.full_name || 'Sem Nome'}</span>
+                  <span className="block text-[11px] text-slate-500 font-medium mt-0.5">{unblockingUser.corporate_email}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+              <Button 
+                variant="outline"
+                onClick={() => setUnblockingUser(null)}
+                className="bg-white border-slate-250 text-slate-700 text-xs font-semibold h-10 px-5 rounded-xl animate-none"
+                disabled={isUpdatingStatus}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleConfirmUnblock}
+                className="bg-teal-650 hover:bg-teal-750 text-white text-xs font-bold h-10 px-6 rounded-xl flex items-center gap-1.5 justify-center cursor-pointer shadow-md"
+                disabled={isUpdatingStatus}
+              >
+                {isUpdatingStatus ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Desbloqueando...</span>
+                  </>
+                ) : (
+                  <span>Desbloquear Usuário</span>
                 )}
               </Button>
             </div>
