@@ -307,12 +307,14 @@ export default function Downloads() {
 
   // Get active modules for selected OEM and Technical Area (only components, documentation, standards, checklists)
   const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
-  const activeModules = organizationModules.filter(m => 
-    m.organizationId === selectedOEM && 
-    m.technicalAreaId === selectedTechnicalArea &&
-    m.enabled && 
-    allowedModules.includes(m.moduleType)
-  );
+  const activeModules = organizationModules
+    .filter(m => 
+      m.organizationId === selectedOEM && 
+      m.technicalAreaId === selectedTechnicalArea &&
+      m.enabled && 
+      allowedModules.includes(m.moduleType)
+    )
+    .sort((a, b) => allowedModules.indexOf(a.moduleType) - allowedModules.indexOf(b.moduleType));
 
   // Helper to get real records count per module scoped to technical area
   const getRecordCount = (moduleType: ModuleType) => {
