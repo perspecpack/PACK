@@ -227,13 +227,6 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
   if (!isStl) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center relative min-h-[350px] bg-gradient-to-br from-slate-50 to-slate-200 rounded-2xl overflow-hidden border border-slate-200/80 shadow-lg text-left">
-        <span className="absolute bottom-5 left-5 bg-[#0c3944]/80 text-[#00F59B] text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-teal-500/20 uppercase tracking-wider z-10 flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-          </span>
-          VISUALIZAÇÃO 3D
-        </span>
         <model-viewer
           src={url}
           poster={poster || ''}
@@ -250,14 +243,6 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ url, poster, alt }) 
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center relative min-h-[350px] bg-gradient-to-br from-slate-50 to-slate-200 rounded-2xl overflow-hidden border border-slate-200/80 shadow-lg text-left">
-      <span className="absolute bottom-5 left-5 bg-[#0c3944]/80 text-[#00F59B] text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-teal-500/20 uppercase tracking-wider z-10 flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-        </span>
-        VISUALIZAÇÃO 3D
-      </span>
-
       {isLoading && (
         <div className="absolute inset-0 bg-slate-50/95 flex flex-col items-center justify-center gap-3 z-20">
           <Loader2 className="w-8 h-8 animate-spin text-teal-650" />

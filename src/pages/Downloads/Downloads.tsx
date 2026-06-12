@@ -2833,19 +2833,12 @@ export default function Downloads() {
                     alt={selectedItemForModal.data.name}
                   />
                 ) : selectedItemForModal.data.imageUrl ? (
-                  <div className="w-full h-full flex items-center justify-center p-2 relative">
+                  <div className="w-full h-full flex items-center justify-center p-2">
                     <img 
                       src={selectedItemForModal.data.imageUrl} 
                       alt={selectedItemForModal.data.name} 
                       className="max-w-full max-h-[350px] object-contain rounded-2xl shadow-md border border-slate-200 bg-white" 
                     />
-                    <span className="absolute bottom-5 left-5 bg-[#2a2108]/80 text-[#FACC15] text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-amber-500/20 uppercase tracking-wider z-10 flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                      </span>
-                      VISUALIZAÇÃO IMAGEM
-                    </span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-4 text-slate-400">
