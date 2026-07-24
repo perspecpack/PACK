@@ -17,8 +17,14 @@ import {
   X,
   Copy,
   Mail,
-  FileText
+  FileText,
+  Trash2,
+  Building2,
+  FolderOpen,
+  Calendar,
+  UserCheck
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -31,7 +37,7 @@ import DeleteBlockDialog from '@/src/components/processos/DeleteBlockDialog';
 import { Block, BlockFactory, migrateLegacyBlocks, BLOCK_METADATA, validateBlock } from '@/src/components/processos/BlockFactory';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
-import { generateEmailMessage, generatePDFForm } from '@/src/utils/exportUtils';
+import { generateEmailMessage, generatePDFForm, generatePDFReport, exportTXTFile, generateTXTComprovante } from '@/src/utils/exportUtils';
 
 // dnd-kit vertical dragging imports
 import {
@@ -88,6 +94,11 @@ export default function EditorProcesso() {
   const [hasPublications, setHasPublications] = useState(false);
   const [existingActivePub, setExistingActivePub] = useState<any>(null);
 
+  // Validations & Tabs state
+  const [activeTab, setActiveTab] = useState<'editor' | 'responses'>('editor');
+  const [validationsList, setValidationsList] = useState<any[]>([]);
+  const [selectedPub, setSelectedPub] = useState<any | null>(null);
+
   // Modals state
   const [isValidationErrorOpen, setIsValidationErrorOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrorListItem[]>([]);
@@ -143,12 +154,37 @@ export default function EditorProcesso() {
         const { data: pubData, error: pubErr } = await supabase
           .from('process_publications')
           .select('*')
-          .eq('process_id', id);
+          .eq('process_id', id)
+          .order('version', { ascending: false });
           
         if (!pubErr && pubData) {
           setHasPublications(pubData.length > 0);
           const active = pubData.find(p => p.status === 'awaiting_validation');
           setExistingActivePub(active || null);
+
+          // Fetch responses for these publications
+          const pubIds = pubData.map(p => p.id);
+          if (pubIds.length > 0) {
+            const { data: respData, error: respErr } = await supabase
+              .from('process_validation_responses')
+              .select('*')
+              .in('publication_id', pubIds);
+              
+            if (!respErr && respData) {
+              const mapped = pubData.map(pub => {
+                const resp = respData.find(r => r.publication_id === pub.id);
+                return {
+                  ...pub,
+                  response: resp || null
+                };
+              });
+              setValidationsList(mapped);
+            } else {
+              setValidationsList(pubData.map(pub => ({ ...pub, response: null })));
+            }
+          } else {
+            setValidationsList([]);
+          }
         }
       } else {
         // LocalStorage fallback
@@ -501,6 +537,87 @@ export default function EditorProcesso() {
     generatePDFForm(pubMock);
   };
 
+  // Validation response helpers for "Respostas Recebidas" Tab
+  const handleCopyValidationLink = (token: string) => {
+    const url = `${window.location.origin}/validar/${token}`;
+    navigator.clipboard.writeText(url);
+    toast.success('Link copiado!');
+  };
+
+  const handleCopyValidationEmail = (pub: any) => {
+    if (!processo) return;
+    const url = `${window.location.origin}/validar/${pub.public_token}`;
+    const emailMsg = generateEmailMessage(
+      processo.name,
+      processo.organization || '',
+      pub.publication_code,
+      pub.version,
+      url
+    );
+    navigator.clipboard.writeText(emailMsg);
+    toast.success('E-mail copiado!');
+  };
+
+  const handleRevokeValidationPub = async (pubId: string) => {
+    const confirm = window.confirm('Deseja realmente revogar este link de validação? O cliente não poderá mais enviar respostas.');
+    if (!confirm || !supabase) return;
+
+    try {
+      const { error } = await supabase
+        .from('process_publications')
+        .update({
+          status: 'revoked',
+          revoked_at: new Date().toISOString()
+        })
+        .eq('id', pubId);
+
+      if (error) throw error;
+      
+      toast.success('Link de validação revogado.');
+      loadProcessAndPubs();
+      if (selectedPub?.id === pubId) {
+        setSelectedPub(null);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Erro ao revogar publicação.');
+    }
+  };
+
+  const handleDownloadPubAttachment = async (path: string, originalName: string) => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase.storage
+        .from('validation-attachments')
+        .download(path);
+      
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', originalName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Download concluído');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao baixar anexo.');
+    }
+  };
+
+  const handleDownloadPubPDFReport = (pub: any) => {
+    if (!pub.response) return;
+    generatePDFReport(pub, pub.response);
+  };
+
+  const handleDownloadPubTXTReport = (pub: any) => {
+    if (!pub.response) return;
+    const txt = generateTXTComprovante(pub, pub.response);
+    exportTXTFile(`Relatorio-${pub.response.protocol}.txt`, txt);
+  };
+
   // Render Save Status Label
   const renderSaveStatus = () => {
     switch (saveStatus) {
@@ -624,6 +741,35 @@ export default function EditorProcesso() {
         </div>
       </div>
 
+      {/* Tabs Menu */}
+      <div className="flex border-b border-slate-200 mb-5 max-w-6xl mx-auto px-1">
+        <button
+          onClick={() => setActiveTab('editor')}
+          className={`px-5 py-2.5 font-bold text-xs border-b-2 transition-all cursor-pointer ${
+            activeTab === 'editor' 
+              ? 'border-[#0d857a] text-[#0d857a]' 
+              : 'border-transparent text-slate-450 hover:text-[#0d857a]'
+          }`}
+        >
+          Construtor Visual
+        </button>
+        <button
+          onClick={() => setActiveTab('responses')}
+          className={`px-5 py-2.5 font-bold text-xs border-b-2 transition-all cursor-pointer relative ${
+            activeTab === 'responses' 
+              ? 'border-[#0d857a] text-[#0d857a]' 
+              : 'border-transparent text-slate-450 hover:text-[#0d857a]'
+          }`}
+        >
+          Respostas Recebidas
+          {validationsList.length > 0 && (
+            <span className="ml-1.5 bg-[#0d857a] text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full">
+              {validationsList.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       <EditorLayout
         header={
           <ProcessHeader
@@ -634,30 +780,175 @@ export default function EditorProcesso() {
           />
         }
         canvas={
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            onDragEnd={handleDragEnd}
-          >
-            <ProcessCanvas
-              blocks={processo.blocks || []}
-              activeBlockId={activeBlockId}
-              onSelectBlock={handleSelectBlock}
-              onUpdateBlock={handleUpdateBlock}
-              onAddBlockClick={() => setIsSidebarOpen(true)}
-              onDeleteBlockClick={handleDeleteBlockClick}
-              onMoveBlock={handleMoveBlock}
-              onDuplicateBlock={handleDuplicateBlock}
-            />
-          </DndContext>
+          activeTab === 'editor' ? (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis]}
+              onDragEnd={handleDragEnd}
+            >
+              <ProcessCanvas
+                blocks={processo.blocks || []}
+                activeBlockId={activeBlockId}
+                onSelectBlock={handleSelectBlock}
+                onUpdateBlock={handleUpdateBlock}
+                onAddBlockClick={() => setIsSidebarOpen(true)}
+                onDeleteBlockClick={handleDeleteBlockClick}
+                onMoveBlock={handleMoveBlock}
+                onDuplicateBlock={handleDuplicateBlock}
+              />
+            </DndContext>
+          ) : (
+            /* Tab: Respostas Recebidas (List of publications for this process) */
+            <div className="space-y-6 max-w-6xl mx-auto">
+              {validationsList.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-450 text-xs shadow-xs">
+                  Nenhuma publicação ou validação foi registrada para este processo ainda.
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          <th className="p-4 pl-6">Versão / Código</th>
+                          <th className="p-4">Situação</th>
+                          <th className="p-4">Resultado</th>
+                          <th className="p-4">Responsável</th>
+                          <th className="p-4">Cargo / Função</th>
+                          <th className="p-4">Data Validação</th>
+                          <th className="p-4">Protocolo</th>
+                          <th className="p-4 pr-6 text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                        {validationsList.map(pub => (
+                          <tr key={pub.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4 pl-6">
+                              <div className="font-bold text-slate-800">Versão {String(pub.version).padStart(2, '0')}</div>
+                              <div className="text-[10px] text-slate-400 font-medium pt-0.5">{pub.publication_code}</div>
+                            </td>
+                            <td className="p-4">
+                              {pub.status === 'awaiting_validation' && (
+                                <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] rounded-lg">Aguardando</Badge>
+                              )}
+                              {pub.status === 'validated' && (
+                                <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-250 text-[10px] rounded-lg">Validado</Badge>
+                              )}
+                              {pub.status === 'revoked' && (
+                                <Badge className="bg-red-50 text-red-700 border border-red-200 text-[10px] rounded-lg">Revogado</Badge>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              {pub.status === 'validated' && pub.primary_result ? (
+                                <span className={`text-[10px] font-bold px-2 py-0.5 border rounded-lg uppercase tracking-wide ${
+                                  pub.response?.primary_decision?.semanticType === 'positive' || pub.primary_result_type === 'positive' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' :
+                                  pub.response?.primary_decision?.semanticType === 'attention' || pub.response?.primary_decision?.semanticType === 'warning' || pub.primary_result_type === 'warning' || pub.primary_result_type === 'attention' ? 'bg-amber-50 text-amber-800 border-amber-100' :
+                                  pub.response?.primary_decision?.semanticType === 'negative' || pub.primary_result_type === 'negative' ? 'bg-red-50 text-red-800 border-red-100' :
+                                  'bg-slate-100 text-slate-800 border-slate-200'
+                                }`}>
+                                  {pub.primary_result}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-medium italic">-</span>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              {pub.status === 'validated' && pub.response ? (
+                                <div>{pub.response.respondent_name}</div>
+                              ) : (
+                                <span className="text-slate-400 font-medium italic">-</span>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              {pub.status === 'validated' && pub.response ? (
+                                <div>{pub.response.respondent_role}</div>
+                              ) : (
+                                <span className="text-slate-400 font-medium italic">-</span>
+                              )}
+                            </td>
+                            <td className="p-4 text-slate-450 font-medium">
+                              {pub.status === 'validated' && pub.response ? (
+                                new Date(pub.response.submitted_at).toLocaleDateString('pt-BR')
+                              ) : (
+                                <span className="text-slate-400 font-medium italic">-</span>
+                              )}
+                            </td>
+                            <td className="p-4 font-mono font-bold text-[#0d857a]">
+                              {pub.response?.protocol || '-'}
+                            </td>
+                            <td className="p-4 pr-6 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => setSelectedPub(pub)}
+                                  className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-[#0d857a] rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                                  title="Visualizar Detalhes"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                {pub.status === 'awaiting_validation' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleCopyValidationLink(pub.public_token)}
+                                      className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-[#0d857a] rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                                      title="Copiar Link"
+                                    >
+                                      <Copy className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleCopyValidationEmail(pub)}
+                                      className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-[#0d857a] rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                                      title="Copiar E-mail"
+                                    >
+                                      <Mail className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleRevokeValidationPub(pub.id)}
+                                      className="p-1.5 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                                      title="Revogar Link"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                )}
+                                {pub.status === 'validated' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleDownloadPubPDFReport(pub)}
+                                      className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-red-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                                      title="Exportar PDF"
+                                    >
+                                      <FileDown className="w-4 h-4 text-[#0d857a]" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDownloadPubTXTReport(pub)}
+                                      className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                                      title="Exportar TXT"
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
         }
         sidebar={
-          <BlockSidebar
-            isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
-            onAddBlock={handleAddBlock}
-          />
+          activeTab === 'editor' ? (
+            <BlockSidebar
+              isOpen={isSidebarOpen}
+              onClose={() => setIsSidebarOpen(false)}
+              onAddBlock={handleAddBlock}
+            />
+          ) : <div className="hidden" />
         }
       />
 
@@ -1020,6 +1311,298 @@ export default function EditorProcesso() {
               {/* Preview Footer */}
               <div className="p-4.5 border-t border-slate-100 flex items-center justify-end shrink-0 bg-slate-50">
                 <Button onClick={() => setIsPreviewOpen(false)} className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold h-9 px-4 rounded-xl cursor-pointer border-0 text-xs shadow-xs">
+                  Fechar
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* 5. VALIDATION DETAILS DRAWER */}
+        {selectedPub && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedPub(null)}
+              className="absolute inset-0 bg-black"
+            />
+            
+            {/* Drawer Box */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="relative w-full max-w-xl bg-white h-screen shadow-2xl flex flex-col justify-between overflow-hidden"
+            >
+              {/* Drawer Header */}
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50">
+                <div className="space-y-1">
+                  <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <ShieldCheck className="w-4.5 h-4.5 text-[#0d857a]" />
+                    {selectedPub.snapshot?.name}
+                  </h2>
+                  <span className="text-[10px] font-bold text-slate-455 uppercase tracking-wider bg-slate-200 border border-slate-300 px-2 py-0.5 rounded">
+                    {selectedPub.publication_code} - Versão {String(selectedPub.version).padStart(2, '0')}
+                  </span>
+                </div>
+                
+                <button
+                  onClick={() => setSelectedPub(null)}
+                  className="p-1.5 hover:bg-slate-200 text-slate-500 rounded-full transition-colors border-0 bg-transparent"
+                >
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
+
+              {/* Drawer Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-8 text-xs font-semibold text-slate-700">
+                {/* Identification */}
+                <div className="space-y-4 bg-slate-50 border border-slate-200/80 p-4.5 rounded-2xl">
+                  <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Metadados da Validação
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-medium">Situação:</span>
+                      {selectedPub.status === 'awaiting_validation' && <span className="text-amber-600 font-bold">Aguardando Validação</span>}
+                      {selectedPub.status === 'validated' && <span className="text-emerald-600 font-bold">Validado</span>}
+                      {selectedPub.status === 'revoked' && <span className="text-red-500 font-bold">Revogado</span>}
+                    </div>
+                    {selectedPub.status === 'validated' && selectedPub.response && (
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">Protocolo:</span>
+                        <span className="text-teal-700 font-bold">{selectedPub.response.protocol}</span>
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-medium">Publicado em:</span>
+                      {new Date(selectedPub.published_at).toLocaleString('pt-BR')}
+                    </div>
+                    {selectedPub.status === 'validated' && selectedPub.response && (
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">Validado em:</span>
+                        {new Date(selectedPub.response.submitted_at).toLocaleString('pt-BR')}
+                      </div>
+                    )}
+                    {selectedPub.status === 'revoked' && selectedPub.revoked_at && (
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">Revogado em:</span>
+                        {new Date(selectedPub.revoked_at).toLocaleString('pt-BR')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Respondent Profile */}
+                {selectedPub.status === 'validated' && selectedPub.response && (
+                  <div className="space-y-4 bg-teal-50/20 border border-teal-100 p-4.5 rounded-2xl">
+                    <h3 className="text-[11px] font-bold text-[#0d857a] uppercase tracking-wider flex items-center gap-1.5">
+                      <UserCheck className="w-4 h-4 text-[#0d857a]" />
+                      Responsável Externo
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-[10px] text-slate-455 block font-medium">Nome completo:</span>
+                        {selectedPub.response.respondent_name}
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-455 block font-medium">Cargo ou Função:</span>
+                        {selectedPub.response.respondent_role}
+                      </div>
+                      {selectedPub.response.respondent_email && (
+                        <div className="col-span-full">
+                          <span className="text-[10px] text-slate-455 block font-medium">E-mail:</span>
+                          {selectedPub.response.respondent_email}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Answers details */}
+                <div className="space-y-5">
+                  <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2 mb-2">
+                    Respostas dos Blocos
+                  </h3>
+                  
+                  {(selectedPub.snapshot?.blocks || []).map((block: any, index: number) => {
+                    const ans = selectedPub.response?.answers?.find((a: any) => (a.block_id || a.blockId) === block.id);
+                    
+                    if (block.type === 'heading_text') {
+                      return (
+                        <div key={block.id} className="bg-slate-50 border border-slate-155 p-3 rounded-lg space-y-1 font-medium">
+                          <span className="font-semibold text-slate-700 block">{block.title}</span>
+                          <span className="text-[10px] text-slate-450 whitespace-pre-line leading-relaxed">{block.description}</span>
+                        </div>
+                      );
+                    }
+
+                    if (selectedPub.status === 'awaiting_validation') {
+                      return (
+                        <div key={block.id} className="space-y-1 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
+                          <span className="text-slate-455 text-[10px] block font-medium">Questão {index + 1}: {block.title}</span>
+                          <span className="text-slate-400 font-medium italic block pt-1">Link awaiting validation...</span>
+                        </div>
+                      );
+                    }
+
+                    if (selectedPub.status === 'revoked') {
+                      return (
+                        <div key={block.id} className="space-y-1 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
+                          <span className="text-slate-455 text-[10px] block font-medium">Questão {index + 1}: {block.title}</span>
+                          <span className="text-slate-400 font-medium italic block pt-1">Link revogado antes de responder.</span>
+                        </div>
+                      );
+                    }
+
+                    if (!ans) {
+                      return (
+                        <div key={block.id} className="space-y-1 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
+                          <span className="text-slate-455 text-[10px] block font-medium">Questão {index + 1}: {block.title}</span>
+                          <span className="text-red-400 font-medium italic block pt-1">Sem resposta disponível.</span>
+                        </div>
+                      );
+                    }
+
+                    // Extract values supporting both formats
+                    const ansVal = ans.value !== undefined ? ans.value : ans.answer;
+                    const commentVal = ans.comment;
+                    const confirmedVal = ans.confirmed !== undefined ? ans.confirmed : (ans.value === true || ans.value === 'true');
+                    const attachedFiles = ans.attached_files || (Array.isArray(ans.value) ? ans.value : []);
+                    const selectedLabels = ans.selected_option_labels || [];
+
+                    return (
+                      <div key={block.id} className="space-y-1 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
+                        <span className="text-slate-455 text-[10px] block font-medium">Questão {index + 1}: {block.title}</span>
+                        
+                        <div className="pt-1.5 font-bold text-slate-750">
+                          {/* Acknowledgement */}
+                          {block.type === 'acknowledgement' && (
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 border rounded-lg ${
+                                confirmedVal === true ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'
+                              }`}>
+                                {confirmedVal === true ? 'DECLARAÇÃO CONFIRMADA' : 'NÃO ACEITO'}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* File Upload */}
+                          {block.type === 'file_upload' && (
+                            <div className="space-y-1.5">
+                              {attachedFiles.length > 0 ? (
+                                attachedFiles.map((file: any) => (
+                                  <div 
+                                    key={file.path} 
+                                    onClick={() => handleDownloadPubAttachment(file.path, file.name)}
+                                    className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-lg max-w-sm hover:border-[#0d857a] hover:bg-[#0d857a]/5 cursor-pointer transition-all"
+                                  >
+                                    <span className="text-slate-655 font-semibold truncate max-w-[200px] flex items-center gap-1.5">
+                                      <FileText className="w-3.5 h-3.5 text-slate-400" />
+                                      {file.name}
+                                    </span>
+                                    <span className="text-[9px] text-[#0d857a] font-bold uppercase tracking-wider">Baixar</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-slate-400 italic font-medium">Nenhum arquivo enviado</span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Approval Decision */}
+                          {block.type === 'approval_decision' && (
+                            <div className="space-y-2">
+                              <span className={`text-[10px] font-bold px-3 py-1 border rounded-xl uppercase tracking-wider inline-block ${
+                                ansVal?.semanticType === 'positive' || ans.primary_decision?.semanticType === 'positive' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                                ansVal?.semanticType === 'attention' || ansVal?.semanticType === 'warning' || ans.primary_decision?.semanticType === 'attention' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                ansVal?.semanticType === 'negative' || ans.primary_decision?.semanticType === 'negative' ? 'bg-red-50 text-red-800 border-red-200' :
+                                'bg-slate-550 text-slate-800 border-slate-300'
+                              }`}>
+                                {typeof ansVal === 'object' ? ansVal?.text : String(ansVal)}
+                              </span>
+                              {commentVal && (
+                                <div className="text-xs font-medium text-slate-500 leading-relaxed bg-slate-50/50 border border-slate-100 p-2.5 rounded-lg">
+                                  <span className="font-bold text-slate-600 block mb-0.5">Comentário/Justificativa:</span>
+                                  {commentVal}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Choice Option / Checkboxes */}
+                          {block.type === 'checkbox' && (
+                            <span className="text-xs text-slate-700 block leading-relaxed">
+                              {selectedLabels.length > 0 ? selectedLabels.join(', ') : Array.isArray(ansVal) ? ansVal.join(', ') : String(ansVal)}
+                            </span>
+                          )}
+
+                          {/* Multiple Choice */}
+                          {block.type === 'multiple_choice' && (
+                            <span className="text-xs text-slate-700 block">
+                              {selectedLabels.length > 0 ? selectedLabels[0] : typeof ansVal === 'object' ? ansVal?.text : String(ansVal)}
+                            </span>
+                          )}
+
+                          {/* Basic Text inputs */}
+                          {block.type !== 'acknowledgement' && block.type !== 'file_upload' && block.type !== 'approval_decision' && block.type !== 'checkbox' && block.type !== 'multiple_choice' && (
+                            <span className="text-xs text-slate-700 block leading-relaxed">{String(ansVal)}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Drawer Footer Actions */}
+              <div className="p-4.5 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0 bg-slate-50">
+                {selectedPub.status === 'awaiting_validation' && (
+                  <>
+                    <Button
+                      onClick={() => handleRevokeValidationPub(selectedPub.id)}
+                      className="bg-red-500 hover:bg-red-650 text-white font-bold h-9 px-4 rounded-xl cursor-pointer border-0 text-xs shadow-xs"
+                    >
+                      Revogar Link
+                    </Button>
+                    <Button
+                      onClick={() => handleCopyValidationLink(selectedPub.public_token)}
+                      className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold h-9 px-4 rounded-xl cursor-pointer border-0 text-xs shadow-xs"
+                    >
+                      Copiar Link
+                    </Button>
+                  </>
+                )}
+
+                {selectedPub.status === 'validated' && (
+                  <>
+                    <Button
+                      onClick={() => handleDownloadPubTXTReport(selectedPub)}
+                      variant="outline"
+                      className="border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer h-9 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-slate-450" />
+                      <span>Baixar TXT</span>
+                    </Button>
+                    <Button
+                      onClick={() => handleDownloadPubPDFReport(selectedPub)}
+                      className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold h-9 px-4 rounded-xl cursor-pointer border-0 text-xs shadow-xs flex items-center gap-1.5"
+                    >
+                      <FileDown className="w-3.5 h-3.5 text-slate-900 stroke-[2.5px]" />
+                      <span>Baixar PDF</span>
+                    </Button>
+                  </>
+                )}
+                
+                <Button
+                  onClick={() => setSelectedPub(null)}
+                  variant="outline"
+                  className="border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer h-9 px-4 rounded-xl text-xs font-semibold"
+                >
                   Fechar
                 </Button>
               </div>

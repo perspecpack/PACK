@@ -349,14 +349,91 @@ export default function ValidarPublico() {
         }
       }
 
+      // Rich formatted answers for block tracing and traceability
+      const formattedAnswers = blocks.map((block: Block) => {
+        const ans = answers.find(a => a.blockId === block.id);
+        const value = ans?.value;
+        
+        let answer = '';
+        let selected_option_ids: string[] = [];
+        let selected_option_labels: string[] = [];
+        let other_text = '';
+        let comment = '';
+        let confirmed = false;
+        let attached_files: any[] = [];
+        
+        if (block.type === 'short_answer' || block.type === 'long_answer' || block.type === 'date' || block.type === 'dropdown') {
+          answer = value !== undefined ? String(value) : '';
+          if (block.type === 'dropdown' && value) {
+            const opt = block.options?.find(o => o.text === value);
+            if (opt) {
+              selected_option_ids = [opt.id];
+              selected_option_labels = [opt.text];
+            }
+          }
+        } else if (block.type === 'multiple_choice') {
+          if (typeof value === 'object' && value !== null) {
+            if (value.otherSelected) {
+              other_text = value.otherText || '';
+              selected_option_labels = ['Outro'];
+            }
+          } else if (value) {
+            answer = String(value);
+            const opt = block.options?.find(o => o.text === value);
+            if (opt) {
+              selected_option_ids = [opt.id];
+              selected_option_labels = [opt.text];
+            }
+          }
+        } else if (block.type === 'checkbox') {
+          if (Array.isArray(value)) {
+            selected_option_labels = value;
+            selected_option_ids = value.map(val => block.options?.find(o => o.text === val)?.id).filter(Boolean) as string[];
+          } else if (typeof value === 'object' && value !== null) {
+            selected_option_labels = value.list || [];
+            selected_option_ids = (value.list || []).map((val: string) => block.options?.find(o => o.text === val)?.id).filter(Boolean) as string[];
+            if (value.otherSelected) {
+              other_text = value.otherText || '';
+              selected_option_labels.push('Outro');
+            }
+          }
+        } else if (block.type === 'acknowledgement') {
+          confirmed = value === true;
+          answer = confirmed ? 'Confirmado' : 'Não confirmado';
+        } else if (block.type === 'file_upload') {
+          attached_files = Array.isArray(value) ? value : [];
+          answer = `${attached_files.length} arquivo(s) enviado(s)`;
+        } else if (block.type === 'approval_decision') {
+          if (value?.id) {
+            selected_option_ids = [value.id];
+            selected_option_labels = [value.text];
+            comment = value.comment || '';
+            answer = value.text;
+          }
+        }
+
+        return {
+          block_id: block.id,
+          block_type: block.type,
+          block_title: block.title,
+          answer,
+          selected_option_ids,
+          selected_option_labels,
+          other_text,
+          comment,
+          confirmed,
+          attached_files,
+          answered_at: new Date().toISOString()
+        };
+      });
+
       // Extract attachments to separate parameter
       const attachmentList: any[] = [];
-      answers.forEach(ans => {
-        const block = blocks.find((b: Block) => b.id === ans.blockId);
-        if (block?.type === 'file_upload' && Array.isArray(ans.value)) {
-          ans.value.forEach((file: any) => {
+      formattedAnswers.forEach(ans => {
+        if (ans.block_type === 'file_upload' && Array.isArray(ans.attached_files)) {
+          ans.attached_files.forEach((file: any) => {
             attachmentList.push({
-              block_id: block.id,
+              block_id: ans.block_id,
               storage_path: file.path,
               original_name: file.name,
               mime_type: file.mimeType,
@@ -372,7 +449,7 @@ export default function ValidarPublico() {
         p_respondent_name: respondentName.trim(),
         p_respondent_role: respondentRole.trim(),
         p_respondent_email: respondentEmail.trim() || null,
-        p_answers: answers,
+        p_answers: formattedAnswers,
         p_primary_decision: primaryDecisionObj,
         p_attachments: attachmentList
       });
@@ -1049,7 +1126,6 @@ export default function ValidarPublico() {
                       return (
                         <div className={`flex items-center justify-between p-3.5 border rounded-xl font-bold text-xs uppercase tracking-wider ${style}`}>
                           <span>{ans.value.text}</span>
-                          <span className="text-[9px] font-bold opacity-80">{ans.value.semanticType}</span>
                         </div>
                       );
                     }
@@ -1065,12 +1141,14 @@ export default function ValidarPublico() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold text-slate-650">
                   <div className="bg-white border border-slate-200/80 p-3 rounded-xl text-center">
-                    <span className="text-[10px] text-slate-400 block font-medium">Campos Respondidos</span>
+                    <span className="text-[10px] text-slate-400 block font-medium">Campos Preenchidos</span>
                     {answers.filter(a => {
                       const block = publication.snapshot?.blocks?.find((b: any) => b.id === a.blockId);
                       if (block?.type === 'heading_text') return false;
+                      if (block?.type === 'acknowledgement') return a.value === true;
+                      if (block?.type === 'approval_decision') return !!a.value?.id;
                       if (Array.isArray(a.value)) return a.value.length > 0;
-                      if (typeof a.value === 'object' && a.value !== null) return !!a.value.id;
+                      if (typeof a.value === 'object' && a.value !== null) return !!a.value.otherSelected;
                       return a.value !== undefined && a.value !== '';
                     }).length} de {publication.snapshot?.blocks?.filter((b: any) => b.type !== 'heading_text').length}
                   </div>
