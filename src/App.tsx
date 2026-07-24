@@ -21,6 +21,8 @@ import ProvisionalPage from './pages/ProvisionalPage';
 import ProcessosList from './pages/Processos/ProcessosList';
 import NovoProcesso from './pages/Processos/NovoProcesso';
 import EditorProcesso from './pages/Processos/EditorProcesso';
+import ValidarPublico from './pages/Processos/ValidarPublico';
+import Aprovacoes from './pages/Processos/Aprovacoes';
 
 // Master Pages
 import Dashboard from './pages/Master/Dashboard';
@@ -114,7 +116,7 @@ function AppRoutes() {
         <Route path="/cadastro" element={<Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/definir-nova-senha" element={<DefineNewPassword />} />
-        <Route path="/validar/:validationCode" element={<Login />} />
+        <Route path="/validar/:token" element={<ValidarPublico />} />
         
         {/* Profile Completion Flow */}
         <Route 
@@ -152,7 +154,7 @@ function AppRoutes() {
           <Route path="processos/:id" element={<EditorProcesso />} />
           
           <Route path="padroes" element={<Downloads />} />
-          <Route path="aprovacoes" element={<ProvisionalPage title="Aprovações" />} />
+          <Route path="aprovacoes" element={<Aprovacoes />} />
           <Route path="configuracoes" element={<ProvisionalPage title="Configurações" />} />
           <Route path="ajuda" element={<Help />} />
           

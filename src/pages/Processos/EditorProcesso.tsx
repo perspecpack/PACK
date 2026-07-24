@@ -1,7 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { Workflow, ArrowLeft, Loader2, Save, CloudCheck, CloudLightning, RefreshCw, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  Workflow, 
+  ArrowLeft, 
+  Loader2, 
+  Save, 
+  CloudCheck, 
+  CloudLightning, 
+  RefreshCw, 
+  AlertTriangle,
+  Eye,
+  FileDown,
+  Share2,
+  CheckCircle2,
+  X,
+  Copy,
+  Mail,
+  FileText
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -11,9 +28,10 @@ import ProcessHeader from '@/src/components/processos/ProcessHeader';
 import ProcessCanvas from '@/src/components/processos/ProcessCanvas';
 import BlockSidebar from '@/src/components/processos/BlockSidebar';
 import DeleteBlockDialog from '@/src/components/processos/DeleteBlockDialog';
-import { Block, BlockFactory, migrateLegacyBlocks, BLOCK_METADATA } from '@/src/components/processos/BlockFactory';
+import { Block, BlockFactory, migrateLegacyBlocks, BLOCK_METADATA, validateBlock } from '@/src/components/processos/BlockFactory';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
+import { generateEmailMessage, generatePDFForm } from '@/src/utils/exportUtils';
 
 // dnd-kit vertical dragging imports
 import {
@@ -41,6 +59,13 @@ interface Processo {
 
 type SaveStatusType = 'saved' | 'saving' | 'unsaved' | 'error';
 
+interface ValidationErrorListItem {
+  blockId?: string;
+  blockName: string;
+  position: number;
+  message: string;
+}
+
 export default function EditorProcesso() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -59,67 +84,97 @@ export default function EditorProcesso() {
   const [saveStatus, setSaveStatus] = useState<SaveStatusType>('saved');
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Publications state
+  const [hasPublications, setHasPublications] = useState(false);
+  const [existingActivePub, setExistingActivePub] = useState<any>(null);
+
+  // Modals state
+  const [isValidationErrorOpen, setIsValidationErrorOpen] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ValidationErrorListItem[]>([]);
+  
+  const [isConfirmPublishOpen, setIsConfirmPublishOpen] = useState(false);
+  const [isRevokeChoiceRequired, setIsRevokeChoiceRequired] = useState(false);
+  const [revokePrevious, setRevokePrevious] = useState(true);
+  const [publishing, setPublishing] = useState(false);
+
+  const [isPublishSuccessOpen, setIsPublishSuccessOpen] = useState(false);
+  const [publishedData, setPublishedData] = useState<any>(null);
+
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   // Configure sensors for dnd-kit
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px activation distance prevents dragging when normal touch scrolling
+        distance: 8,
       },
     })
   );
 
-  // Load process
-  useEffect(() => {
-    const loadProcess = async () => {
-      setLoading(true);
-      try {
-        if (supabase && user) {
-          const { data, error } = await supabase
-            .from('processes')
-            .select('*')
-            .eq('id', id)
-            .single();
+  // Load process & publications
+  const loadProcessAndPubs = async () => {
+    setLoading(true);
+    try {
+      if (supabase && user) {
+        // Load process
+        const { data, error } = await supabase
+          .from('processes')
+          .select('*')
+          .eq('id', id)
+          .single();
 
-          if (error) throw error;
+        if (error) throw error;
+        
+        const migratedBlocks = migrateLegacyBlocks(Array.isArray(data.blocks) ? data.blocks : []);
+
+        setProcesso({
+          id: data.id,
+          name: data.name,
+          description: data.description || '',
+          category: data.category || '',
+          organization: data.organization || '',
+          createdAt: data.created_at,
+          blocks: migratedBlocks,
+          status: data.status || 'draft',
+          user_id: data.user_id
+        });
+
+        // Load publications status
+        const { data: pubData, error: pubErr } = await supabase
+          .from('process_publications')
+          .select('*')
+          .eq('process_id', id);
           
-          // Apply legacy migration to loaded blocks
-          const migratedBlocks = migrateLegacyBlocks(Array.isArray(data.blocks) ? data.blocks : []);
-
-          setProcesso({
-            id: data.id,
-            name: data.name,
-            description: data.description || '',
-            category: data.category || '',
-            organization: data.organization || '',
-            createdAt: data.created_at,
-            blocks: migratedBlocks,
-            status: data.status || 'draft',
-            user_id: data.user_id
-          });
-        } else {
-          // LocalStorage fallback
-          const stored = localStorage.getItem('perspecpack:processos');
-          if (stored) {
-            const list: Processo[] = JSON.parse(stored);
-            const found = list.find(p => p.id === id);
-            if (found) {
-              const migratedBlocks = migrateLegacyBlocks(Array.isArray(found.blocks) ? found.blocks : []);
-              setProcesso({
-                ...found,
-                blocks: migratedBlocks
-              });
-            }
+        if (!pubErr && pubData) {
+          setHasPublications(pubData.length > 0);
+          const active = pubData.find(p => p.status === 'awaiting_validation');
+          setExistingActivePub(active || null);
+        }
+      } else {
+        // LocalStorage fallback
+        const stored = localStorage.getItem('perspecpack:processos');
+        if (stored) {
+          const list: Processo[] = JSON.parse(stored);
+          const found = list.find(p => p.id === id);
+          if (found) {
+            const migratedBlocks = migrateLegacyBlocks(Array.isArray(found.blocks) ? found.blocks : []);
+            setProcesso({
+              ...found,
+              blocks: migratedBlocks
+            });
           }
         }
-      } catch (e) {
-        console.error('Error loading process in editor', e);
-        toast.error('Erro ao carregar o processo.');
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (e) {
+      console.error('Error loading process in editor', e);
+      toast.error('Erro ao carregar o processo.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadProcess();
+  useEffect(() => {
+    loadProcessAndPubs();
   }, [id, user]);
 
   // Unsaved changes beforeunload warning
@@ -143,7 +198,6 @@ export default function EditorProcesso() {
     setSaveStatus('saving');
     try {
       if (supabase && user) {
-        // Save to Supabase (User ID is secured by RLS rules)
         const { error } = await supabase
           .from('processes')
           .update({
@@ -159,7 +213,7 @@ export default function EditorProcesso() {
         if (error) throw error;
       }
 
-      // Also update localStorage as secondary fallback
+      // LocalStorage update
       const stored = localStorage.getItem('perspecpack:processos');
       if (stored) {
         const list: Processo[] = JSON.parse(stored);
@@ -181,12 +235,9 @@ export default function EditorProcesso() {
   // Trigger debounced autosave
   const triggerAutosave = (updatedProcess: Processo) => {
     setSaveStatus('unsaved');
-    
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
     }
-
-    // Debounce save between 800ms and 1500ms (we use 1000ms)
     autosaveTimerRef.current = setTimeout(() => {
       saveProcess(updatedProcess);
     }, 1000);
@@ -217,7 +268,6 @@ export default function EditorProcesso() {
 
     toast.success(`Bloco de "${BLOCK_METADATA[newBlock.type].title}" adicionado`);
 
-    // Smooth scroll to new block after layout render
     setTimeout(() => {
       const el = document.getElementById(`block-card-${newBlock.id}`);
       if (el) {
@@ -226,7 +276,6 @@ export default function EditorProcesso() {
     }, 150);
   };
 
-  // Delete block dialog helpers
   const handleDeleteBlockClick = (blockId: string) => {
     setBlockToDeleteId(blockId);
     setIsDeleteDialogOpen(true);
@@ -247,7 +296,6 @@ export default function EditorProcesso() {
     toast.success('Bloco excluído');
   };
 
-  // Move block up or down
   const handleMoveBlock = (blockId: string, direction: 'up' | 'down') => {
     if (!processo) return;
 
@@ -259,7 +307,6 @@ export default function EditorProcesso() {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     const updatedBlocks = [...processo.blocks];
     
-    // Swap blocks
     const temp = updatedBlocks[index];
     updatedBlocks[index] = updatedBlocks[targetIndex];
     updatedBlocks[targetIndex] = temp;
@@ -268,7 +315,6 @@ export default function EditorProcesso() {
     setProcesso(updatedProcess);
     triggerAutosave(updatedProcess);
     
-    // Keep focus on moved block
     setTimeout(() => {
       const el = document.getElementById(`block-card-${blockId}`);
       if (el) {
@@ -277,7 +323,6 @@ export default function EditorProcesso() {
     }, 50);
   };
 
-  // Duplicate block
   const handleDuplicateBlock = (blockId: string) => {
     if (!processo) return;
 
@@ -288,12 +333,10 @@ export default function EditorProcesso() {
     const duplicated: Block = {
       ...original,
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
-      // Copy settings and title, but not response state if any
       title: `${original.title} (Cópia)`
     };
 
     const updatedBlocks = [...processo.blocks];
-    // Insert immediately below original
     updatedBlocks.splice(index + 1, 0, duplicated);
 
     const updatedProcess = { ...processo, blocks: updatedBlocks };
@@ -303,7 +346,6 @@ export default function EditorProcesso() {
 
     toast.success('Bloco duplicado');
 
-    // Smooth scroll to duplicated block
     setTimeout(() => {
       const el = document.getElementById(`block-card-${duplicated.id}`);
       if (el) {
@@ -312,7 +354,6 @@ export default function EditorProcesso() {
     }, 150);
   };
 
-  // Update block content/settings
   const handleUpdateBlock = (blockId: string, updatedBlock: Block) => {
     if (!processo) return;
 
@@ -326,24 +367,138 @@ export default function EditorProcesso() {
     setActiveBlockId(blockId);
   };
 
-  // Drag and drop handler
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (over && active.id !== over.id) {
       if (!processo) return;
       
-      const oldIndex = processo.blocks.findIndex(b => b.id === active.id);
-      const newIndex = processo.blocks.findIndex(b => b.id === over.id);
+      const oldIndex = metroIndex(active.id);
+      const newIndex = metroIndex(over.id);
       
       const updatedBlocks = arrayMove(processo.blocks, oldIndex, newIndex);
       const updatedProcess = { ...processo, blocks: updatedBlocks };
       
       setProcesso(updatedProcess);
       triggerAutosave(updatedProcess);
-      
       toast.success('Posição do bloco atualizada');
     }
+  };
+
+  const metroIndex = (blockId: any) => {
+    return processo?.blocks.findIndex(b => b.id === blockId) ?? -1;
+  };
+
+  // Publish Logic validation
+  const handlePublishClick = () => {
+    if (!processo) return;
+
+    const errorsList: ValidationErrorListItem[] = [];
+
+    if (!processo.blocks || processo.blocks.length === 0) {
+      errorsList.push({
+        blockName: 'Estrutura do Processo',
+        position: 0,
+        message: 'O processo deve conter pelo menos um bloco para poder ser publicado.'
+      });
+    } else {
+      processo.blocks.forEach((block, idx) => {
+        const blockErrors = validateBlock(block);
+        if (blockErrors.length > 0) {
+          errorsList.push({
+            blockId: block.id,
+            blockName: block.title || BLOCK_METADATA[block.type].title,
+            position: idx + 1,
+            message: blockErrors[0].message
+          });
+        }
+      });
+    }
+
+    if (errorsList.push.length > 1) { // errorsList has items
+      setValidationErrors(errorsList);
+      setIsValidationErrorOpen(true);
+    } else {
+      // Valid! Open confirm publish dialog
+      setIsRevokeChoiceRequired(!!existingActivePub);
+      setRevokePrevious(true);
+      setIsConfirmPublishOpen(true);
+    }
+  };
+
+  const handleGoToErrorBlock = (blockId?: string) => {
+    setIsValidationErrorOpen(false);
+    if (blockId) {
+      setActiveBlockId(blockId);
+      setTimeout(() => {
+        const el = document.getElementById(`block-card-${blockId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  };
+
+  // Publish finalization calling secure RPC
+  const handleFinalizePublish = async () => {
+    if (!processo || !supabase) return;
+    setPublishing(true);
+    try {
+      const { data, error } = await supabase.rpc('publish_process', {
+        p_process_id: processo.id,
+        p_organization: processo.organization || '',
+        p_snapshot: processo,
+        p_revoke_previous: revokePrevious
+      });
+
+      if (error) throw error;
+
+      setPublishedData(data);
+      setIsConfirmPublishOpen(false);
+      setIsPublishSuccessOpen(true);
+      toast.success('Publicação concluída com sucesso!');
+      
+      // Refresh publications state
+      loadProcessAndPubs();
+      
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || 'Erro ao publicar o processo.');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (!publishedData) return;
+    const url = `${window.location.origin}/validar/${publishedData.public_token}`;
+    navigator.clipboard.writeText(url);
+    toast.success('Link copiado!');
+  };
+
+  const handleCopyEmail = () => {
+    if (!processo || !publishedData) return;
+    const url = `${window.location.origin}/validar/${publishedData.public_token}`;
+    const emailMsg = generateEmailMessage(
+      processo.name,
+      processo.organization || '',
+      publishedData.publication_code,
+      publishedData.version,
+      url
+    );
+    navigator.clipboard.writeText(emailMsg);
+    toast.success('Mensagem de e-mail copiada!');
+  };
+
+  const handleDownloadBlankPDF = () => {
+    if (!processo) return;
+    const pubMock = {
+      publication_code: publishedData?.publication_code || 'PUB-MOCK',
+      version: publishedData?.version || 1,
+      organization: processo.organization,
+      snapshot: processo
+    };
+    generatePDFForm(pubMock);
   };
 
   // Render Save Status Label
@@ -411,7 +566,6 @@ export default function EditorProcesso() {
     );
   }
 
-  // Check if we should allow page leave (for react router navigation)
   const handleBackNavigation = () => {
     if (saveStatus === 'unsaved') {
       const confirmLeave = window.confirm('Você possui alterações não salvas neste processo. Deseja realmente sair?');
@@ -423,7 +577,7 @@ export default function EditorProcesso() {
   return (
     <div className="w-full">
       {/* Editor Status Action Bar */}
-      <div className="flex items-center justify-between pb-3 bg-transparent -mt-2 mb-2 max-w-6xl mx-auto px-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 bg-transparent -mt-2 mb-2 max-w-6xl mx-auto px-1 gap-3">
         <button
           onClick={handleBackNavigation}
           className="flex items-center gap-2 text-slate-450 hover:text-[#0d857a] text-xs font-semibold transition-colors cursor-pointer border-0 bg-transparent"
@@ -432,16 +586,40 @@ export default function EditorProcesso() {
           Voltar para Lista
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {renderSaveStatus()}
           
           <Button
             onClick={handleManualSave}
             disabled={saveStatus === 'saving' || saveStatus === 'saved'}
-            className="bg-white hover:bg-slate-50 text-slate-700 hover:text-[#0d857a] border border-slate-200 h-8.5 px-3.5 text-[11px] font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+            className="bg-white hover:bg-slate-50 text-slate-700 hover:text-[#0d857a] border border-slate-200 h-8.5 px-3 text-[11px] font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
           >
             <Save className="w-3.5 h-3.5" />
             Salvar
+          </Button>
+
+          <Button
+            onClick={() => setIsPreviewOpen(true)}
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 h-8.5 px-3 text-[11px] font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5 text-slate-450" />
+            Visualizar
+          </Button>
+
+          <Button
+            onClick={handleDownloadBlankPDF}
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 h-8.5 px-3 text-[11px] font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <FileDown className="w-3.5 h-3.5 text-slate-450" />
+            Exportar PDF
+          </Button>
+
+          <Button
+            onClick={handlePublishClick}
+            className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold h-8.5 px-4 text-[11px] rounded-xl cursor-pointer border-0 shadow-sm flex items-center gap-1.5"
+          >
+            <Share2 className="w-3.5 h-3.5 text-slate-900 stroke-[2.5px]" />
+            {hasPublications ? 'Publicar nova versão' : 'Publicar para validação'}
           </Button>
         </div>
       </div>
@@ -489,6 +667,366 @@ export default function EditorProcesso() {
         onClose={() => setIsDeleteDialogOpen(false)}
         onConfirm={handleConfirmDelete}
       />
+
+      {/* MODALS SECTION */}
+      <AnimatePresence>
+        {/* 1. VALIDATION ERRORS MODAL */}
+        {isValidationErrorOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={() => setIsValidationErrorOpen(false)} className="absolute inset-0 bg-black" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-6">
+              <div className="space-y-2 text-center flex flex-col items-center">
+                <div className="h-10 w-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-2">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-slate-800 text-sm">Itens pendentes de correção</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  O processo possui blocos mal configurados ou vazios que precisam ser corrigidos antes da publicação.
+                </p>
+              </div>
+
+              <div className="max-h-[220px] overflow-y-auto divide-y divide-slate-100 border border-slate-150 rounded-xl">
+                {validationErrors.map((err, i) => (
+                  <div key={i} className="p-3 text-xs flex justify-between items-start gap-4">
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-slate-700 block">
+                        {err.position > 0 ? `Questão ${err.position}: ` : ''}{err.blockName}
+                      </span>
+                      <span className="text-slate-450 font-medium leading-relaxed">{err.message}</span>
+                    </div>
+                    {err.blockId && (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleGoToErrorBlock(err.blockId)}
+                        className="h-7 px-2.5 text-[10px] font-bold border-slate-200 text-[#0d857a] hover:bg-[#0d857a]/5 rounded-lg shrink-0 cursor-pointer"
+                      >
+                        Ir para o bloco
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  onClick={() => setIsValidationErrorOpen(false)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-655 font-bold h-9 px-4 rounded-xl cursor-pointer text-xs"
+                >
+                  Fechar
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* 2. CONFIRM PUBLISH MODAL */}
+        {isConfirmPublishOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={() => setIsConfirmPublishOpen(false)} className="absolute inset-0 bg-black" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-6">
+              <div className="space-y-2 text-center flex flex-col items-center">
+                <div className="h-10 w-10 bg-emerald-50 text-[#0d857a] rounded-full flex items-center justify-center mb-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                </div>
+                <h3 className="font-bold text-slate-800 text-sm">Publicar processo para validação?</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Será criada uma versão congelada do processo. O conteúdo desta versão não poderá ser alterado enquanto estiver disponível para validação.
+                </p>
+              </div>
+
+              {/* Summary table */}
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl text-xs space-y-2 font-semibold text-slate-650">
+                <div>Processo: <span className="text-slate-800 font-bold">{processo.name}</span></div>
+                <div>Componentes: <span className="text-slate-800 font-bold">{processo.blocks.length} blocos</span></div>
+                {processo.organization && (
+                  <div>Organização: <span className="text-slate-800 font-bold">{processo.organization}</span></div>
+                )}
+                <div>Data de Publicação: <span className="text-slate-800 font-bold">{new Date().toLocaleDateString('pt-BR')}</span></div>
+              </div>
+
+              {/* Revoke Option check */}
+              {isRevokeChoiceRequired && (
+                <div className="space-y-3.5 bg-amber-50/40 border border-amber-200/60 p-4.5 rounded-xl">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-slate-600 leading-normal font-semibold">
+                      Já existe uma versão aguardando validação ativa. Como deseja proceder?
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 select-none">
+                      <input 
+                        type="radio" 
+                        name="revokeChoice" 
+                        checked={revokePrevious === true} 
+                        onChange={() => setRevokePrevious(true)} 
+                        className="accent-[#0d857a]"
+                      />
+                      <span>Revogar link anterior e publicar nova versão</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 select-none">
+                      <input 
+                        type="radio" 
+                        name="revokeChoice" 
+                        checked={revokePrevious === false} 
+                        onChange={() => setRevokePrevious(false)} 
+                        className="accent-[#0d857a]"
+                      />
+                      <span>Manter versão anterior ativa</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  onClick={() => setIsConfirmPublishOpen(false)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-655 font-bold h-9 px-4 rounded-xl cursor-pointer text-xs border-0"
+                  disabled={publishing}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleFinalizePublish}
+                  className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold h-9 px-4 rounded-xl cursor-pointer border-0 text-xs shadow-xs"
+                  disabled={publishing}
+                >
+                  {publishing ? 'Publicando...' : 'Publicar agora'}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* 3. PUBLISH SUCCESS MODAL */}
+        {isPublishSuccessOpen && publishedData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={() => setIsPublishSuccessOpen(false)} className="absolute inset-0 bg-black" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-8 shadow-xl space-y-6 text-center">
+              <div className="space-y-3 flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-inner mb-2 animate-bounce">
+                  <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                </div>
+                <h3 className="font-bold text-slate-800 text-sm">Processo publicado com sucesso</h3>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                  Código: {publishedData.publication_code} — Versão {String(publishedData.version).padStart(2, '0')}
+                </span>
+                <p className="text-[11px] text-slate-500 max-w-sm pt-2 leading-relaxed">
+                  Copie o link público ou a mensagem de e-mail personalizada para enviar ao seu cliente externo.
+                </p>
+              </div>
+
+              {/* Link Box */}
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-left max-w-md mx-auto">
+                <span className="text-[11px] font-semibold text-slate-500 truncate flex-1 pl-1">
+                  {`${window.location.origin}/validar/${publishedData.public_token}`}
+                </span>
+                <Button
+                  onClick={handleCopyLink}
+                  className="bg-white hover:bg-slate-100 text-slate-655 border border-slate-200 hover:text-[#0d857a] h-8 px-3 rounded-lg text-[10px] font-bold shrink-0 cursor-pointer shadow-xs flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" />
+                  Copiar Link
+                </Button>
+              </div>
+
+              {/* Actions Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-md mx-auto pt-2 border-t border-slate-100">
+                <Button
+                  onClick={handleCopyEmail}
+                  variant="outline"
+                  className="border-slate-200 text-slate-655 hover:bg-slate-100 h-9 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  Copiar E-mail
+                </Button>
+                
+                <Button
+                  onClick={handleDownloadBlankPDF}
+                  variant="outline"
+                  className="border-slate-200 text-slate-655 hover:bg-slate-100 h-9 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <FileDown className="w-3.5 h-3.5 text-[#0d857a]" />
+                  <span>Baixar PDF</span>
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    setIsPublishSuccessOpen(false);
+                    const win = window.open(`/validar/${publishedData.public_token}`, '_blank');
+                    if (win) win.focus();
+                  }}
+                  variant="outline"
+                  className="border-slate-200 text-slate-655 hover:bg-slate-100 h-9 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Ver Cliente
+                </Button>
+              </div>
+
+              <div className="flex justify-center pt-2">
+                <Button
+                  onClick={() => setIsPublishSuccessOpen(false)}
+                  className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold h-9 px-6 rounded-xl cursor-pointer border-0 text-xs shadow-xs"
+                >
+                  Concluir
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* 4. PREVIEW DRAWER */}
+        {isPreviewOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={() => setIsPreviewOpen(false)} className="absolute inset-0 bg-black" />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="relative w-full max-w-xl bg-white h-screen shadow-2xl flex flex-col justify-between overflow-hidden"
+            >
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50">
+                <div className="space-y-1">
+                  <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <Eye className="w-4.5 h-4.5 text-[#0d857a]" />
+                    Visualização do Formulário
+                  </h2>
+                  <span className="text-[9px] text-slate-400 font-medium">Modo de pré-visualização de preenchimento</span>
+                </div>
+                <button onClick={() => setIsPreviewOpen(false)} className="p-1.5 hover:bg-slate-200 text-slate-500 rounded-full transition-colors border-0 bg-transparent">
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
+
+              {/* Preview Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs font-semibold text-slate-700">
+                <div className="space-y-2 border-b border-slate-100 pb-4">
+                  <h1 className="text-base font-bold text-slate-850">{processo.name}</h1>
+                  {processo.description && <p className="text-slate-500 text-[11px] leading-relaxed font-medium">{processo.description}</p>}
+                </div>
+                
+                {/* Respondent Identification (Static Mock) */}
+                <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3.5">
+                  <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Identificação do Responsável</h3>
+                  <div className="grid grid-cols-2 gap-3 text-[11px] text-slate-450 font-medium">
+                    <div className="space-y-1"><span className="block text-[9px] font-bold uppercase">Nome Completo *</span><div className="h-8 border border-slate-200 bg-white rounded-lg px-2 flex items-center">João da Silva</div></div>
+                    <div className="space-y-1"><span className="block text-[9px] font-bold uppercase">Cargo ou Função *</span><div className="h-8 border border-slate-200 bg-white rounded-lg px-2 flex items-center">Analista de Qualidade</div></div>
+                  </div>
+                </div>
+
+                {/* Render Process Blocks (Simulation) */}
+                <div className="space-y-6 pt-2">
+                  {processo.blocks.map((block, i) => (
+                    <div key={block.id} className="space-y-2 pb-4 border-b border-slate-100 last:border-0">
+                      {block.type !== 'heading_text' && (
+                        <h4 className="font-bold text-slate-800 text-[12.5px] leading-tight">
+                          {i + 1}. {block.title}
+                          {block.required && <span className="text-red-500 font-bold ml-1">*</span>}
+                        </h4>
+                      )}
+                      
+                      {block.description && block.type !== 'heading_text' && (
+                        <p className="text-[10.5px] text-slate-450 leading-relaxed font-medium pb-1">{block.description}</p>
+                      )}
+
+                      {/* Input Types */}
+                      {block.type === 'heading_text' && (
+                        <div className="bg-slate-50/50 border border-slate-200 p-4 rounded-xl space-y-1">
+                          <h4 className="font-bold text-slate-800 text-xs">{block.title}</h4>
+                          <p className="text-[11px] text-slate-550 leading-normal font-medium">{block.description}</p>
+                        </div>
+                      )}
+
+                      {block.type === 'short_answer' && (
+                        <div className="h-9 border border-slate-200 rounded-lg bg-slate-50/30 text-slate-400 flex items-center px-3 text-xs select-none">
+                          {block.placeholder || 'Resposta curta...'}
+                        </div>
+                      )}
+
+                      {block.type === 'long_answer' && (
+                        <div className="h-16 border border-slate-200 rounded-lg bg-slate-50/30 text-slate-400 p-2.5 text-xs select-none">
+                          {block.placeholder || 'Resposta detalhada...'}
+                        </div>
+                      )}
+
+                      {block.type === 'multiple_choice' && (
+                        <div className="space-y-1.5 pt-0.5">
+                          {(block.options || []).map(o => (
+                            <div key={o.id} className="flex items-center gap-2">
+                              <div className="h-4 w-4 border border-slate-300 rounded-full" />
+                              <span className="text-[11.5px] text-slate-650 font-medium">{o.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {block.type === 'checkbox' && (
+                        <div className="space-y-1.5 pt-0.5">
+                          {(block.options || []).map(o => (
+                            <div key={o.id} className="flex items-center gap-2">
+                              <div className="h-4 w-4 border border-slate-300 rounded" />
+                              <span className="text-[11.5px] text-slate-650 font-medium">{o.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {block.type === 'dropdown' && (
+                        <div className="h-9 max-w-xs border border-slate-200 rounded-lg bg-white px-2.5 flex items-center justify-between text-slate-400 text-xs select-none">
+                          <span>Selecione uma opção...</span>
+                          <span className="text-slate-400">▼</span>
+                        </div>
+                      )}
+
+                      {block.type === 'date' && (
+                        <div className="h-9 max-w-xs border border-slate-200 rounded-lg bg-white px-2.5 flex items-center justify-between text-slate-400 text-xs select-none">
+                          <span>DD/MM/AAAA</span>
+                          <span className="text-slate-400">📅</span>
+                        </div>
+                      )}
+
+                      {block.type === 'file_upload' && (
+                        <div className="h-20 border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-slate-50/30 space-y-1 select-none">
+                          <span className="text-xs font-semibold text-slate-500">Clique para enviar arquivos</span>
+                          <span className="text-[9px]">Tamanho máximo: {block.maxSizeMB || 10}MB</span>
+                        </div>
+                      )}
+
+                      {block.type === 'acknowledgement' && (
+                        <div className="flex items-start gap-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl select-none">
+                          <div className="h-4.5 w-4.5 border border-slate-300 rounded shrink-0 mt-0.5" />
+                          <span className="text-[11px] text-slate-650 leading-relaxed font-medium">{block.declarationText}</span>
+                        </div>
+                      )}
+
+                      {block.type === 'approval_decision' && (
+                        <div className="space-y-3">
+                          <div className="flex gap-2 flex-wrap">
+                            {(block.decisions || []).map(dec => (
+                              <div key={dec.id} className="text-[9px] px-2.5 py-1 border border-slate-200 text-slate-450 font-bold uppercase tracking-wider rounded-lg">
+                                {dec.text}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview Footer */}
+              <div className="p-4.5 border-t border-slate-100 flex items-center justify-end shrink-0 bg-slate-50">
+                <Button onClick={() => setIsPreviewOpen(false)} className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold h-9 px-4 rounded-xl cursor-pointer border-0 text-xs shadow-xs">
+                  Fechar
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
