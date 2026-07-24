@@ -212,7 +212,7 @@ declare
     v_pub record;
     v_resp_id uuid;
     v_protocol text;
-    v_att json;
+    v_att record;
     v_block record;
     v_ans record;
     v_dec_opt record;
