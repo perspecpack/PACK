@@ -561,7 +561,7 @@ export default function Help() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Link
-                  to="/ajuda/termos-de-uso"
+                  to="/app/ajuda/termos-de-uso"
                   className="group border border-slate-200 hover:border-teal-400 rounded-2xl p-4 flex flex-col justify-between hover:bg-slate-50/50 transition-all text-left shadow-sm min-h-[110px]"
                 >
                   <span className="font-extrabold text-[14px] text-slate-800 group-hover:text-teal-650 transition-colors block">Termos de Uso</span>
@@ -572,7 +572,7 @@ export default function Help() {
                 </Link>
 
                 <Link
-                  to="/ajuda/politica-de-privacidade"
+                  to="/app/ajuda/politica-de-privacidade"
                   className="group border border-slate-200 hover:border-teal-400 rounded-2xl p-4 flex flex-col justify-between hover:bg-slate-50/50 transition-all text-left shadow-sm min-h-[110px]"
                 >
                   <span className="font-extrabold text-[14px] text-slate-800 group-hover:text-teal-650 transition-colors block">Política de Privacidade</span>
@@ -583,7 +583,7 @@ export default function Help() {
                 </Link>
 
                 <Link
-                  to="/ajuda/licenciamento-de-conteudo"
+                  to="/app/ajuda/licenciamento-de-conteudo"
                   className="group border border-slate-200 hover:border-teal-400 rounded-2xl p-4 flex flex-col justify-between hover:bg-slate-50/50 transition-all text-left shadow-sm min-h-[110px]"
                 >
                   <span className="font-extrabold text-[14px] text-slate-800 group-hover:text-teal-650 transition-colors block">Licenciamento de Conteúdo</span>
@@ -594,7 +594,7 @@ export default function Help() {
                 </Link>
 
                 <Link
-                  to="/ajuda/responsabilidade-tecnica"
+                  to="/app/ajuda/responsabilidade-tecnica"
                   className="group border border-slate-200 hover:border-teal-400 rounded-2xl p-4 flex flex-col justify-between hover:bg-slate-50/50 transition-all text-left shadow-sm min-h-[110px]"
                 >
                   <span className="font-extrabold text-[14px] text-slate-800 group-hover:text-teal-650 transition-colors block">Responsabilidade Técnica</span>

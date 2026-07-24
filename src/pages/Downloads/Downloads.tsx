@@ -2669,7 +2669,7 @@ export default function Downloads() {
                 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                   <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Identificação do Emissor (Cadastro)</h4>
                   <Link 
-                    to="/perfil"
+                    to="/app/perfil"
                     className="text-[10px] text-teal-600 hover:text-teal-700 font-bold hover:underline"
                   >
                     Editar Perfil

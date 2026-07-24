@@ -15,6 +15,7 @@ import MyPlan from './pages/Auth/MyPlan';
 import DownloadsHistory from './pages/Downloads/DownloadsHistory';
 import Help from './pages/Downloads/Help';
 import PolicyDocument from './pages/Downloads/PolicyDocument';
+import ProvisionalPage from './pages/ProvisionalPage';
 
 // Master Pages
 import Dashboard from './pages/Master/Dashboard';
@@ -120,23 +121,34 @@ function AppRoutes() {
           } 
         />
         
+        {/* Redirect root to /app/visao-geral */}
+        <Route path="/" element={<Navigate to="/app/visao-geral" replace />} />
+
         {/* Protected Supplier / Final User Routes */}
         <Route 
+          path="/app"
           element={
             <ProtectedRoute allowedRole="user">
               <AppLayout />
             </ProtectedRoute>
           }
         >
-          <Route path="/" element={<Downloads />} />
-          <Route path="/perfil" element={<Profile />} />
-          <Route path="/meu-plano" element={<MyPlan />} />
-          <Route path="/historico-downloads" element={<DownloadsHistory />} />
-          <Route path="/ajuda" element={<Help />} />
-          <Route path="/ajuda/termos-de-uso" element={<PolicyDocument docType="termos" />} />
-          <Route path="/ajuda/politica-de-privacidade" element={<PolicyDocument docType="privacidade" />} />
-          <Route path="/ajuda/licenciamento-de-conteudo" element={<PolicyDocument docType="licenciamento" />} />
-          <Route path="/ajuda/responsabilidade-tecnica" element={<PolicyDocument docType="responsabilidade" />} />
+          <Route index element={<Navigate to="/app/visao-geral" replace />} />
+          <Route path="visao-geral" element={<ProvisionalPage title="Visão Geral" />} />
+          <Route path="projetos" element={<ProvisionalPage title="Meus Projetos" />} />
+          <Route path="padroes" element={<Downloads />} />
+          <Route path="aprovacoes" element={<ProvisionalPage title="Aprovações" />} />
+          <Route path="configuracoes" element={<ProvisionalPage title="Configurações" />} />
+          <Route path="ajuda" element={<Help />} />
+          
+          {/* User Profile / Sub-pages */}
+          <Route path="perfil" element={<Profile />} />
+          <Route path="meu-plano" element={<MyPlan />} />
+          <Route path="historico-downloads" element={<DownloadsHistory />} />
+          <Route path="ajuda/termos-de-uso" element={<PolicyDocument docType="termos" />} />
+          <Route path="ajuda/politica-de-privacidade" element={<PolicyDocument docType="privacidade" />} />
+          <Route path="ajuda/licenciamento-de-conteudo" element={<PolicyDocument docType="licenciamento" />} />
+          <Route path="ajuda/responsabilidade-tecnica" element={<PolicyDocument docType="responsabilidade" />} />
         </Route>
 
         {/* Protected Master / Admin Routes */}
@@ -166,7 +178,7 @@ function AppRoutes() {
           path="*" 
           element={
             <Navigate 
-              to={user ? (user.role === 'master' ? '/master/dashboard' : '/') : '/login'} 
+              to={user ? (user.role === 'master' ? '/master/dashboard' : '/app/visao-geral') : '/login'} 
               replace 
             />
           } 
