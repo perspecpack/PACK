@@ -7,11 +7,25 @@ import BlockRenderer from './BlockRenderer';
 
 interface ProcessCanvasProps {
   blocks: Block[];
+  activeBlockId: string | null;
+  onSelectBlock: (id: string) => void;
+  onUpdateBlock: (id: string, updatedBlock: Block) => void;
   onAddBlockClick: () => void;
-  onDeleteBlock?: (id: string) => void;
+  onDeleteBlockClick: (id: string) => void;
+  onMoveBlock: (id: string, direction: 'up' | 'down') => void;
+  onDuplicateBlock: (id: string) => void;
 }
 
-export default function ProcessCanvas({ blocks, onAddBlockClick, onDeleteBlock }: ProcessCanvasProps) {
+export default function ProcessCanvas({
+  blocks,
+  activeBlockId,
+  onSelectBlock,
+  onUpdateBlock,
+  onAddBlockClick,
+  onDeleteBlockClick,
+  onMoveBlock,
+  onDuplicateBlock
+}: ProcessCanvasProps) {
   return (
     <div className="flex-1 flex flex-col justify-center min-h-[50vh] py-8">
       {blocks.length === 0 ? (
@@ -45,7 +59,7 @@ export default function ProcessCanvas({ blocks, onAddBlockClick, onDeleteBlock }
         </motion.div>
       ) : (
         /* Canvas with Blocks (connected visually) */
-        <div className="max-w-xl mx-auto w-full space-y-6">
+        <div className="max-w-2xl mx-auto w-full space-y-6 px-1">
           {blocks.map((block, index) => (
             <React.Fragment key={block.id}>
               {index > 0 && (
@@ -56,13 +70,22 @@ export default function ProcessCanvas({ blocks, onAddBlockClick, onDeleteBlock }
                   </div>
                 </div>
               )}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
+              <div
+                id={`block-card-${block.id}`}
+                className="scroll-mt-24"
               >
-                <BlockRenderer block={block} onDelete={onDeleteBlock} />
-              </motion.div>
+                <BlockRenderer
+                  block={block}
+                  isActive={activeBlockId === block.id}
+                  onSelect={() => onSelectBlock(block.id)}
+                  onChange={(updatedBlock) => onUpdateBlock(block.id, updatedBlock)}
+                  onDelete={() => onDeleteBlockClick(block.id)}
+                  onMove={(direction) => onMoveBlock(block.id, direction)}
+                  onDuplicate={() => onDuplicateBlock(block.id)}
+                  isFirst={index === 0}
+                  isLast={index === blocks.length - 1}
+                />
+              </div>
             </React.Fragment>
           ))}
 
@@ -71,7 +94,7 @@ export default function ProcessCanvas({ blocks, onAddBlockClick, onDeleteBlock }
             <Button
               onClick={onAddBlockClick}
               variant="outline"
-              className="border border-slate-200 hover:border-[#0d857a]/40 bg-white hover:bg-slate-50 text-slate-650 hover:text-[#0d857a] text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer"
+              className="border border-slate-200 hover:border-[#0d857a]/40 bg-white hover:bg-slate-50 text-slate-655 hover:text-[#0d857a] text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
               Adicionar Bloco

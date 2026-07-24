@@ -7,16 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
+import { useApp } from '@/src/context/AppContext';
 
 export default function NovoProcesso() {
   const navigate = useNavigate();
+  const { user } = useApp();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [organization, setOrganization] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       toast.error('O nome do processo é obrigatório.');
@@ -26,34 +29,53 @@ export default function NovoProcesso() {
     setIsLoading(true);
 
     try {
-      const newProcess = {
-        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-        name: name.trim(),
-        description: description.trim(),
-        category: category.trim() || undefined,
-        organization: organization.trim() || undefined,
-        createdAt: new Date().toISOString(),
-        blocksCount: 0,
-        blocks: []
-      };
+      if (supabase && user) {
+        // Save to Supabase
+        const { data, error } = await supabase
+          .from('processes')
+          .insert({
+            name: name.trim(),
+            description: description.trim() || null,
+            category: category.trim() || null,
+            organization: organization.trim() || null,
+            blocks: [],
+            status: 'draft',
+            user_id: user.id
+          })
+          .select()
+          .single();
 
-      // Load existing processes
-      const stored = localStorage.getItem('perspecpack:processos');
-      const processes = stored ? JSON.parse(stored) : [];
-      
-      // Save new process
-      localStorage.setItem(
-        'perspecpack:processos',
-        JSON.stringify([newProcess, ...processes])
-      );
+        if (error) throw error;
 
-      toast.success('Processo criado com sucesso!');
-      
-      // Redirect to visual editor
-      navigate(`/app/processos/${newProcess.id}`);
-    } catch (err) {
+        toast.success('Processo criado com sucesso!');
+        navigate(`/app/processos/${data.id}`);
+      } else {
+        // LocalStorage fallback
+        const newProcess = {
+          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+          name: name.trim(),
+          description: description.trim(),
+          category: category.trim() || undefined,
+          organization: organization.trim() || undefined,
+          createdAt: new Date().toISOString(),
+          blocksCount: 0,
+          blocks: []
+        };
+
+        const stored = localStorage.getItem('perspecpack:processos');
+        const processes = stored ? JSON.parse(stored) : [];
+        
+        localStorage.setItem(
+          'perspecpack:processos',
+          JSON.stringify([newProcess, ...processes])
+        );
+
+        toast.success('Processo criado com sucesso!');
+        navigate(`/app/processos/${newProcess.id}`);
+      }
+    } catch (err: any) {
       console.error(err);
-      toast.error('Erro ao criar o processo de aprovação.');
+      toast.error(err.message || 'Erro ao criar o processo de aprovação.');
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +96,7 @@ export default function NovoProcesso() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="bg-white border border-slate-200/80 rounded-2xl p-8 shadow-xs space-y-8"
+        className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xs space-y-8"
       >
         {/* Title Block */}
         <div className="space-y-2 border-b border-slate-100 pb-5">
