@@ -3,7 +3,7 @@ import { ProcessTemplate } from './approval-project.template';
 
 export const approvalPrototypeTemplate: ProcessTemplate = {
   id: 'approval-prototype',
-  version: 1,
+  version: 2,
   name: 'Aprovação de Protótipo',
   description: 'Estrutura inicial para avaliação de um protótipo físico e autorização para fabricação do lote.',
   category: 'Validação de Protótipo',
@@ -135,15 +135,10 @@ export const approvalPrototypeTemplate: ProcessTemplate = {
       ]
     },
     {
-      type: 'checkbox',
+      type: 'acknowledgement',
       title: 'Declaração de ciência',
       required: true,
-      options: [
-        { id: '1', text: 'Confirmo que o protótipo apresentado foi avaliado e que a fabricação do lote poderá utilizar esta configuração como referência. Alterações posteriores poderão gerar impactos em custos, prazos, ferramental e documentação.' }
-      ],
-      minSelections: 1,
-      maxSelections: 1,
-      allowOther: false
+      declarationText: 'Confirmo que o protótipo apresentado foi avaliado e que a fabricação do lote poderá utilizar esta configuração como referência. Alterações posteriores poderão gerar impactos em custos, prazos, ferramental e documentação.'
     }
   ]
 };

@@ -4,6 +4,7 @@ import { Plus, LayoutGrid, PlusCircle, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Block } from './BlockFactory';
 import BlockRenderer from './BlockRenderer';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 interface ProcessCanvasProps {
   blocks: Block[];
@@ -60,34 +61,36 @@ export default function ProcessCanvas({
       ) : (
         /* Canvas with Blocks (connected visually) */
         <div className="max-w-2xl mx-auto w-full space-y-6 px-1">
-          {blocks.map((block, index) => (
-            <React.Fragment key={block.id}>
-              {index > 0 && (
-                <div className="flex justify-center -my-3 h-6 relative">
-                  <div className="w-0.5 bg-slate-200 absolute top-0 bottom-0" />
-                  <div className="w-5 h-5 rounded-full bg-white border border-slate-200/90 flex items-center justify-center shadow-xs z-10">
-                    <ArrowDown className="w-3 h-3 text-slate-400" />
+          <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+            {blocks.map((block, index) => (
+              <React.Fragment key={block.id}>
+                {index > 0 && (
+                  <div className="flex justify-center -my-3 h-6 relative">
+                    <div className="w-0.5 bg-slate-200 absolute top-0 bottom-0" />
+                    <div className="w-5 h-5 rounded-full bg-white border border-slate-200/90 flex items-center justify-center shadow-xs z-10">
+                      <ArrowDown className="w-3 h-3 text-slate-400" />
+                    </div>
                   </div>
+                )}
+                <div
+                  id={`block-card-${block.id}`}
+                  className="scroll-mt-24"
+                >
+                  <BlockRenderer
+                    block={block}
+                    isActive={activeBlockId === block.id}
+                    onSelect={() => onSelectBlock(block.id)}
+                    onChange={(updatedBlock) => onUpdateBlock(block.id, updatedBlock)}
+                    onDelete={() => onDeleteBlockClick(block.id)}
+                    onMove={(direction) => onMoveBlock(block.id, direction)}
+                    onDuplicate={() => onDuplicateBlock(block.id)}
+                    isFirst={index === 0}
+                    isLast={index === blocks.length - 1}
+                  />
                 </div>
-              )}
-              <div
-                id={`block-card-${block.id}`}
-                className="scroll-mt-24"
-              >
-                <BlockRenderer
-                  block={block}
-                  isActive={activeBlockId === block.id}
-                  onSelect={() => onSelectBlock(block.id)}
-                  onChange={(updatedBlock) => onUpdateBlock(block.id, updatedBlock)}
-                  onDelete={() => onDeleteBlockClick(block.id)}
-                  onMove={(direction) => onMoveBlock(block.id, direction)}
-                  onDuplicate={() => onDuplicateBlock(block.id)}
-                  isFirst={index === 0}
-                  isLast={index === blocks.length - 1}
-                />
-              </div>
-            </React.Fragment>
-          ))}
+              </React.Fragment>
+            ))}
+          </SortableContext>
 
           {/* Add block button at the bottom of the list */}
           <div className="flex justify-center pt-6">

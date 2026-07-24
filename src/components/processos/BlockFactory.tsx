@@ -9,7 +9,8 @@ export type BlockType =
   | 'dropdown' 
   | 'date' 
   | 'file_upload' 
-  | 'approval_decision';
+  | 'approval_decision'
+  | 'acknowledgement';
 
 export interface DecisionOption {
   id: string;
@@ -55,6 +56,9 @@ export interface Block {
   
   // Approval decision configurations
   decisions?: DecisionOption[];
+
+  // Acknowledgement / Consent configuration
+  declarationText?: string;
 }
 
 export const BLOCK_METADATA: Record<BlockType, { title: string; description: string; icon: string; category: 'content' | 'field' | 'approval' }> = {
@@ -111,6 +115,12 @@ export const BLOCK_METADATA: Record<BlockType, { title: string; description: str
     description: 'Decisão de aprovação, aprovação com ressalvas ou solicitação de alteração.',
     icon: 'ShieldCheck',
     category: 'approval'
+  },
+  acknowledgement: {
+    title: 'Confirmação de Ciência',
+    description: 'Adicione uma declaração que o respondente deve confirmar antes de concluir o processo.',
+    icon: 'FileCheck2',
+    category: 'field'
   }
 };
 
@@ -175,6 +185,12 @@ export const BlockFactory = {
           { id: '3', text: 'Solicitar alterações', semanticType: 'negative', requireComment: true }
         ];
         break;
+
+      case 'acknowledgement':
+        baseBlock.required = true;
+        baseBlock.title = 'Declaração de ciência';
+        baseBlock.declarationText = 'Confirmo que analisei as informações apresentadas e estou de acordo com a declaração acima.';
+        break;
     }
 
     return baseBlock;
@@ -199,7 +215,26 @@ export function validateBlock(block: Block): ValidationError[] {
         message: 'O bloco de Título e Texto deve conter pelo menos um título ou uma descrição preenchidos.'
       });
     }
-    return errors; // Heading text doesn't need other validations
+    return errors;
+  }
+
+  // Acknowledgement validation
+  if (block.type === 'acknowledgement') {
+    if (!block.declarationText || !block.declarationText.trim()) {
+      errors.push({
+        blockId: block.id,
+        field: 'declarationText',
+        message: 'O texto da declaração é obrigatório.'
+      });
+    }
+    if (!block.title.trim()) {
+      errors.push({
+        blockId: block.id,
+        field: 'title',
+        message: 'O título do bloco é obrigatório.'
+      });
+    }
+    return errors;
   }
 
   // Common check: title required for all fields/questions
@@ -223,7 +258,7 @@ export function validateBlock(block: Block): ValidationError[] {
       });
     }
 
-    // Check for duplicates (trim and case-insensitive check optional, let's do trim check as required)
+    // Check for duplicates
     const cleanedTexts = options.map(opt => opt.text.trim());
     const duplicates = cleanedTexts.filter((item, index) => cleanedTexts.indexOf(item) !== index);
     if (duplicates.length > 0) {
@@ -355,4 +390,28 @@ export function validateProcess(blocks: Block[]): ProcessValidationResult {
     errors: allErrors,
     warnings: []
   };
+}
+
+export function migrateLegacyBlocks(blocks: Block[]): Block[] {
+  if (!Array.isArray(blocks)) return [];
+  return blocks.map(block => {
+    // Check if it's a legacy checkbox declaration (exactly 1 option starting with "Confirmo")
+    if (
+      block.type === 'checkbox' &&
+      block.options &&
+      block.options.length === 1 &&
+      block.options[0].text.trim().startsWith('Confirmo')
+    ) {
+      return {
+        ...block,
+        type: 'acknowledgement',
+        declarationText: block.options[0].text,
+        options: undefined,
+        minSelections: undefined,
+        maxSelections: undefined,
+        allowOther: undefined
+      } as Block;
+    }
+    return block;
+  });
 }

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { 
   Block, 
   BLOCK_METADATA, 
@@ -14,17 +16,18 @@ import {
   ChevronUp, 
   AlertCircle,
   Asterisk,
-  Settings2
+  Settings2,
+  GripVertical
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch'; // Wait! Let's check if we have Switch or we can just use normal checkbox. We will use a nice styled toggle/checkbox.
 import { 
   HeadingTextBlockEditor, 
   TextAnswerBlockEditor, 
   ChoiceAnswerBlockEditor, 
   DateBlockEditor, 
   FileUploadBlockEditor, 
-  ApprovalDecisionBlockEditor 
+  ApprovalDecisionBlockEditor,
+  AcknowledgementBlockEditor
 } from './BlockEditors';
 import * as LucideIcons from 'lucide-react';
 
@@ -55,6 +58,23 @@ export default function BlockRenderer({
   const meta = BLOCK_METADATA[block.type];
   const IconComponent = (LucideIcons as any)[meta?.icon || 'FileText'] || LucideIcons.FileText;
 
+  // dnd-kit sortable integration
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: block.id });
+
+  const dndStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined
+  };
+
   // Run validation
   const errors = validateBlock(block);
   const hasErrors = errors.length > 0;
@@ -79,6 +99,8 @@ export default function BlockRenderer({
         return <FileUploadBlockEditor {...props} />;
       case 'approval_decision':
         return <ApprovalDecisionBlockEditor {...props} />;
+      case 'acknowledgement':
+        return <AcknowledgementBlockEditor {...props} />;
       default:
         return null;
     }
@@ -227,6 +249,25 @@ export default function BlockRenderer({
           </div>
         );
 
+      case 'acknowledgement':
+        return (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <h4 className="font-semibold text-slate-800 text-[14px] leading-tight flex items-center gap-1">
+                {block.title || <span className="text-slate-300 italic">Sem declaração</span>}
+                {block.required && <Asterisk className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+              </h4>
+              {block.description && <p className="text-slate-450 text-[11px] leading-normal">{block.description}</p>}
+            </div>
+            <div className="flex items-start gap-3 bg-slate-50/50 border border-slate-200/80 p-4.5 rounded-xl select-none">
+              <div className="h-4.5 w-4.5 border border-slate-300 bg-slate-50/40 rounded mt-0.5" />
+              <span className="text-[13px] leading-relaxed text-slate-650 font-medium">
+                {block.declarationText || 'Texto da declaração de ciência...'}
+              </span>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -236,6 +277,8 @@ export default function BlockRenderer({
 
   return (
     <Card 
+      ref={setNodeRef}
+      style={dndStyle}
       onClick={onSelect}
       className={`border transition-all duration-200 rounded-2xl bg-white relative overflow-hidden group/card cursor-pointer select-none ${
         isActive 
@@ -252,7 +295,18 @@ export default function BlockRenderer({
 
       {/* Main Container */}
       <CardContent className={`p-6 ${isActive ? 'pl-7.5' : 'pl-6'}`}>
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3">
+          {/* Grip Handle for Drag and Drop */}
+          <div 
+            {...attributes}
+            {...listeners}
+            className="flex items-center justify-center p-1 text-slate-300 hover:text-slate-500 rounded-md cursor-grab active:cursor-grabbing hover:bg-slate-100/70 shrink-0 select-none focus:outline-none focus:ring-1 focus:ring-[#0d857a] transition-all"
+            aria-label="Reordenar bloco"
+            title="Arraste para reordenar o bloco"
+          >
+            <GripVertical className="w-4 h-4" />
+          </div>
+
           {/* Block Icon Label */}
           <div className={`h-9 w-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0 transition-colors ${
             isActive ? 'bg-[#0d857a]/5 text-[#0d857a] border-[#0d857a]/20' : 'text-slate-400 group-hover/card:text-slate-650'
@@ -284,6 +338,7 @@ export default function BlockRenderer({
                     disabled={isFirst}
                     className="h-8 w-8 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 disabled:opacity-30 transition-all cursor-pointer"
                     title="Mover para Cima"
+                    aria-label="Mover bloco para cima"
                   >
                     <ArrowUp className="w-3.5 h-3.5" />
                   </button>
@@ -293,6 +348,7 @@ export default function BlockRenderer({
                     disabled={isLast}
                     className="h-8 w-8 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 disabled:opacity-30 transition-all cursor-pointer"
                     title="Mover para Baixo"
+                    aria-label="Mover bloco para baixo"
                   >
                     <ArrowDown className="w-3.5 h-3.5" />
                   </button>

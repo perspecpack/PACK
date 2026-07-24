@@ -830,3 +830,71 @@ function UploadCloudIcon(props: React.ComponentProps<'svg'>) {
     </svg>
   );
 }
+
+// 10. CONFIRMAÇÃO DE CIÊNCIA
+export function AcknowledgementBlockEditor({ block, onChange, errors }: EditorProps) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor={`title-${block.id}`} className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          Título do Bloco
+        </Label>
+        <Input
+          id={`title-${block.id}`}
+          type="text"
+          value={block.title}
+          onChange={(e) => onChange({ ...block, title: e.target.value })}
+          placeholder="Ex: Declaração de ciência"
+          className="h-10 border-slate-200 focus-visible:border-[#0d857a] focus-visible:ring-[#0d857a]/20 text-[14px]"
+        />
+        {errors.includes('title') && (
+          <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium">
+            <AlertCircle className="w-3.5 h-3.5" />
+            <span>O título é obrigatório.</span>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor={`decl-${block.id}`} className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          Texto da Declaração
+        </Label>
+        <Textarea
+          id={`decl-${block.id}`}
+          value={block.declarationText || ''}
+          onChange={(e) => onChange({ ...block, declarationText: e.target.value })}
+          placeholder="Digite a declaração de confirmação..."
+          className="min-h-[100px] border-slate-200 focus-visible:border-[#0d857a] focus-visible:ring-[#0d857a]/20 text-[13px] p-2.5"
+        />
+        {errors.includes('declarationText') && (
+          <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium">
+            <AlertCircle className="w-3.5 h-3.5" />
+            <span>O texto da declaração é obrigatório.</span>
+          </div>
+        )}
+      </div>
+
+      {/* Visual Simulation of the checkbox field in the editor */}
+      <div className="pt-2 border-t border-slate-100">
+        <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider block mb-2.5">
+          Pré-visualização do Campo
+        </span>
+        <div className="flex items-start gap-3 bg-slate-50/50 border border-slate-150 p-4.5 rounded-xl">
+          <Checkbox 
+            id={`preview-check-${block.id}`}
+            disabled 
+            className="mt-0.5 border-slate-300" 
+          />
+          <label 
+            htmlFor={`preview-check-${block.id}`}
+            className="text-[13px] leading-relaxed text-slate-700 font-medium select-none pointer-events-none"
+          >
+            {block.declarationText || 'Texto da declaração de ciência...'}
+            {block.required && <span className="text-red-500 ml-1 font-bold">*</span>}
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+

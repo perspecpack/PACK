@@ -11,7 +11,7 @@ export interface ProcessTemplate {
 
 export const approvalProjectTemplate: ProcessTemplate = {
   id: 'approval-project',
-  version: 1,
+  version: 2,
   name: 'Aprovação de Projeto',
   description: 'Estrutura inicial para análise de documentação técnica, características do projeto e autorização para fabricação.',
   category: 'Aprovação Técnica',
@@ -124,15 +124,10 @@ export const approvalProjectTemplate: ProcessTemplate = {
       ]
     },
     {
-      type: 'checkbox',
+      type: 'acknowledgement',
       title: 'Declaração de ciência',
       required: true,
-      options: [
-        { id: '1', text: 'Confirmo que analisei o conteúdo disponibilizado e estou ciente de que a fabricação poderá seguir conforme a revisão aprovada. Alterações posteriores poderão impactar custos, prazos e documentação técnica.' }
-      ],
-      minSelections: 1,
-      maxSelections: 1,
-      allowOther: false
+      declarationText: 'Confirmo que analisei o conteúdo disponibilizado e estou ciente de que a fabricação poderá seguir conforme a revisão aprovada. Alterações posteriores poderão impactar custos, prazos e documentação técnica.'
     }
   ]
 };

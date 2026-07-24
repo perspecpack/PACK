@@ -11,9 +11,21 @@ import ProcessHeader from '@/src/components/processos/ProcessHeader';
 import ProcessCanvas from '@/src/components/processos/ProcessCanvas';
 import BlockSidebar from '@/src/components/processos/BlockSidebar';
 import DeleteBlockDialog from '@/src/components/processos/DeleteBlockDialog';
-import { Block, BlockFactory } from '@/src/components/processos/BlockFactory';
+import { Block, BlockFactory, migrateLegacyBlocks, BLOCK_METADATA } from '@/src/components/processos/BlockFactory';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
+
+// dnd-kit vertical dragging imports
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
 interface Processo {
   id: string;
@@ -47,6 +59,15 @@ export default function EditorProcesso() {
   const [saveStatus, setSaveStatus] = useState<SaveStatusType>('saved');
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Configure sensors for dnd-kit
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px activation distance prevents dragging when normal touch scrolling
+      },
+    })
+  );
+
   // Load process
   useEffect(() => {
     const loadProcess = async () => {
@@ -61,6 +82,9 @@ export default function EditorProcesso() {
 
           if (error) throw error;
           
+          // Apply legacy migration to loaded blocks
+          const migratedBlocks = migrateLegacyBlocks(Array.isArray(data.blocks) ? data.blocks : []);
+
           setProcesso({
             id: data.id,
             name: data.name,
@@ -68,7 +92,7 @@ export default function EditorProcesso() {
             category: data.category || '',
             organization: data.organization || '',
             createdAt: data.created_at,
-            blocks: Array.isArray(data.blocks) ? data.blocks : [],
+            blocks: migratedBlocks,
             status: data.status || 'draft',
             user_id: data.user_id
           });
@@ -79,7 +103,11 @@ export default function EditorProcesso() {
             const list: Processo[] = JSON.parse(stored);
             const found = list.find(p => p.id === id);
             if (found) {
-              setProcesso(found);
+              const migratedBlocks = migrateLegacyBlocks(Array.isArray(found.blocks) ? found.blocks : []);
+              setProcesso({
+                ...found,
+                blocks: migratedBlocks
+              });
             }
           }
         }
@@ -239,6 +267,14 @@ export default function EditorProcesso() {
     const updatedProcess = { ...processo, blocks: updatedBlocks };
     setProcesso(updatedProcess);
     triggerAutosave(updatedProcess);
+    
+    // Keep focus on moved block
+    setTimeout(() => {
+      const el = document.getElementById(`block-card-${blockId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 50);
   };
 
   // Duplicate block
@@ -288,6 +324,26 @@ export default function EditorProcesso() {
 
   const handleSelectBlock = (blockId: string) => {
     setActiveBlockId(blockId);
+  };
+
+  // Drag and drop handler
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      if (!processo) return;
+      
+      const oldIndex = processo.blocks.findIndex(b => b.id === active.id);
+      const newIndex = processo.blocks.findIndex(b => b.id === over.id);
+      
+      const updatedBlocks = arrayMove(processo.blocks, oldIndex, newIndex);
+      const updatedProcess = { ...processo, blocks: updatedBlocks };
+      
+      setProcesso(updatedProcess);
+      triggerAutosave(updatedProcess);
+      
+      toast.success('Posição do bloco atualizada');
+    }
   };
 
   // Render Save Status Label
@@ -400,16 +456,23 @@ export default function EditorProcesso() {
           />
         }
         canvas={
-          <ProcessCanvas
-            blocks={processo.blocks || []}
-            activeBlockId={activeBlockId}
-            onSelectBlock={handleSelectBlock}
-            onUpdateBlock={handleUpdateBlock}
-            onAddBlockClick={() => setIsSidebarOpen(true)}
-            onDeleteBlockClick={handleDeleteBlockClick}
-            onMoveBlock={handleMoveBlock}
-            onDuplicateBlock={handleDuplicateBlock}
-          />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis]}
+            onDragEnd={handleDragEnd}
+          >
+            <ProcessCanvas
+              blocks={processo.blocks || []}
+              activeBlockId={activeBlockId}
+              onSelectBlock={handleSelectBlock}
+              onUpdateBlock={handleUpdateBlock}
+              onAddBlockClick={() => setIsSidebarOpen(true)}
+              onDeleteBlockClick={handleDeleteBlockClick}
+              onMoveBlock={handleMoveBlock}
+              onDuplicateBlock={handleDuplicateBlock}
+            />
+          </DndContext>
         }
         sidebar={
           <BlockSidebar
