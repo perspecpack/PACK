@@ -11,6 +11,7 @@ import {
   LogOut,
   LayoutDashboard,
   FolderKanban,
+  Workflow,
   Layers,
   ShieldCheck,
   Settings,
@@ -44,7 +45,7 @@ export function AppLayout() {
 
   const menuItems = [
     { name: 'Visão Geral', path: '/app/visao-geral', icon: LayoutDashboard },
-    { name: 'Meus Projetos', path: '/app/projetos', icon: FolderKanban },
+    { name: 'Processos de Aprovação', path: '/app/processos', icon: Workflow },
     { name: 'Padrões das Organizações', path: '/app/padroes', icon: Layers },
     { name: 'Aprovações', path: '/app/aprovacoes', icon: ShieldCheck },
   ];

@@ -17,6 +17,11 @@ import Help from './pages/Downloads/Help';
 import PolicyDocument from './pages/Downloads/PolicyDocument';
 import ProvisionalPage from './pages/ProvisionalPage';
 
+// Processos Pages
+import ProcessosList from './pages/Processos/ProcessosList';
+import NovoProcesso from './pages/Processos/NovoProcesso';
+import EditorProcesso from './pages/Processos/EditorProcesso';
+
 // Master Pages
 import Dashboard from './pages/Master/Dashboard';
 import Organizations from './pages/Master/Organizations';
@@ -124,6 +129,11 @@ function AppRoutes() {
         {/* Redirect root to /app/visao-geral */}
         <Route path="/" element={<Navigate to="/app/visao-geral" replace />} />
 
+        {/* Top-level Processos redirects */}
+        <Route path="/processos" element={<Navigate to="/app/processos" replace />} />
+        <Route path="/processos/novo" element={<Navigate to="/app/processos/novo" replace />} />
+        <Route path="/processos/:id" element={<Navigate to="/app/processos/:id" replace />} />
+
         {/* Protected Supplier / Final User Routes */}
         <Route 
           path="/app"
@@ -135,7 +145,12 @@ function AppRoutes() {
         >
           <Route index element={<Navigate to="/app/visao-geral" replace />} />
           <Route path="visao-geral" element={<ProvisionalPage title="Visão Geral" />} />
-          <Route path="projetos" element={<ProvisionalPage title="Meus Projetos" />} />
+          <Route path="projetos" element={<Navigate to="/app/processos" replace />} />
+          
+          <Route path="processos" element={<ProcessosList />} />
+          <Route path="processos/novo" element={<NovoProcesso />} />
+          <Route path="processos/:id" element={<EditorProcesso />} />
+          
           <Route path="padroes" element={<Downloads />} />
           <Route path="aprovacoes" element={<ProvisionalPage title="Aprovações" />} />
           <Route path="configuracoes" element={<ProvisionalPage title="Configurações" />} />
