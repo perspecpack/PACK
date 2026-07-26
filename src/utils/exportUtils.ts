@@ -405,7 +405,9 @@ export function generatePDFReport(pub: any, resp: any): void {
     doc.setFontSize(10);
     doc.setTextColor(30, 41, 59);
     
-    const blockTitle = `Questão ${index + 1}: ${block.title || 'Informativo'}`;
+    const blockTitle = (block.type === 'request_information' || block.type === 'analysis_materials')
+      ? (block.title || 'Informações')
+      : `Questão ${index + 1}: ${block.title || 'Informativo'}`;
     doc.text(blockTitle, 14, y);
     y += 5;
 
@@ -422,6 +424,49 @@ export function generatePDFReport(pub: any, resp: any): void {
       const splitText = doc.splitTextToSize(block.description || '', 182);
       doc.text(splitText, 14, y);
       y += (splitText.length * 4) + 2;
+    } else if (block.type === 'request_information') {
+      const enabledFields = (block.fields || []).filter((f: any) => f.enabled && f.visibleToClient);
+      if (enabledFields.length > 0) {
+        enabledFields.forEach((field: any) => {
+          let val = '';
+          if (field.key === 'title') val = pub.snapshot?.title || '';
+          else if (field.key === 'client') val = pub.snapshot?.client || '';
+          else if (field.key === 'project') val = pub.snapshot?.project || '';
+          else if (field.key === 'code') val = pub.snapshot?.code || '';
+          else if (field.key === 'revision') val = pub.snapshot?.revision || '';
+          else if (field.key === 'responsible_internal') val = pub.snapshot?.responsible_internal || '';
+          else if (field.key === 'deadline') val = pub.snapshot?.deadline ? new Date(pub.snapshot.deadline).toLocaleString('pt-BR') : '';
+          else if (field.key === 'description') val = pub.snapshot?.description || '';
+          else if (field.key === 'notes_for_client') val = pub.snapshot?.notes_for_client || '';
+          
+          if (val) {
+            doc.setFont('Helvetica', 'bold');
+            doc.text(`${field.label}:`, 18, y);
+            doc.setFont('Helvetica', 'normal');
+            const splitVal = doc.splitTextToSize(val, 140);
+            doc.text(splitVal, 52, y);
+            y += (splitVal.length * 4.5) + 2;
+          }
+        });
+        y += 2;
+      } else {
+        doc.text('Nenhuma informação visível ao cliente.', 14, y);
+        y += 6;
+      }
+    } else if (block.type === 'analysis_materials') {
+      const materialsList = pub.snapshot?.materials || [];
+      if (materialsList.length > 0) {
+        materialsList.forEach((m: any) => {
+          const info = `${m.name} [${m.category}] ${m.revision ? `(Rev ${m.revision})` : ''} - ${m.fileName}`;
+          const splitInfo = doc.splitTextToSize(info, 175);
+          doc.text(splitInfo, 18, y);
+          y += (splitInfo.length * 4.5) + 1;
+        });
+        y += 2;
+      } else {
+        doc.text('Nenhum material anexado.', 14, y);
+        y += 6;
+      }
     } else if (block.type === 'short_answer' || block.type === 'long_answer' || block.type === 'dropdown' || block.type === 'date') {
       const val = ans?.value !== undefined ? String(ans.value) : 'Sem resposta';
       const splitVal = doc.splitTextToSize(val, 182);

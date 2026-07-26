@@ -27,7 +27,9 @@ import {
   DateBlockEditor, 
   FileUploadBlockEditor, 
   ApprovalDecisionBlockEditor,
-  AcknowledgementBlockEditor
+  AcknowledgementBlockEditor,
+  RequestInfoBlockEditor,
+  AnalysisMaterialsBlockEditor
 } from './BlockEditors';
 import * as LucideIcons from 'lucide-react';
 
@@ -101,6 +103,10 @@ export default function BlockRenderer({
         return <ApprovalDecisionBlockEditor {...props} />;
       case 'acknowledgement':
         return <AcknowledgementBlockEditor {...props} />;
+      case 'request_information':
+        return <RequestInfoBlockEditor {...props} />;
+      case 'analysis_materials':
+        return <AnalysisMaterialsBlockEditor {...props} />;
       default:
         return null;
     }
@@ -257,13 +263,68 @@ export default function BlockRenderer({
                 {block.title || <span className="text-slate-300 italic">Sem declaração</span>}
                 {block.required && <Asterisk className="w-3.5 h-3.5 text-red-500 shrink-0" />}
               </h4>
-              {block.description && <p className="text-slate-450 text-[11px] leading-normal">{block.description}</p>}
+              {block.description && <p className="text-slate-455 text-[11px] leading-normal">{block.description}</p>}
             </div>
             <div className="flex items-start gap-3 bg-slate-50/50 border border-slate-200/80 p-4.5 rounded-xl select-none">
               <div className="h-4.5 w-4.5 border border-slate-300 bg-slate-50/40 rounded mt-0.5" />
               <span className="text-[13px] leading-relaxed text-slate-650 font-medium">
                 {block.declarationText || 'Texto da declaração de ciência...'}
               </span>
+            </div>
+          </div>
+        );
+
+      case 'request_information':
+        return (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h4 className="font-semibold text-slate-800 text-[14px] leading-tight">
+                {block.title || 'Informações Gerais da Solicitação'}
+              </h4>
+              {block.description && <p className="text-slate-455 text-[11px] leading-normal">{block.description}</p>}
+            </div>
+            
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3.5">
+              <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Visualização dos Campos Ativos</h5>
+              <div className="grid grid-cols-2 gap-3 text-[11px] text-slate-455 font-medium">
+                {(block.fields || []).filter(f => f.enabled).map(field => (
+                  <div key={field.id} className="space-y-1">
+                    <span className="block text-[9px] font-bold uppercase">
+                      {field.label} {field.required && <span className="text-red-500 font-bold">*</span>}
+                    </span>
+                    <div className="h-8 border border-slate-200 bg-white rounded-lg px-2 flex items-center text-slate-300 italic select-none">
+                      {field.placeholder || 'Preenchido pela empresa...'}
+                    </div>
+                    {field.helperText && <span className="block text-[9px] text-slate-400 font-medium">{field.helperText}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="text-[10px] text-amber-600 font-bold bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 w-fit">
+              * Preenchido pela empresa durante a preparação da aprovação.
+            </div>
+          </div>
+        );
+
+      case 'analysis_materials':
+        return (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h4 className="font-semibold text-slate-800 text-[14px] leading-tight">
+                {block.title || 'Materiais para Análise'}
+              </h4>
+              {block.description && <p className="text-slate-455 text-[11px] leading-normal">{block.description}</p>}
+            </div>
+            
+            <div className="border border-dashed border-slate-350 rounded-xl p-6 bg-slate-50/20 flex flex-col items-center justify-center text-center space-y-2 select-none">
+              <LucideIcons.FolderOpen className="w-7 h-7 text-slate-400" />
+              <span className="text-xs font-semibold text-slate-500">Área para anexo de materiais técnicos</span>
+              <p className="text-[10px] text-slate-400 max-w-md">
+                Tipos permitidos: {block.allowedFileTypes?.join(', ') || 'Nenhum'}. Max: {block.maxFiles || 10} arquivo(s) de até {block.maxSizeMB || 50} MB.
+              </p>
+            </div>
+            <div className="text-[10px] text-amber-600 font-bold bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 w-fit">
+              * Os materiais serão anexados durante a preparação da aprovação.
             </div>
           </div>
         );
@@ -379,20 +440,31 @@ export default function BlockRenderer({
                 {!isHeading && (
                   <div className="flex items-center gap-4 flex-wrap self-end sm:self-center">
                     {/* FilledBy Selector */}
-                    <div className="flex items-center gap-2 select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        Preenchido por
-                      </span>
-                      <select
-                        value={block.filledBy || 'client'}
-                        onChange={(e) => onChange({ ...block, filledBy: e.target.value as any })}
-                        className="text-xs font-semibold bg-transparent border-0 text-slate-700 outline-none cursor-pointer focus:ring-0"
-                      >
-                        <option value="client">Cliente</option>
-                        <option value="company">Empresa</option>
-                        <option value="both">Ambos</option>
-                      </select>
-                    </div>
+                    {block.type === 'request_information' || block.type === 'analysis_materials' ? (
+                      <div className="flex items-center gap-2 select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          Preenchido por
+                        </span>
+                        <span className="text-xs font-bold text-teal-600">
+                          Empresa (Fixo)
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          Preenchido por
+                        </span>
+                        <select
+                          value={block.filledBy || 'client'}
+                          onChange={(e) => onChange({ ...block, filledBy: e.target.value as any })}
+                          className="text-xs font-semibold bg-transparent border-0 text-slate-700 outline-none cursor-pointer focus:ring-0"
+                        >
+                          <option value="client">Cliente</option>
+                          <option value="company">Empresa</option>
+                          <option value="both">Ambos</option>
+                        </select>
+                      </div>
+                    )}
 
                     {/* Required Toggle */}
                     <div className="flex items-center gap-3 select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">

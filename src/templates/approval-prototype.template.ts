@@ -9,28 +9,36 @@ export const approvalPrototypeTemplate: ProcessTemplate = {
   category: 'Validação de Protótipo',
   blocks: [
     {
-      type: 'heading_text',
-      title: 'Aprovação de Protótipo',
-      description: 'Registre a avaliação do protótipo físico apresentado. A aprovação autoriza sua utilização como referência para a fabricação do lote.',
-      required: false
+      type: 'request_information',
+      title: 'Informações Gerais da Solicitação',
+      required: true,
+      filledBy: 'company',
+      fields: [
+        { id: 'f1', key: 'title', label: 'Título da solicitação', placeholder: 'Ex: Aprovação de Protótipo Básico', enabled: true, required: true, visibleToClient: true, position: 1 },
+        { id: 'f2', key: 'client', label: 'Cliente', placeholder: 'Ex: Montadora ABC', enabled: true, required: true, visibleToClient: true, position: 2 },
+        { id: 'f3', key: 'project', label: 'Projeto', placeholder: 'Ex: Rack de Escapamento', enabled: true, required: true, visibleToClient: true, position: 3 },
+        { id: 'f4', key: 'code', label: 'Código do projeto ou produto', placeholder: 'Ex: PROT-554', enabled: true, required: true, visibleToClient: true, position: 4 },
+        { id: 'f5', key: 'revision', label: 'Revisão', placeholder: 'Ex: Rev A', enabled: true, required: true, visibleToClient: true, position: 5 },
+        { id: 'f6', key: 'responsible_internal', label: 'Responsável interno', placeholder: 'Ex: João da Silva', enabled: true, required: false, visibleToClient: true, position: 6 },
+        { id: 'f7', key: 'deadline', label: 'Prazo para resposta', placeholder: '', enabled: true, required: false, visibleToClient: true, position: 7 },
+        { id: 'f8', key: 'description', label: 'Descrição do processo', placeholder: 'Registre a avaliação do protótipo físico apresentado...', enabled: true, required: false, visibleToClient: true, position: 8 },
+        { id: 'f9', key: 'notes_for_client', label: 'Observações ao cliente', placeholder: 'Notas visíveis apenas para o cliente...', enabled: true, required: false, visibleToClient: true, position: 9 }
+      ]
     },
     {
-      type: 'short_answer',
-      title: 'Nome do projeto ou produto',
-      required: true,
-      placeholder: 'Ex: Rack de Escapamento'
-    },
-    {
-      type: 'short_answer',
-      title: 'Código do projeto ou produto',
-      required: true,
-      placeholder: 'Ex: PROT-554'
-    },
-    {
-      type: 'short_answer',
-      title: 'Revisão avaliada',
-      required: true,
-      placeholder: 'Ex: Rev A'
+      type: 'analysis_materials',
+      title: 'Materiais para Análise',
+      required: false,
+      filledBy: 'company',
+      minFiles: 0,
+      maxFiles: 10,
+      maxSizeMB: 50,
+      allowExternalLinks: true,
+      allowDownload: true,
+      requireDescription: false,
+      requireCategory: false,
+      requireRevision: false,
+      allowedFileTypes: ['pdf', 'images', 'videos', 'documents', 'spreadsheets', 'cad_step', 'cad_stl', 'cad_dwg', 'cad_dxf', 'zip', 'others']
     },
     {
       type: 'short_answer',
@@ -41,50 +49,9 @@ export const approvalPrototypeTemplate: ProcessTemplate = {
     },
     {
       type: 'short_answer',
-      title: 'Cliente',
-      required: true,
-      placeholder: 'Ex: Montadora ABC'
-    },
-    {
-      type: 'short_answer',
       title: 'Local da avaliação',
       required: false,
       placeholder: 'Ex: Laboratório de Validação'
-    },
-    {
-      type: 'short_answer',
-      title: 'Responsável pela aprovação',
-      required: true,
-      placeholder: 'Digite seu nome completo'
-    },
-    {
-      type: 'short_answer',
-      title: 'Cargo ou função',
-      required: true,
-      placeholder: 'Ex: Analista de Qualidade'
-    },
-    {
-      type: 'date',
-      title: 'Data da avaliação',
-      required: true,
-      allowPastDates: true,
-      allowFutureDates: false
-    },
-    {
-      type: 'checkbox',
-      title: 'Evidências disponibilizadas',
-      required: false,
-      options: [
-        { id: '1', text: 'Protótipo físico' },
-        { id: '2', text: 'Fotos' },
-        { id: '3', text: 'Vídeo' },
-        { id: '4', text: 'Desenho técnico' },
-        { id: '5', text: 'Modelo 3D' },
-        { id: '6', text: 'Relatório dimensional' },
-        { id: '7', text: 'Relatório de testes' },
-        { id: '8', text: 'Outros documentos' }
-      ],
-      allowOther: true
     },
     {
       type: 'checkbox',

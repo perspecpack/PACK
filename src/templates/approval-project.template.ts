@@ -17,72 +17,36 @@ export const approvalProjectTemplate: ProcessTemplate = {
   category: 'Aprovação Técnica',
   blocks: [
     {
-      type: 'heading_text',
-      title: 'Aprovação de Projeto',
-      description: 'Analise as informações e os documentos disponibilizados antes de registrar sua decisão. A aprovação autoriza o avanço do processo conforme a revisão apresentada.',
-      required: false
-    },
-    {
-      type: 'short_answer',
-      title: 'Nome do projeto',
-      description: 'Informe o nome ou identificação principal do projeto.',
+      type: 'request_information',
+      title: 'Informações Gerais da Solicitação',
       required: true,
-      placeholder: 'Ex: Dispositivo de Solda Lateral'
+      filledBy: 'company',
+      fields: [
+        { id: 'f1', key: 'title', label: 'Título da solicitação', placeholder: 'Ex: Aprovação de Projeto ABC', enabled: true, required: true, visibleToClient: true, position: 1 },
+        { id: 'f2', key: 'client', label: 'Cliente', placeholder: 'Ex: Montadora XYZ', enabled: true, required: true, visibleToClient: true, position: 2 },
+        { id: 'f3', key: 'project', label: 'Projeto', placeholder: 'Ex: Dispositivo de Solda Lateral', enabled: true, required: true, visibleToClient: true, position: 3 },
+        { id: 'f4', key: 'code', label: 'Código do projeto', placeholder: 'Ex: PRJ-2026-089', enabled: true, required: true, visibleToClient: true, position: 4 },
+        { id: 'f5', key: 'revision', label: 'Revisão', placeholder: 'Ex: Rev 02', enabled: true, required: true, visibleToClient: true, position: 5 },
+        { id: 'f6', key: 'responsible_internal', label: 'Responsável interno', placeholder: 'Ex: João da Silva', enabled: true, required: false, visibleToClient: true, position: 6 },
+        { id: 'f7', key: 'deadline', label: 'Prazo para resposta', placeholder: '', enabled: true, required: false, visibleToClient: true, position: 7 },
+        { id: 'f8', key: 'description', label: 'Descrição do processo', placeholder: 'Analise as informações e os documentos disponibilizados antes de registrar sua decisão...', enabled: true, required: false, visibleToClient: true, position: 8 },
+        { id: 'f9', key: 'notes_for_client', label: 'Observações ao cliente', placeholder: 'Notas visíveis apenas para o cliente...', enabled: true, required: false, visibleToClient: true, position: 9 }
+      ]
     },
     {
-      type: 'short_answer',
-      title: 'Código do projeto',
-      description: 'Informe o código interno, número do pedido ou referência aplicável.',
-      required: true,
-      placeholder: 'Ex: PRJ-2026-089'
-    },
-    {
-      type: 'short_answer',
-      title: 'Revisão avaliada',
-      description: 'Informe a revisão do projeto que está sendo analisada.',
-      required: true,
-      placeholder: 'Ex: Rev 02'
-    },
-    {
-      type: 'short_answer',
-      title: 'Cliente',
-      required: true,
-      placeholder: 'Ex: Montadora XYZ'
-    },
-    {
-      type: 'short_answer',
-      title: 'Responsável pela aprovação',
-      required: true,
-      placeholder: 'Digite seu nome completo'
-    },
-    {
-      type: 'short_answer',
-      title: 'Cargo ou função',
-      required: true,
-      placeholder: 'Ex: Engenheiro de Processos'
-    },
-    {
-      type: 'date',
-      title: 'Data da avaliação',
-      required: true,
-      allowPastDates: true,
-      allowFutureDates: false
-    },
-    {
-      type: 'checkbox',
-      title: 'Documentação disponibilizada para análise',
-      description: 'Selecione os materiais que foram disponibilizados junto ao processo.',
+      type: 'analysis_materials',
+      title: 'Materiais para Análise',
       required: false,
-      options: [
-        { id: '1', text: 'Modelo 3D' },
-        { id: '2', text: 'Desenho técnico' },
-        { id: '3', text: 'Lista de materiais' },
-        { id: '4', text: 'Memorial descritivo' },
-        { id: '5', text: 'Imagens ou renderizações' },
-        { id: '6', text: 'Vídeo demonstrativo' },
-        { id: '7', text: 'Outros documentos' }
-      ],
-      allowOther: true
+      filledBy: 'company',
+      minFiles: 0,
+      maxFiles: 10,
+      maxSizeMB: 50,
+      allowExternalLinks: true,
+      allowDownload: true,
+      requireDescription: false,
+      requireCategory: false,
+      requireRevision: false,
+      allowedFileTypes: ['pdf', 'images', 'videos', 'documents', 'spreadsheets', 'cad_step', 'cad_stl', 'cad_dwg', 'cad_dxf', 'zip', 'others']
     },
     {
       type: 'checkbox',

@@ -10,7 +10,21 @@ export type BlockType =
   | 'date' 
   | 'file_upload' 
   | 'approval_decision'
-  | 'acknowledgement';
+  | 'acknowledgement'
+  | 'request_information'
+  | 'analysis_materials';
+
+export interface RequestInfoField {
+  id: string;
+  key: string;
+  label: string;
+  placeholder?: string;
+  helperText?: string;
+  enabled: boolean;
+  required: boolean;
+  visibleToClient: boolean;
+  position: number;
+}
 
 export interface DecisionOption {
   id: string;
@@ -65,9 +79,24 @@ export interface Block {
 
   // Prefilled or captured value
   value?: any;
+
+  // request_information fields
+  fields?: RequestInfoField[];
+
+  // analysis_materials configurations
+  minFiles?: number;
+  allowExternalLinks?: boolean;
+  allowDownload?: boolean;
+  requireDescription?: boolean;
+  requireCategory?: boolean;
+  requireRevision?: boolean;
+  visibleToClient?: boolean;
 }
 
-export const BLOCK_METADATA: Record<BlockType, { title: string; description: string; icon: string; category: 'content' | 'field' | 'approval' }> = {
+export const BLOCK_METADATA: Record<
+  BlockType, 
+  { title: string; description: string; icon: string; category: 'content' | 'field' | 'approval' | 'preparation' }
+> = {
   heading_text: {
     title: 'Título e Texto',
     description: 'Adicione títulos, instruções ou informações ao processo.',
@@ -127,6 +156,18 @@ export const BLOCK_METADATA: Record<BlockType, { title: string; description: str
     description: 'Adicione uma declaração que o respondente deve confirmar antes de concluir o processo.',
     icon: 'FileCheck2',
     category: 'field'
+  },
+  request_information: {
+    title: 'Informações Gerais da Solicitação',
+    description: 'Defina quais informações a empresa deverá preencher antes de publicar a aprovação.',
+    icon: 'Info',
+    category: 'preparation'
+  },
+  analysis_materials: {
+    title: 'Materiais para Análise',
+    description: 'Permita que a empresa anexe documentos, imagens, vídeos e arquivos técnicos para o cliente analisar.',
+    icon: 'FolderOpen',
+    category: 'preparation'
   }
 };
 
@@ -198,6 +239,38 @@ export const BlockFactory = {
         baseBlock.title = 'Declaração de ciência';
         baseBlock.declarationText = 'Confirmo que analisei as informações apresentadas e estou de acordo com a declaração acima.';
         break;
+      
+      case 'request_information':
+        baseBlock.title = 'Informações Gerais da Solicitação';
+        baseBlock.required = true;
+        baseBlock.filledBy = 'company';
+        baseBlock.fields = [
+          { id: 'f1', key: 'title', label: 'Título da solicitação', placeholder: 'Ex: Aprovação de Protótipo Básico', enabled: true, required: true, visibleToClient: true, position: 1 },
+          { id: 'f2', key: 'client', label: 'Cliente', placeholder: 'Ex: Volkswagen do Brasil', enabled: true, required: true, visibleToClient: true, position: 2 },
+          { id: 'f3', key: 'project', label: 'Projeto', placeholder: 'Ex: Dispositivo de Solda Lateral', enabled: true, required: true, visibleToClient: true, position: 3 },
+          { id: 'f4', key: 'code', label: 'Código do projeto', placeholder: 'Ex: PRJ-2026-09', enabled: false, required: false, visibleToClient: true, position: 4 },
+          { id: 'f5', key: 'revision', label: 'Revisão', placeholder: 'Ex: 01', enabled: false, required: false, visibleToClient: true, position: 5 },
+          { id: 'f6', key: 'responsible_internal', label: 'Responsável interno', placeholder: 'Ex: João da Silva', enabled: false, required: false, visibleToClient: true, position: 6 },
+          { id: 'f7', key: 'deadline', label: 'Prazo para resposta', placeholder: '', enabled: false, required: false, visibleToClient: true, position: 7 },
+          { id: 'f8', key: 'description', label: 'Descrição do processo', placeholder: 'Descreva as instruções para esta validação...', enabled: false, required: false, visibleToClient: true, position: 8 },
+          { id: 'f9', key: 'notes_for_client', label: 'Observações ao cliente', placeholder: 'Notas visíveis apenas para o cliente...', enabled: false, required: false, visibleToClient: true, position: 9 }
+        ];
+        break;
+
+      case 'analysis_materials':
+        baseBlock.title = 'Materiais para Análise';
+        baseBlock.required = false;
+        baseBlock.filledBy = 'company';
+        baseBlock.minFiles = 0;
+        baseBlock.maxFiles = 10;
+        baseBlock.maxSizeMB = 50;
+        baseBlock.allowExternalLinks = true;
+        baseBlock.allowDownload = true;
+        baseBlock.requireDescription = false;
+        baseBlock.requireCategory = false;
+        baseBlock.requireRevision = false;
+        baseBlock.allowedFileTypes = ['pdf', 'images', 'videos', 'documents', 'spreadsheets', 'cad_step', 'cad_stl', 'cad_dwg', 'cad_dxf', 'zip', 'others'];
+        break;
     }
 
     return baseBlock;
@@ -240,6 +313,29 @@ export function validateBlock(block: Block): ValidationError[] {
         field: 'title',
         message: 'O título do bloco é obrigatório.'
       });
+    }
+    return errors;
+  }
+
+  // Special blocks validation
+  if (block.type === 'request_information') {
+    if (!block.title.trim()) {
+      errors.push({ blockId: block.id, field: 'title', message: 'O título do bloco é obrigatório.' });
+    }
+    const enabledFields = block.fields?.filter(f => f.enabled) || [];
+    if (enabledFields.length === 0) {
+      errors.push({ blockId: block.id, field: 'fields', message: 'Pelo menos um campo de informação geral deve estar ativado.' });
+    }
+    const titleField = block.fields?.find(f => f.key === 'title');
+    if (!titleField || !titleField.enabled) {
+      errors.push({ blockId: block.id, field: 'fields', message: 'O campo "Título da solicitação" é obrigatório e deve estar ativado.' });
+    }
+    return errors;
+  }
+
+  if (block.type === 'analysis_materials') {
+    if (!block.title.trim()) {
+      errors.push({ blockId: block.id, field: 'title', message: 'O título do bloco é obrigatório.' });
     }
     return errors;
   }

@@ -423,9 +423,58 @@ export default function EditorProcesso() {
       </div>
     );
   }
+  const hasRequestInfo = processo.blocks.some(b => b.type === 'request_information');
+  const hasAnalysisMaterials = processo.blocks.some(b => b.type === 'analysis_materials');
+  const isLegacyModel = !hasRequestInfo || !hasAnalysisMaterials;
+
+  const handleAddLegacyBlocks = () => {
+    if (!processo) return;
+    const newBlocks = [...processo.blocks];
+    
+    if (!hasRequestInfo) {
+      const reqInfoBlock = BlockFactory.createBlock('request_information');
+      newBlocks.unshift(reqInfoBlock);
+    }
+    if (!hasAnalysisMaterials) {
+      const idx = newBlocks.findIndex(b => b.type === 'request_information');
+      const matBlock = BlockFactory.createBlock('analysis_materials');
+      if (idx !== -1) {
+        newBlocks.splice(idx + 1, 0, matBlock);
+      } else {
+        newBlocks.unshift(matBlock);
+      }
+    }
+    
+    const updated = { ...processo, blocks: newBlocks };
+    setProcesso(updated);
+    triggerAutosave(updated);
+    toast.success('Blocos especiais de preparação adicionados ao modelo!');
+  };
 
   return (
     <div className="w-full">
+      {isLegacyModel && (
+        <div className="max-w-6xl mx-auto mb-4 bg-amber-50 border border-amber-200/80 rounded-2xl p-4.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <h4 className="text-xs font-bold text-slate-800">Compatibilidade de Modelo</h4>
+              <p className="text-[11px] text-slate-550 leading-relaxed font-semibold">
+                Este modelo ainda não possui os novos blocos especiais de **Informações Gerais** e/ou **Materiais para Análise**. Deseja adicioná-los no início do modelo?
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              onClick={handleAddLegacyBlocks}
+              className="bg-white hover:bg-amber-100/50 text-amber-700 border border-amber-250/65 h-8 px-3 rounded-lg text-[10px] font-bold cursor-pointer"
+            >
+              Adicionar Blocos Especiais
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Editor Status Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 bg-transparent -mt-2 mb-2 max-w-6xl mx-auto px-1 gap-3">
         <button

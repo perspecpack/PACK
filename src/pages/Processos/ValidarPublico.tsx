@@ -57,6 +57,9 @@ export default function ValidarPublico() {
   const [submitting, setSubmitting] = useState(false);
   const [successData, setSuccessData] = useState<any>(null);
 
+  const hasRequestInfoBlock = (publication?.snapshot?.blocks || []).some((b: any) => b.type === 'request_information');
+  const hasAnalysisMaterialsBlock = (publication?.snapshot?.blocks || []).some((b: any) => b.type === 'analysis_materials');
+
   // Load publication by token
   const loadPublication = async () => {
     setLoading(true);
@@ -602,136 +605,136 @@ export default function ValidarPublico() {
       </div>
 
       <AnimatePresence mode="wait">
-        {step === 1 && (
-          /* STEP 1: FILL FORM */
-          <motion.div
-            key="form"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-            className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-xs p-8 space-y-8"
-          >
-            {/* Process/Request details */}
-            <div className="space-y-4 pb-5 border-b border-slate-150">
-              <div className="flex justify-between items-start gap-4">
-                <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-tight">
-                  {publication.snapshot?.title || publication.snapshot?.name}
-                </h1>
-                <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider bg-slate-100 border border-slate-150 px-2 py-0.5 rounded-md shrink-0">
-                  {publication.publication_code}
-                </span>
-              </div>
-              
-              {publication.snapshot?.description && (
-                <p className="text-xs text-slate-500 leading-relaxed whitespace-pre-wrap">
-                  {publication.snapshot.description}
-                </p>
-              )}
-
-              {/* General Request Info Fields */}
-              {(publication.snapshot?.client || publication.snapshot?.project || publication.snapshot?.code) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-50/50 border border-slate-200/60 p-4.5 rounded-2xl text-xs text-slate-700">
-                  {publication.snapshot.client && (
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Cliente</span>
-                      <span className="font-semibold">{publication.snapshot.client}</span>
-                    </div>
+            {step === 1 && (
+              /* STEP 1: FILL FORM */
+              <motion.div
+                key="form"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-xs p-8 space-y-8"
+              >
+                {/* Process/Request details */}
+                <div className="space-y-4 pb-5 border-b border-slate-150">
+                  <div className="flex justify-between items-start gap-4">
+                    <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-tight">
+                      {publication.snapshot?.title || publication.snapshot?.name}
+                    </h1>
+                    <span className="text-[10px] font-bold text-slate-455 uppercase tracking-wider bg-slate-100 border border-slate-150 px-2 py-0.5 rounded-md shrink-0">
+                      {publication.publication_code}
+                    </span>
+                  </div>
+                  
+                  {publication.snapshot?.description && (
+                    <p className="text-xs text-slate-500 leading-relaxed whitespace-pre-wrap">
+                      {publication.snapshot.description}
+                    </p>
                   )}
-                  {publication.snapshot.project && (
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Projeto</span>
-                      <span className="font-semibold">{publication.snapshot.project} {publication.snapshot.revision ? `(Rev ${publication.snapshot.revision})` : ''}</span>
-                    </div>
-                  )}
-                  {publication.snapshot.code && (
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Código</span>
-                      <span className="font-semibold">{publication.snapshot.code}</span>
-                    </div>
-                  )}
-                  {publication.snapshot.deadline && (
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Prazo de Resposta</span>
-                      <span className="font-semibold text-amber-700">{new Date(publication.snapshot.deadline).toLocaleString('pt-BR')}</span>
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {publication.snapshot?.notes_for_client && (
-                <div className="bg-amber-50/40 border border-amber-100 p-4 rounded-xl text-xs text-slate-650 leading-relaxed">
-                  <span className="font-bold text-amber-800 block mb-1">Observações do Fornecedor:</span>
-                  {publication.snapshot.notes_for_client}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-400 pt-1 font-medium">
-                {publication.organization && (
-                  <span>Empresa: <strong>{publication.organization}</strong></span>
-                )}
-                <span>Versão: <strong>{String(publication.version).padStart(2, '0')}</strong></span>
-                <span>Publicado em: <strong>{new Date(publication.published_at).toLocaleDateString('pt-BR')}</strong></span>
-              </div>
-            </div>
-
-            {/* MATERIAIS PARA ANÁLISE */}
-            {publication.snapshot?.materials && publication.snapshot.materials.length > 0 && (
-              <div className="space-y-3.5 pb-5 border-b border-slate-150">
-                <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  Materiais para Análise (Anexos da Empresa)
-                </h3>
-                <div className="border border-slate-150 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-slate-50/10">
-                  {publication.snapshot.materials.map((mat: any) => (
-                    <div key={mat.id} className="flex items-center justify-between p-3.5 hover:bg-slate-50/20">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-8 w-8 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500">
-                          <FileText className="w-4 h-4" />
-                        </div>
+                  {/* General Request Info Fields */}
+                  {!hasRequestInfoBlock && (publication.snapshot?.client || publication.snapshot?.project || publication.snapshot?.code) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-50/50 border border-slate-200/60 p-4.5 rounded-2xl text-xs text-slate-700">
+                      {publication.snapshot.client && (
                         <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-semibold text-slate-800">{mat.name}</span>
-                            <span className="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">
-                              {mat.category}
-                            </span>
-                            {mat.revision && (
-                              <span className="text-[9px] font-mono text-slate-400">({mat.revision})</span>
-                            )}
-                          </div>
-                          {mat.description && <p className="text-[10px] text-slate-450 mt-0.5">{mat.description}</p>}
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Cliente</span>
+                          <span className="font-semibold">{publication.snapshot.client}</span>
                         </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            const { data, error } = await supabase.storage
-                              .from('request-materials')
-                              .download(mat.filePath);
-                            if (error) throw error;
-                            const url = URL.createObjectURL(data);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = mat.fileName;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                          } catch (err) {
-                            console.error(err);
-                            toast.error('Erro ao baixar arquivo de análise.');
-                          }
-                        }}
-                        className="p-1.5 text-[#0d857a] hover:bg-teal-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent flex items-center gap-1 text-[11px] font-bold"
-                      >
-                        <FileDown className="w-4 h-4" />
-                        Baixar
-                      </button>
+                      )}
+                      {publication.snapshot.project && (
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Projeto</span>
+                          <span className="font-semibold">{publication.snapshot.project} {publication.snapshot.revision ? `(Rev ${publication.snapshot.revision})` : ''}</span>
+                        </div>
+                      )}
+                      {publication.snapshot.code && (
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Código</span>
+                          <span className="font-semibold">{publication.snapshot.code}</span>
+                        </div>
+                      )}
+                      {publication.snapshot.deadline && (
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Prazo de Resposta</span>
+                          <span className="font-semibold text-amber-700">{new Date(publication.snapshot.deadline).toLocaleString('pt-BR')}</span>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )}
+
+                  {publication.snapshot?.notes_for_client && !hasRequestInfoBlock && (
+                    <div className="bg-amber-50/40 border border-amber-100 p-4 rounded-xl text-xs text-slate-655 leading-relaxed">
+                      <span className="font-bold text-amber-800 block mb-1">Observações do Fornecedor:</span>
+                      {publication.snapshot.notes_for_client}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-400 pt-1 font-medium">
+                    {publication.organization && (
+                      <span>Empresa: <strong>{publication.organization}</strong></span>
+                    )}
+                    <span>Versão: <strong>{String(publication.version).padStart(2, '0')}</strong></span>
+                    <span>Publicado em: <strong>{new Date(publication.published_at).toLocaleDateString('pt-BR')}</strong></span>
+                  </div>
                 </div>
-              </div>
-            )}
+
+                {/* MATERIAIS PARA ANÁLISE */}
+                {!hasAnalysisMaterialsBlock && publication.snapshot?.materials && publication.snapshot.materials.length > 0 && (
+                  <div className="space-y-3.5 pb-5 border-b border-slate-150">
+                    <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                      Materiais para Análise (Anexos da Empresa)
+                    </h3>
+                    <div className="border border-slate-150 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-slate-50/10">
+                      {publication.snapshot.materials.map((mat: any) => (
+                        <div key={mat.id} className="flex items-center justify-between p-3.5 hover:bg-slate-50/20 bg-white">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-8 w-8 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-semibold text-slate-800">{mat.name}</span>
+                                <span className="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                                  {mat.category}
+                                </span>
+                                {mat.revision && (
+                                  <span className="text-[9px] font-mono text-slate-400">({mat.revision})</span>
+                                )}
+                              </div>
+                              {mat.description && <p className="text-[10px] text-slate-455 mt-0.5">{mat.description}</p>}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const { data, error } = await supabase.storage
+                                  .from('request-materials')
+                                  .download(mat.filePath);
+                                if (error) throw error;
+                                const url = URL.createObjectURL(data);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = mat.fileName;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                              } catch (err) {
+                                console.error(err);
+                                toast.error('Erro ao baixar arquivo de análise.');
+                              }
+                            }}
+                            className="p-1.5 text-[#0d857a] hover:bg-teal-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent flex items-center gap-1 text-[11px] font-bold"
+                          >
+                            <FileDown className="w-4 h-4" />
+                            Baixar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
             {/* MANDATORY IDENTIFICATION */}
             <div className="space-y-4 bg-slate-50/50 border border-slate-200/60 p-5 rounded-2xl">

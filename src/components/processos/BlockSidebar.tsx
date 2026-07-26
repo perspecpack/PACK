@@ -13,7 +13,8 @@ import {
   UploadCloud,
   ShieldCheck,
   ChevronRight,
-  FolderOpen
+  FolderOpen,
+  Info
 } from 'lucide-react';
 import { BlockType, BLOCK_METADATA } from './BlockFactory';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,8 @@ interface BlockSidebarProps {
 const CATEGORY_LABELS = {
   content: 'Conteúdo',
   field: 'Campos de Resposta',
-  approval: 'Aprovação'
+  approval: 'Aprovação',
+  preparation: 'Preparação da Aprovação'
 };
 
 const ICON_MAP = {
@@ -39,7 +41,9 @@ const ICON_MAP = {
   ChevronDownSquare,
   CalendarDays,
   UploadCloud,
-  ShieldCheck
+  ShieldCheck,
+  Info,
+  FolderOpen
 };
 
 export default function BlockSidebar({ isOpen, onClose, onAddBlock }: BlockSidebarProps) {
@@ -62,10 +66,11 @@ export default function BlockSidebar({ isOpen, onClose, onAddBlock }: BlockSideb
   );
 
   // Group by category
-  const categories: Record<'content' | 'field' | 'approval', typeof filteredBlocks> = {
+  const categories: Record<'content' | 'field' | 'approval' | 'preparation', typeof filteredBlocks> = {
     content: [],
     field: [],
-    approval: []
+    approval: [],
+    preparation: []
   };
 
   filteredBlocks.forEach(block => {
@@ -131,7 +136,7 @@ export default function BlockSidebar({ isOpen, onClose, onAddBlock }: BlockSideb
               ) : (
                 Object.entries(categories).map(([catKey, items]) => {
                   if (items.length === 0) return null;
-                  const categoryName = CATEGORY_LABELS[catKey as 'content' | 'field' | 'approval'];
+                  const categoryName = CATEGORY_LABELS[catKey as 'content' | 'field' | 'approval' | 'preparation'];
                   
                   return (
                     <div key={catKey} className="space-y-2.5">

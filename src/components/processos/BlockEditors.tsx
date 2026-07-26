@@ -1,5 +1,5 @@
 import React from 'react';
-import { Block, ChoiceOption, DecisionOption, BLOCK_METADATA } from './BlockFactory';
+import { Block, ChoiceOption, DecisionOption, BLOCK_METADATA, RequestInfoField } from './BlockFactory';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -844,7 +844,7 @@ export function AcknowledgementBlockEditor({ block, onChange, errors }: EditorPr
           type="text"
           value={block.title}
           onChange={(e) => onChange({ ...block, title: e.target.value })}
-          placeholder="Ex: Declaração de ciência"
+          placeholder="Ex: Declaração de Ciência"
           className="h-10 border-slate-200 focus-visible:border-[#0d857a] focus-visible:ring-[#0d857a]/20 text-[14px]"
         />
         {errors.includes('title') && (
@@ -876,10 +876,10 @@ export function AcknowledgementBlockEditor({ block, onChange, errors }: EditorPr
 
       {/* Visual Simulation of the checkbox field in the editor */}
       <div className="pt-2 border-t border-slate-100">
-        <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider block mb-2.5">
+        <span className="text-[11px] font-bold text-slate-455 uppercase tracking-wider block mb-2.5">
           Pré-visualização do Campo
         </span>
-        <div className="flex items-start gap-3 bg-slate-50/50 border border-slate-150 p-4.5 rounded-xl">
+        <div className="flex items-start gap-3 bg-slate-50/50 border border-slate-155 p-4.5 rounded-xl">
           <Checkbox 
             id={`preview-check-${block.id}`}
             disabled 
@@ -897,4 +897,320 @@ export function AcknowledgementBlockEditor({ block, onChange, errors }: EditorPr
     </div>
   );
 }
+
+// 10. INFORMAÇÕES GERAIS DA SOLICITAÇÃO
+export function RequestInfoBlockEditor({ block, onChange }: EditorProps) {
+  const fields = block.fields || [];
+
+  const handleFieldChange = (fieldId: string, updates: Partial<RequestInfoField>) => {
+    const updatedFields = fields.map(f => {
+      if (f.id === fieldId) {
+        const updated = { ...f, ...updates };
+        if (f.key === 'title') {
+          updated.enabled = true;
+          updated.required = true;
+        }
+        return updated;
+      }
+      return f;
+    });
+    onChange({ ...block, fields: updatedFields });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          Título da Seção
+        </Label>
+        <Input
+          type="text"
+          value={block.title}
+          onChange={(e) => onChange({ ...block, title: e.target.value })}
+          placeholder="Ex: Informações Gerais da Solicitação"
+          className="h-10 border-slate-200 focus-visible:border-[#0d857a] text-[14px]"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          Descrição da Seção
+        </Label>
+        <Input
+          type="text"
+          value={block.description || ''}
+          onChange={(e) => onChange({ ...block, description: e.target.value })}
+          placeholder="Instruções para o preenchimento..."
+          className="h-9 border-slate-200 focus-visible:border-[#0d857a] text-[13px]"
+        />
+      </div>
+
+      <div className="pt-2 border-t border-slate-100 space-y-3">
+        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+          Configuração dos Campos
+        </Label>
+        
+        <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+          {fields.map((field) => (
+            <div key={field.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-700">{field.label}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-450 uppercase font-bold">Ativo</span>
+                  <input
+                    type="checkbox"
+                    checked={field.enabled}
+                    disabled={field.key === 'title'}
+                    onChange={(e) => handleFieldChange(field.id, { enabled: e.target.checked })}
+                    className="cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {field.enabled && (
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Rótulo (Label)</label>
+                    <Input
+                      type="text"
+                      value={field.label}
+                      onChange={(e) => handleFieldChange(field.id, { label: e.target.value })}
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Placeholder</label>
+                    <Input
+                      type="text"
+                      value={field.placeholder || ''}
+                      onChange={(e) => handleFieldChange(field.id, { placeholder: e.target.value })}
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Helper Text</label>
+                    <Input
+                      type="text"
+                      value={field.helperText || ''}
+                      onChange={(e) => handleFieldChange(field.id, { helperText: e.target.value })}
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 select-none">
+                    <input
+                      type="checkbox"
+                      id={`req-${field.id}`}
+                      checked={field.required}
+                      disabled={field.key === 'title'}
+                      onChange={(e) => handleFieldChange(field.id, { required: e.target.checked })}
+                      className="cursor-pointer"
+                    />
+                    <label htmlFor={`req-${field.id}`} className="text-[10px] font-bold text-slate-550 uppercase cursor-pointer">Obrigatório</label>
+                  </div>
+                  <div className="flex items-center gap-2 select-none">
+                    <input
+                      type="checkbox"
+                      id={`vis-${field.id}`}
+                      checked={field.visibleToClient}
+                      onChange={(e) => handleFieldChange(field.id, { visibleToClient: e.target.checked })}
+                      className="cursor-pointer"
+                    />
+                    <label htmlFor={`vis-${field.id}`} className="text-[10px] font-bold text-slate-550 uppercase cursor-pointer">Visível ao cliente</label>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 11. MATERIAIS PARA ANÁLISE
+export function AnalysisMaterialsBlockEditor({ block, onChange }: EditorProps) {
+  const allowedTypes = block.allowedFileTypes || [];
+
+  const toggleFileType = (type: string) => {
+    const next = allowedTypes.includes(type)
+      ? allowedTypes.filter(t => t !== type)
+      : [...allowedTypes, type];
+    onChange({ ...block, allowedFileTypes: next });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          Título da Seção
+        </Label>
+        <Input
+          type="text"
+          value={block.title}
+          onChange={(e) => onChange({ ...block, title: e.target.value })}
+          placeholder="Ex: Materiais para Análise"
+          className="h-10 border-slate-200 focus-visible:border-[#0d857a] text-[14px]"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          Descrição da Seção
+        </Label>
+        <Input
+          type="text"
+          value={block.description || ''}
+          onChange={(e) => onChange({ ...block, description: e.target.value })}
+          placeholder="Instruções para o preenchimento..."
+          className="h-9 border-slate-200 focus-visible:border-[#0d857a] text-[13px]"
+        />
+      </div>
+
+      <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-4 text-xs font-semibold text-slate-655">
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            Quantidade Mínima de Arquivos
+          </Label>
+          <Input
+            type="number"
+            value={block.minFiles ?? 0}
+            onChange={(e) => onChange({ ...block, minFiles: Math.max(0, parseInt(e.target.value) || 0) })}
+            className="h-8"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            Quantidade Máxima de Arquivos
+          </Label>
+          <Input
+            type="number"
+            value={block.maxFiles ?? 10}
+            onChange={(e) => onChange({ ...block, maxFiles: Math.max(1, parseInt(e.target.value) || 10) })}
+            className="h-8"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            Tamanho Máximo por Arquivo (MB)
+          </Label>
+          <Input
+            type="number"
+            value={block.maxSizeMB ?? 50}
+            onChange={(e) => onChange({ ...block, maxSizeMB: Math.max(1, parseInt(e.target.value) || 50) })}
+            className="h-8"
+          />
+        </div>
+
+        <div className="col-span-2 pt-2 border-t border-slate-100 space-y-2 select-none">
+          <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+            Valores Obrigatórios por Material
+          </Label>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`req-desc-${block.id}`}
+                checked={block.requireDescription ?? false}
+                onChange={(e) => onChange({ ...block, requireDescription: e.target.checked })}
+                className="cursor-pointer"
+              />
+              <label htmlFor={`req-desc-${block.id}`} className="text-[11px] font-medium text-slate-700 cursor-pointer">Descrição</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`req-cat-${block.id}`}
+                checked={block.requireCategory ?? false}
+                onChange={(e) => onChange({ ...block, requireCategory: e.target.checked })}
+                className="cursor-pointer"
+              />
+              <label htmlFor={`req-cat-${block.id}`} className="text-[11px] font-medium text-slate-700 cursor-pointer">Categoria</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`req-rev-${block.id}`}
+                checked={block.requireRevision ?? false}
+                onChange={(e) => onChange({ ...block, requireRevision: e.target.checked })}
+                className="cursor-pointer"
+              />
+              <label htmlFor={`req-rev-${block.id}`} className="text-[11px] font-medium text-slate-700 cursor-pointer">Revisão</label>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-2 pt-2 border-t border-slate-100 space-y-2 select-none">
+          <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+            Tipos de Arquivos Permitidos e Links
+          </Label>
+          <div className="grid grid-cols-3 gap-y-2.5 gap-x-2">
+            {[
+              { key: 'pdf', label: 'PDF' },
+              { key: 'images', label: 'Imagens' },
+              { key: 'videos', label: 'Vídeos' },
+              { key: 'documents', label: 'Documentos' },
+              { key: 'spreadsheets', label: 'Planilhas' },
+              { key: 'cad_step', label: 'STEP' },
+              { key: 'cad_stl', label: 'STL' },
+              { key: 'cad_dwg', label: 'DWG' },
+              { key: 'cad_dxf', label: 'DXF' },
+              { key: 'zip', label: 'Arquivo ZIP' },
+              { key: 'others', label: 'Outros arquivos' }
+            ].map(type => (
+              <div key={type.key} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id={`type-${type.key}-${block.id}`}
+                  checked={allowedTypes.includes(type.key)}
+                  onChange={() => toggleFileType(type.key)}
+                  className="cursor-pointer"
+                />
+                <label htmlFor={`type-${type.key}-${block.id}`} className="text-[11px] font-medium text-slate-700 cursor-pointer">{type.label}</label>
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`allow-links-${block.id}`}
+                checked={block.allowExternalLinks ?? true}
+                onChange={(e) => onChange({ ...block, allowExternalLinks: e.target.checked })}
+                className="cursor-pointer"
+              />
+              <label htmlFor={`allow-links-${block.id}`} className="text-[11px] font-medium text-[#0d857a] font-bold cursor-pointer">Links Externos</label>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-2 pt-2 border-t border-slate-100 space-y-2 select-none">
+          <Label className="text-[10px] font-bold text-slate-555 uppercase tracking-wider block mb-2">
+            Permissões do Cliente
+          </Label>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`vis-cli-${block.id}`}
+                checked={block.visibleToClient ?? true}
+                onChange={(e) => onChange({ ...block, visibleToClient: e.target.checked })}
+                className="cursor-pointer"
+              />
+              <label htmlFor={`vis-cli-${block.id}`} className="text-[11px] font-medium text-slate-700 cursor-pointer">Visível ao cliente</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`allow-dl-${block.id}`}
+                checked={block.allowDownload ?? true}
+                onChange={(e) => onChange({ ...block, allowDownload: e.target.checked })}
+                className="cursor-pointer"
+              />
+              <label htmlFor={`allow-dl-${block.id}`} className="text-[11px] font-medium text-slate-700 cursor-pointer">Permitir download</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
