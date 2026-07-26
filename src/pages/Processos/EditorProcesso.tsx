@@ -668,17 +668,17 @@ export default function EditorProcesso() {
           <Workflow className="w-6 h-6" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-base font-bold text-slate-800">Processo não encontrado</h2>
+          <h2 className="text-base font-bold text-slate-800">Modelo não encontrado</h2>
           <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
-            O processo de aprovação que você tentou acessar não existe ou foi excluído.
+            O modelo de aprovação que você tentou acessar não existe ou foi excluído.
           </p>
         </div>
         <Button
-          onClick={() => navigate('/app/processos')}
+          onClick={() => navigate('/app/modelos')}
           className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold text-xs h-9 px-4 rounded-xl cursor-pointer border-0"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
-          Voltar para Lista
+          Voltar para Biblioteca de Modelos
         </Button>
       </div>
     );
@@ -686,10 +686,10 @@ export default function EditorProcesso() {
 
   const handleBackNavigation = () => {
     if (saveStatus === 'unsaved') {
-      const confirmLeave = window.confirm('Você possui alterações não salvas neste processo. Deseja realmente sair?');
+      const confirmLeave = window.confirm('Você possui alterações não salvas neste modelo. Deseja realmente sair?');
       if (!confirmLeave) return;
     }
-    navigate('/app/processos');
+    navigate('/app/modelos');
   };
 
   return (
@@ -701,7 +701,7 @@ export default function EditorProcesso() {
           className="flex items-center gap-2 text-slate-450 hover:text-[#0d857a] text-xs font-semibold transition-colors cursor-pointer border-0 bg-transparent"
         >
           <ArrowLeft className="w-4 h-4" />
-          Voltar para Lista
+          Voltar para Biblioteca de Modelos
         </button>
 
         <div className="flex items-center gap-3 flex-wrap">

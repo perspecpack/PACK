@@ -18,7 +18,10 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Library,
+  ClipboardCheck,
+  Building2
 } from 'lucide-react';
 import { useApp } from '@/src/context/AppContext';
 import logoImage from '@/logo.png';
@@ -45,9 +48,10 @@ export function AppLayout() {
 
   const menuItems = [
     { name: 'Visão Geral', path: '/app/visao-geral', icon: LayoutDashboard },
-    { name: 'Processos de Aprovação', path: '/app/processos', icon: Workflow },
-    { name: 'Padrões das Organizações', path: '/app/padroes', icon: Layers },
-    { name: 'Aprovações', path: '/app/aprovacoes', icon: ShieldCheck },
+    { name: 'Biblioteca de Modelos', path: '/app/modelos', icon: Library },
+    { name: 'Aprovações', path: '/app/aprovacoes', icon: ClipboardCheck },
+    { name: 'Padrões das Organizações', path: '/app/padroes', icon: Building2 },
+    { name: 'Histórico de Validações', path: '/app/validacoes', icon: History },
   ];
 
   const secondaryItems = [
@@ -295,7 +299,9 @@ export function AppLayout() {
           {/* Navigation Links Group */}
           <div className="flex-1 py-4 overflow-y-auto space-y-1">
             {menuItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = item.path === '/app/visao-geral' 
+                ? location.pathname === '/app/visao-geral'
+                : location.pathname.startsWith(item.path);
               return (
                 <Link
                   key={item.path}
@@ -339,7 +345,9 @@ export function AppLayout() {
             </div>
 
             {secondaryItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = item.path === '/app/visao-geral' 
+                ? location.pathname === '/app/visao-geral'
+                : location.pathname.startsWith(item.path);
               return (
                 <Link
                   key={item.path}

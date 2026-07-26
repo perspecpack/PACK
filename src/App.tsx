@@ -24,6 +24,7 @@ import EditorProcesso from './pages/Processos/EditorProcesso';
 import ValidarPublico from './pages/Processos/ValidarPublico';
 import Aprovacoes from './pages/Processos/Aprovacoes';
 import SolicitacaoForm from './pages/Processos/SolicitacaoForm';
+import AprovacoesList from './pages/Processos/AprovacoesList';
 
 // Master Pages
 import Dashboard from './pages/Master/Dashboard';
@@ -133,9 +134,9 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/app/visao-geral" replace />} />
 
         {/* Top-level Processos redirects */}
-        <Route path="/processos" element={<Navigate to="/app/processos" replace />} />
-        <Route path="/processos/novo" element={<Navigate to="/app/processos/novo" replace />} />
-        <Route path="/processos/:id" element={<Navigate to="/app/processos/:id" replace />} />
+        <Route path="/processos" element={<Navigate to="/app/modelos" replace />} />
+        <Route path="/processos/novo" element={<Navigate to="/app/modelos/novo" replace />} />
+        <Route path="/processos/:id" element={<Navigate to="/app/modelos/:id" replace />} />
 
         {/* Protected Supplier / Final User Routes */}
         <Route 
@@ -148,16 +149,27 @@ function AppRoutes() {
         >
           <Route index element={<Navigate to="/app/visao-geral" replace />} />
           <Route path="visao-geral" element={<ProvisionalPage title="Visão Geral" />} />
-          <Route path="projetos" element={<Navigate to="/app/processos" replace />} />
+          <Route path="projetos" element={<Navigate to="/app/aprovacoes" replace />} />
           
-          <Route path="processos" element={<ProcessosList />} />
-          <Route path="processos/novo" element={<NovoProcesso />} />
-          <Route path="processos/:id" element={<EditorProcesso />} />
-          <Route path="processos/solicitacao/nova/:templateId" element={<SolicitacaoForm />} />
-          <Route path="processos/solicitacao/:id" element={<SolicitacaoForm />} />
+          {/* New Clean Routes */}
+          <Route path="modelos" element={<ProcessosList />} />
+          <Route path="modelos/novo" element={<NovoProcesso />} />
+          <Route path="modelos/:id" element={<EditorProcesso />} />
+          
+          <Route path="aprovacoes" element={<AprovacoesList />} />
+          <Route path="aprovacoes/solicitacao/nova/:templateId" element={<SolicitacaoForm />} />
+          <Route path="aprovacoes/solicitacao/:id" element={<SolicitacaoForm />} />
+          
+          <Route path="validacoes" element={<Aprovacoes />} />
+          
+          {/* Backward compatibility redirects within /app */}
+          <Route path="processos" element={<Navigate to="/app/modelos" replace />} />
+          <Route path="processos/novo" element={<Navigate to="/app/modelos/novo" replace />} />
+          <Route path="processos/:id" element={<Navigate to="/app/modelos/:id" replace />} />
+          <Route path="processos/solicitacao/nova/:templateId" element={<Navigate to="/app/aprovacoes/solicitacao/nova/:templateId" replace />} />
+          <Route path="processos/solicitacao/:id" element={<Navigate to="/app/aprovacoes/solicitacao/:id" replace />} />
           
           <Route path="padroes" element={<Downloads />} />
-          <Route path="aprovacoes" element={<Aprovacoes />} />
           <Route path="configuracoes" element={<ProvisionalPage title="Configurações" />} />
           <Route path="ajuda" element={<Help />} />
           

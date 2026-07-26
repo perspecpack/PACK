@@ -10,7 +10,8 @@ import {
   PackageCheck, 
   Info,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Library
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,8 +98,8 @@ export default function NovoProcesso() {
 
         if (error) throw error;
 
-        toast.success('Processo criado com sucesso!');
-        navigate(`/app/processos/${data.id}`);
+        toast.success('Modelo criado com sucesso!');
+        navigate(`/app/modelos/${data.id}`);
       } else {
         // LocalStorage fallback
         const newProcess = {
@@ -123,12 +124,12 @@ export default function NovoProcesso() {
           JSON.stringify([newProcess, ...processes])
         );
 
-        toast.success('Processo criado com sucesso!');
-        navigate(`/app/processos/${newProcess.id}`);
+        toast.success('Modelo criado com sucesso!');
+        navigate(`/app/modelos/${newProcess.id}`);
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Erro ao criar o processo de aprovação.');
+      toast.error(err.message || 'Erro ao criar o modelo de aprovação.');
     } finally {
       setIsLoading(false);
     }
@@ -142,13 +143,13 @@ export default function NovoProcesso() {
           if (step === 2) {
             setStep(1);
           } else {
-            navigate('/app/processos');
+            navigate('/app/modelos');
           }
         }}
         className="flex items-center gap-2 text-slate-450 hover:text-[#0d857a] text-xs font-semibold transition-colors cursor-pointer border-0 bg-transparent"
       >
         <ArrowLeft className="w-4 h-4" />
-        {step === 2 ? 'Voltar para Escolha de Modelo' : 'Voltar para Processos de Aprovação'}
+        {step === 2 ? 'Voltar para Escolha de Modelo' : 'Voltar para Biblioteca de Modelos'}
       </button>
 
       <AnimatePresence mode="wait">
@@ -165,8 +166,8 @@ export default function NovoProcesso() {
             {/* Header Title */}
             <div className="space-y-2 border-b border-slate-100 pb-5">
               <h1 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2.5">
-                <Workflow className="w-6 h-6 text-[#0d857a]" />
-                Criar novo Processo de Aprovação
+                <Library className="w-6 h-6 text-[#0d857a]" />
+                Criar novo Modelo de Aprovação
               </h1>
               <p className="text-sm text-slate-500">
                 Escolha como deseja iniciar. Todos os modelos podem ser totalmente editados após a criação.

@@ -131,7 +131,7 @@ export default function SolicitacaoForm() {
       } catch (err) {
         console.error(err);
         toast.error('Erro ao carregar dados.');
-        navigate('/app/processos');
+        navigate('/app/aprovacoes');
       } finally {
         setLoading(false);
       }
@@ -301,7 +301,7 @@ export default function SolicitacaoForm() {
             ? 'Solicitação salva e pronta para publicação!' 
             : 'Solicitação salva como rascunho!'
         );
-        navigate('/app/processos');
+        navigate('/app/aprovacoes');
       }
     } catch (err) {
       console.error(err);
@@ -354,7 +354,7 @@ export default function SolicitacaoForm() {
           toast.success('Link de validação copiado!');
         });
 
-        navigate('/app/processos');
+        navigate('/app/aprovacoes');
       }
     } catch (err) {
       console.error(err);
@@ -379,14 +379,14 @@ export default function SolicitacaoForm() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/app/processos')}
+            onClick={() => navigate('/app/aprovacoes')}
             className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">
-              {id ? 'Editar Solicitação' : 'Nova Solicitação'}
+              {id ? 'Preparar Aprovação' : 'Nova Aprovação'}
             </h1>
             <p className="text-xs text-slate-500 mt-1">
               Baseada no modelo: <strong className="text-slate-700">{templateName}</strong>

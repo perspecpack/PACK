@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShieldCheck, 
@@ -20,7 +20,8 @@ import {
   X,
   Loader2,
   FileText,
-  UserCheck
+  UserCheck,
+  History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,12 +50,14 @@ interface Publication {
 
 export default function Aprovacoes() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
   const { user } = useApp();
   const [publications, setPublications] = useState<Publication[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Filters
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState('all');
   const [orgFilter, setOrgFilter] = useState('all');
   
@@ -252,7 +255,7 @@ export default function Aprovacoes() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
         <Loader2 className="w-8 h-8 text-[#0d857a] animate-spin" />
-        <span className="text-xs font-semibold text-slate-550">Carregando central de aprovações...</span>
+        <span className="text-xs font-semibold text-slate-550">Carregando histórico de validações...</span>
       </div>
     );
   }
@@ -262,11 +265,11 @@ export default function Aprovacoes() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2.5">
-          <ShieldCheck className="w-6 h-6 text-[#0d857a]" />
-          Controle de Aprovações
+          <History className="w-6 h-6 text-[#0d857a]" />
+          Histórico de Validações
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Acompanhe links enviados, respostas de clientes e relatórios de validações digitais.
+          Acompanhe publicações enviadas, respostas recebidas e resultados das validações.
         </p>
       </div>
 

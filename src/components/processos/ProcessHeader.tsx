@@ -19,16 +19,16 @@ export default function ProcessHeader({ name, description, category, organizatio
       {/* Breadcrumb & Navigation */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate('/app/processos')}
-          className="flex items-center gap-1.5 text-slate-450 hover:text-[#0d857a] text-[11px] font-semibold transition-colors cursor-pointer border-0 bg-transparent"
+          onClick={() => navigate('/app/modelos')}
+          className="flex items-center gap-1.5 text-slate-455 hover:text-[#0d857a] text-[11px] font-semibold transition-colors cursor-pointer border-0 bg-transparent"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Voltar para Processos
+          Voltar para Biblioteca de Modelos
         </button>
 
         <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-lg">
           <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Editor de Processo</span>
+          <span>Editor de Modelos</span>
         </div>
       </div>
 
