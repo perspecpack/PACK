@@ -224,6 +224,9 @@ export interface UserProfile {
   userStatus: 'pending' | 'active' | 'rejected';
   planType: 'free' | 'premium';
   premiumUntil?: string | null;
+  tradeName?: string;
+  shortDescription?: string;
+  footerText?: string;
   createdAt: string;
   updatedAt: string;
 }

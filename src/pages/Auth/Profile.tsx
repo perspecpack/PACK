@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/src/context/AppContext';
 import { uploadFileToStorage, supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -55,6 +56,9 @@ export default function Profile() {
   const [cnpj, setCnpj] = useState('');
   const [companyWebsite, setCompanyWebsite] = useState('');
   const [companyLogoUrl, setCompanyLogoUrl] = useState('');
+  const [tradeName, setTradeName] = useState('');
+  const [shortDescription, setShortDescription] = useState('');
+  const [footerText, setFooterText] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [country, setCountry] = useState('Brasil');
@@ -92,6 +96,9 @@ export default function Profile() {
       setCnpj(profile.cnpj || '');
       setCompanyWebsite(profile.companyWebsite || '');
       setCompanyLogoUrl(profile.companyLogoUrl || '');
+      setTradeName(profile.tradeName || '');
+      setShortDescription(profile.shortDescription || '');
+      setFooterText(profile.footerText || '');
       setCity(profile.city || '');
       setState(profile.state || '');
       setCountry(profile.country || 'Brasil');
@@ -106,6 +113,9 @@ export default function Profile() {
       setCorporateEmail(user.email || '');
       setCompanyName(user.companyName || '');
       setCompanyLogoUrl(user.companyLogoUrl || '');
+      setTradeName('');
+      setShortDescription('');
+      setFooterText('');
     }
   }, [profile, user]);
 
@@ -211,6 +221,9 @@ export default function Profile() {
         cnpj: cnpj.trim(),
         companyWebsite: companyWebsite.trim(),
         companyLogoUrl: companyLogoUrl,
+        tradeName: tradeName.trim(),
+        shortDescription: shortDescription.trim(),
+        footerText: footerText.trim(),
         city: city.trim(),
         state: state.trim(),
         country: country.trim(),
@@ -416,6 +429,51 @@ export default function Profile() {
                 onChange={(e) => setCountry(e.target.value)}
                 placeholder="Ex: Brasil"
                 className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="tradeName" className="text-[12px] font-bold text-slate-700">Nome Comercial / Fantasia (Opcional)</Label>
+                <Input 
+                  id="tradeName" 
+                  value={tradeName}
+                  onChange={(e) => setTradeName(e.target.value)}
+                  placeholder="Ex: Minha Empresa Soluções"
+                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="companyWebsite" className="text-[12px] font-bold text-slate-700">Site Oficial</Label>
+                <Input 
+                  id="companyWebsite" 
+                  value={companyWebsite}
+                  onChange={(e) => setCompanyWebsite(e.target.value)}
+                  placeholder="www.empresa.com"
+                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="shortDescription" className="text-[12px] font-bold text-slate-700">Texto Institucional Curto (Opcional)</Label>
+              <Textarea 
+                id="shortDescription" 
+                value={shortDescription}
+                onChange={(e) => setShortDescription(e.target.value)}
+                placeholder="Uma breve descrição sobre a sua empresa para exibição no cabeçalho dos formulários."
+                className="min-h-[60px] text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500 bg-white"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="footerText" className="text-[12px] font-bold text-slate-700">Texto de Rodapé (Opcional)</Label>
+              <Textarea 
+                id="footerText" 
+                value={footerText}
+                onChange={(e) => setFooterText(e.target.value)}
+                placeholder="Texto legal, direitos autorais ou notas da empresa para exibição no rodapé dos formulários."
+                className="min-h-[60px] text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500 bg-white"
               />
             </div>
 

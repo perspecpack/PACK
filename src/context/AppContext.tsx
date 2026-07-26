@@ -1273,6 +1273,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     userStatus: db.user_status || 'pending',
     planType: db.plan_type || 'free',
     premiumUntil: db.premium_until || null,
+    tradeName: db.trade_name || '',
+    shortDescription: db.short_description || '',
+    footerText: db.footer_text || '',
     createdAt: db.created_at,
     updatedAt: db.updated_at
   });
@@ -1300,6 +1303,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (ts.userStatus !== undefined) db.user_status = ts.userStatus;
     if (ts.planType !== undefined) db.plan_type = ts.planType;
     if (ts.premiumUntil !== undefined) db.premium_until = ts.premiumUntil;
+    if (ts.tradeName !== undefined) db.trade_name = ts.tradeName;
+    if (ts.shortDescription !== undefined) db.short_description = ts.shortDescription;
+    if (ts.footerText !== undefined) db.footer_text = ts.footerText;
     return db;
   };
 
