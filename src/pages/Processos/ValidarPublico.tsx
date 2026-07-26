@@ -87,7 +87,9 @@ export default function ValidarPublico() {
       const blocks = data.publication.snapshot?.blocks || [];
       const initialAnswers: AnswerState[] = blocks.map((block: Block) => {
         let defaultValue: any = '';
-        if (block.type === 'checkbox') {
+        if (block.value !== undefined && block.value !== null) {
+          defaultValue = block.value;
+        } else if (block.type === 'checkbox') {
           defaultValue = [];
         } else if (block.type === 'acknowledgement') {
           defaultValue = false;
@@ -263,7 +265,7 @@ export default function ValidarPublico() {
       const ans = answers.find(a => a.blockId === block.id);
       const val = ans?.value;
 
-      if (block.required) {
+      if (block.required && block.filledBy !== 'company') {
         if (block.type === 'acknowledgement' && val !== true) {
           errors[block.id] = 'Você deve aceitar a declaração de ciência para prosseguir.';
         } else if (block.type === 'approval_decision') {
@@ -610,11 +612,11 @@ export default function ValidarPublico() {
             transition={{ duration: 0.3 }}
             className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-xs p-8 space-y-8"
           >
-            {/* Process details */}
-            <div className="space-y-3 pb-5 border-b border-slate-100">
+            {/* Process/Request details */}
+            <div className="space-y-4 pb-5 border-b border-slate-150">
               <div className="flex justify-between items-start gap-4">
-                <h1 className="text-xl font-bold text-slate-850 tracking-tight leading-tight">
-                  {publication.snapshot?.name}
+                <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-tight">
+                  {publication.snapshot?.title || publication.snapshot?.name}
                 </h1>
                 <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider bg-slate-100 border border-slate-150 px-2 py-0.5 rounded-md shrink-0">
                   {publication.publication_code}
@@ -622,19 +624,114 @@ export default function ValidarPublico() {
               </div>
               
               {publication.snapshot?.description && (
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs text-slate-500 leading-relaxed whitespace-pre-wrap">
                   {publication.snapshot.description}
                 </p>
               )}
-              
+
+              {/* General Request Info Fields */}
+              {(publication.snapshot?.client || publication.snapshot?.project || publication.snapshot?.code) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-50/50 border border-slate-200/60 p-4.5 rounded-2xl text-xs text-slate-700">
+                  {publication.snapshot.client && (
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Cliente</span>
+                      <span className="font-semibold">{publication.snapshot.client}</span>
+                    </div>
+                  )}
+                  {publication.snapshot.project && (
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Projeto</span>
+                      <span className="font-semibold">{publication.snapshot.project} {publication.snapshot.revision ? `(Rev ${publication.snapshot.revision})` : ''}</span>
+                    </div>
+                  )}
+                  {publication.snapshot.code && (
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Código</span>
+                      <span className="font-semibold">{publication.snapshot.code}</span>
+                    </div>
+                  )}
+                  {publication.snapshot.deadline && (
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Prazo de Resposta</span>
+                      <span className="font-semibold text-amber-700">{new Date(publication.snapshot.deadline).toLocaleString('pt-BR')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {publication.snapshot?.notes_for_client && (
+                <div className="bg-amber-50/40 border border-amber-100 p-4 rounded-xl text-xs text-slate-650 leading-relaxed">
+                  <span className="font-bold text-amber-800 block mb-1">Observações do Fornecedor:</span>
+                  {publication.snapshot.notes_for_client}
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-400 pt-1 font-medium">
                 {publication.organization && (
-                  <span>Empresa responsável: <strong>{publication.organization}</strong></span>
+                  <span>Empresa: <strong>{publication.organization}</strong></span>
                 )}
                 <span>Versão: <strong>{String(publication.version).padStart(2, '0')}</strong></span>
                 <span>Publicado em: <strong>{new Date(publication.published_at).toLocaleDateString('pt-BR')}</strong></span>
               </div>
             </div>
+
+            {/* MATERIAIS PARA ANÁLISE */}
+            {publication.snapshot?.materials && publication.snapshot.materials.length > 0 && (
+              <div className="space-y-3.5 pb-5 border-b border-slate-150">
+                <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Materiais para Análise (Anexos da Empresa)
+                </h3>
+                <div className="border border-slate-150 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-slate-50/10">
+                  {publication.snapshot.materials.map((mat: any) => (
+                    <div key={mat.id} className="flex items-center justify-between p-3.5 hover:bg-slate-50/20">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-slate-800">{mat.name}</span>
+                            <span className="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                              {mat.category}
+                            </span>
+                            {mat.revision && (
+                              <span className="text-[9px] font-mono text-slate-400">({mat.revision})</span>
+                            )}
+                          </div>
+                          {mat.description && <p className="text-[10px] text-slate-450 mt-0.5">{mat.description}</p>}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const { data, error } = await supabase.storage
+                              .from('request-materials')
+                              .download(mat.filePath);
+                            if (error) throw error;
+                            const url = URL.createObjectURL(data);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = mat.fileName;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                          } catch (err) {
+                            console.error(err);
+                            toast.error('Erro ao baixar arquivo de análise.');
+                          }
+                        }}
+                        className="p-1.5 text-[#0d857a] hover:bg-teal-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent flex items-center gap-1 text-[11px] font-bold"
+                      >
+                        <FileDown className="w-4 h-4" />
+                        Baixar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* MANDATORY IDENTIFICATION */}
             <div className="space-y-4 bg-slate-50/50 border border-slate-200/60 p-5 rounded-2xl">
@@ -715,6 +812,7 @@ export default function ValidarPublico() {
                 const ans = answers.find(a => a.blockId === block.id);
                 const value = ans?.value;
                 const error = formErrors[block.id];
+                const isCompanyField = block.filledBy === 'company';
 
                 return (
                   <div 
@@ -722,15 +820,22 @@ export default function ValidarPublico() {
                     id={`field-wrapper-${block.id}`}
                     className={`space-y-3 pb-6 border-b border-slate-100 last:border-b-0 last:pb-0 ${
                       error ? 'ring-2 ring-red-500/10 p-4 rounded-xl border border-red-200/60 bg-red-50/5' : ''
-                    }`}
+                    } ${isCompanyField ? 'bg-slate-50/45 p-4.5 border border-slate-200/50 rounded-2xl' : ''}`}
                   >
                     {/* Block title and desc */}
                     {block.type !== 'heading_text' && (
                       <div className="space-y-1">
-                        <h4 className="font-semibold text-slate-800 text-[13.5px] leading-tight flex items-center gap-1">
-                          <span>{index + 1}. {block.title}</span>
-                          {block.required && <span className="text-red-500 font-bold">*</span>}
-                        </h4>
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-semibold text-slate-800 text-[13.5px] leading-tight flex items-center gap-1">
+                            <span>{index + 1}. {block.title}</span>
+                            {block.required && !isCompanyField && <span className="text-red-500 font-bold">*</span>}
+                          </h4>
+                          {isCompanyField && (
+                            <span className="text-[9px] font-bold text-teal-600 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-md">
+                              Preenchido pela empresa
+                            </span>
+                          )}
+                        </div>
                         {block.description && (
                           <p className="text-slate-455 text-[11px] leading-relaxed">{block.description}</p>
                         )}
@@ -750,6 +855,7 @@ export default function ValidarPublico() {
                     {block.type === 'short_answer' && (
                       <Input 
                         type="text"
+                        disabled={isCompanyField}
                         value={value || ''}
                         onChange={(e) => handleAnswerChange(block.id, e.target.value)}
                         placeholder={block.placeholder || 'Sua resposta...'}
@@ -761,6 +867,7 @@ export default function ValidarPublico() {
                     {block.type === 'long_answer' && (
                       <div className="space-y-1">
                         <Textarea 
+                          disabled={isCompanyField}
                           value={value || ''}
                           onChange={(e) => handleAnswerChange(block.id, e.target.value)}
                           placeholder={block.placeholder || 'Escreva sua resposta detalhada...'}
@@ -782,11 +889,11 @@ export default function ValidarPublico() {
                           return (
                             <div 
                               key={opt.id} 
-                              onClick={() => handleAnswerChange(block.id, opt.text)}
-                              className="flex items-center gap-3 cursor-pointer group"
+                              onClick={isCompanyField ? undefined : () => handleAnswerChange(block.id, opt.text)}
+                              className={`flex items-center gap-3 group ${isCompanyField ? 'cursor-default' : 'cursor-pointer'}`}
                             >
                               <div className={`h-4.5 w-4.5 border rounded-full flex items-center justify-center ${
-                                isSelected ? 'border-[#0d857a] bg-[#0d857a]/5' : 'border-slate-300 bg-white group-hover:border-slate-400'
+                                isSelected ? 'border-[#0d857a] bg-[#0d857a]/5' : 'border-slate-300 bg-white' + (isCompanyField ? '' : ' group-hover:border-slate-400')
                               } transition-all`}>
                                 {isSelected && <div className="h-2 w-2 rounded-full bg-[#0d857a]" />}
                               </div>
@@ -797,8 +904,8 @@ export default function ValidarPublico() {
                         {block.allowOther && (
                           <div className="space-y-2 pt-1">
                             <div 
-                              onClick={() => handleAnswerChange(block.id, { otherSelected: true, otherText: '' })}
-                              className="flex items-center gap-3 cursor-pointer"
+                              onClick={isCompanyField ? undefined : () => handleAnswerChange(block.id, { otherSelected: true, otherText: '' })}
+                              className={`flex items-center gap-3 ${isCompanyField ? 'cursor-default' : 'cursor-pointer'}`}
                             >
                               <div className={`h-4.5 w-4.5 border rounded-full flex items-center justify-center ${
                                 value?.otherSelected ? 'border-[#0d857a] bg-[#0d857a]/5' : 'border-slate-300 bg-white'
@@ -810,6 +917,7 @@ export default function ValidarPublico() {
                             {value?.otherSelected && (
                               <Input 
                                 type="text"
+                                disabled={isCompanyField}
                                 value={value?.otherText || ''}
                                 onChange={(e) => handleAnswerChange(block.id, { otherSelected: true, otherText: e.target.value })}
                                 placeholder="Especifique a opção..."
@@ -836,11 +944,11 @@ export default function ValidarPublico() {
                           return (
                             <div 
                               key={opt.id} 
-                              onClick={toggleCheck}
-                              className="flex items-start gap-3 cursor-pointer group"
+                              onClick={isCompanyField ? undefined : toggleCheck}
+                              className={`flex items-start gap-3 group ${isCompanyField ? 'cursor-default' : 'cursor-pointer'}`}
                             >
                               <div className={`h-4.5 w-4.5 border rounded flex items-center justify-center shrink-0 mt-0.5 ${
-                                isChecked ? 'border-[#0d857a] bg-[#0d857a] text-white' : 'border-slate-300 bg-white group-hover:border-slate-400'
+                                isChecked ? 'border-[#0d857a] bg-[#0d857a] text-white' : 'border-slate-300 bg-white' + (isCompanyField ? '' : ' group-hover:border-slate-400')
                               } transition-all`}>
                                 {isChecked && <CheckCircle2 className="w-3.5 h-3.5 text-white stroke-[3px]" />}
                               </div>
@@ -852,11 +960,11 @@ export default function ValidarPublico() {
                         {block.allowOther && (
                           <div className="space-y-2 pt-1">
                             <div 
-                              onClick={() => {
+                              onClick={isCompanyField ? undefined : () => {
                                 const current = typeof value === 'object' && value !== null && !Array.isArray(value) ? value : { list: [], otherSelected: false, otherText: '' };
                                 handleAnswerChange(block.id, { ...current, otherSelected: !current.otherSelected });
                               }}
-                              className="flex items-center gap-3 cursor-pointer"
+                              className={`flex items-center gap-3 ${isCompanyField ? 'cursor-default' : 'cursor-pointer'}`}
                             >
                               <div className={`h-4.5 w-4.5 border rounded flex items-center justify-center ${
                                 value?.otherSelected ? 'border-[#0d857a] bg-[#0d857a] text-white' : 'border-slate-300 bg-white'
@@ -868,6 +976,7 @@ export default function ValidarPublico() {
                             {value?.otherSelected && (
                               <Input 
                                 type="text"
+                                disabled={isCompanyField}
                                 value={value?.otherText || ''}
                                 onChange={(e) => handleAnswerChange(block.id, { ...value, otherText: e.target.value })}
                                 placeholder="Especifique a opção..."
@@ -882,6 +991,7 @@ export default function ValidarPublico() {
                     {block.type === 'dropdown' && (
                       <select
                         value={value || ''}
+                        disabled={isCompanyField}
                         onChange={(e) => handleAnswerChange(block.id, e.target.value)}
                         className="h-9.5 text-xs border border-slate-200 rounded-lg px-2.5 bg-white text-slate-700 w-full max-w-md focus:border-[#0d857a] focus:ring-1 focus:ring-[#0d857a]/20 outline-none"
                       >
@@ -896,6 +1006,7 @@ export default function ValidarPublico() {
                       <div className="space-y-1">
                         <Input 
                           type="date"
+                          disabled={isCompanyField}
                           value={value || ''}
                           onChange={(e) => handleAnswerChange(block.id, e.target.value)}
                           className="h-9.5 text-xs border-slate-200 focus-visible:border-[#0d857a] focus-visible:ring-[#0d857a]/20 max-w-xs bg-white text-slate-700"
@@ -905,24 +1016,26 @@ export default function ValidarPublico() {
 
                     {block.type === 'file_upload' && (
                       <div className="space-y-4">
-                        <div className="flex items-center gap-4">
-                          <label className="relative cursor-pointer">
-                            <input 
-                              type="file"
-                              multiple={(block.maxFiles || 1) > 1}
-                              onChange={(e) => handleFileUpload(block, e.target.files)}
-                              className="sr-only"
-                              disabled={uploadsProgress[block.id] !== undefined}
-                            />
-                            <div className="flex items-center gap-2 h-9 px-4 border border-dashed border-slate-300 hover:border-[#0d857a] hover:bg-[#0d857a]/5 text-slate-650 hover:text-[#0d857a] rounded-xl text-xs font-semibold transition-all">
-                              <UploadCloud className="w-4 h-4" />
-                              <span>Selecionar arquivo(s)</span>
-                            </div>
-                          </label>
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            Máximo: {block.maxFiles || 1} arquivo(s) de até {block.maxSizeMB || 10} MB.
-                          </span>
-                        </div>
+                        {!isCompanyField && (
+                          <div className="flex items-center gap-4">
+                            <label className="relative cursor-pointer">
+                              <input 
+                                type="file"
+                                multiple={(block.maxFiles || 1) > 1}
+                                onChange={(e) => handleFileUpload(block, e.target.files)}
+                                className="sr-only"
+                                disabled={uploadsProgress[block.id] !== undefined}
+                              />
+                              <div className="flex items-center gap-2 h-9 px-4 border border-dashed border-slate-300 hover:border-[#0d857a] hover:bg-[#0d857a]/5 text-slate-655 hover:text-[#0d857a] rounded-xl text-xs font-semibold transition-all">
+                                <UploadCloud className="w-4 h-4" />
+                                <span>Selecionar arquivo(s)</span>
+                              </div>
+                            </label>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              Máximo: {block.maxFiles || 1} arquivo(s) de até {block.maxSizeMB || 10} MB.
+                            </span>
+                          </div>
+                        )}
 
                         {/* Progress Bar */}
                         {uploadsProgress[block.id] !== undefined && (
@@ -956,13 +1069,15 @@ export default function ValidarPublico() {
                                     </p>
                                   </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveFile(block.id, file.path)}
-                                  className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
+                                {!isCompanyField && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveFile(block.id, file.path)}
+                                    className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -971,8 +1086,8 @@ export default function ValidarPublico() {
                     )}
 
                     {block.type === 'acknowledgement' && (
-                      <div className="flex items-start gap-3 bg-slate-50/50 border border-slate-150 p-4.5 rounded-2xl cursor-pointer"
-                           onClick={() => handleAnswerChange(block.id, !value)}>
+                      <div className={`flex items-start gap-3 bg-slate-50/50 border border-slate-150 p-4.5 rounded-2xl ${isCompanyField ? 'cursor-default' : 'cursor-pointer'}`}
+                           onClick={isCompanyField ? undefined : () => handleAnswerChange(block.id, !value)}>
                         <div className={`h-4.5 w-4.5 border rounded flex items-center justify-center shrink-0 mt-0.5 ${
                           value === true ? 'border-[#0d857a] bg-[#0d857a] text-white' : 'border-slate-300 bg-white'
                         } transition-all`}>

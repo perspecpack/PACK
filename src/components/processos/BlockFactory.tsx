@@ -59,6 +59,12 @@ export interface Block {
 
   // Acknowledgement / Consent configuration
   declarationText?: string;
+  
+  // Who fills this block
+  filledBy?: 'company' | 'client' | 'both';
+
+  // Prefilled or captured value
+  value?: any;
 }
 
 export const BLOCK_METADATA: Record<BlockType, { title: string; description: string; icon: string; category: 'content' | 'field' | 'approval' }> = {
@@ -132,7 +138,8 @@ export const BlockFactory = {
       type,
       title: title || meta.title,
       description: '',
-      required: false
+      required: false,
+      filledBy: type === 'heading_text' ? undefined : 'client'
     };
 
     switch (type) {
@@ -395,6 +402,8 @@ export function validateProcess(blocks: Block[]): ProcessValidationResult {
 export function migrateLegacyBlocks(blocks: Block[]): Block[] {
   if (!Array.isArray(blocks)) return [];
   return blocks.map(block => {
+    let migrated = { ...block };
+    
     // Check if it's a legacy checkbox declaration (exactly 1 option starting with "Confirmo")
     if (
       block.type === 'checkbox' &&
@@ -402,7 +411,7 @@ export function migrateLegacyBlocks(blocks: Block[]): Block[] {
       block.options.length === 1 &&
       block.options[0].text.trim().startsWith('Confirmo')
     ) {
-      return {
+      migrated = {
         ...block,
         type: 'acknowledgement',
         declarationText: block.options[0].text,
@@ -412,6 +421,11 @@ export function migrateLegacyBlocks(blocks: Block[]): Block[] {
         allowOther: undefined
       } as Block;
     }
-    return block;
+
+    if (migrated.type !== 'heading_text' && !migrated.filledBy) {
+      migrated.filledBy = 'client';
+    }
+    
+    return migrated;
   });
 }

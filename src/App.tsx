@@ -23,6 +23,7 @@ import NovoProcesso from './pages/Processos/NovoProcesso';
 import EditorProcesso from './pages/Processos/EditorProcesso';
 import ValidarPublico from './pages/Processos/ValidarPublico';
 import Aprovacoes from './pages/Processos/Aprovacoes';
+import SolicitacaoForm from './pages/Processos/SolicitacaoForm';
 
 // Master Pages
 import Dashboard from './pages/Master/Dashboard';
@@ -152,6 +153,8 @@ function AppRoutes() {
           <Route path="processos" element={<ProcessosList />} />
           <Route path="processos/novo" element={<NovoProcesso />} />
           <Route path="processos/:id" element={<EditorProcesso />} />
+          <Route path="processos/solicitacao/nova/:templateId" element={<SolicitacaoForm />} />
+          <Route path="processos/solicitacao/:id" element={<SolicitacaoForm />} />
           
           <Route path="padroes" element={<Downloads />} />
           <Route path="aprovacoes" element={<Aprovacoes />} />

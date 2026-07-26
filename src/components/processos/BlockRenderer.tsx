@@ -375,21 +375,40 @@ export default function BlockRenderer({
                   </button>
                 </div>
 
-                {/* Right: Required Switch (only if not heading_text) */}
+                {/* Right: Required Switch & FilledBy (only if not heading_text) */}
                 {!isHeading && (
-                  <div className="flex items-center gap-3 self-end sm:self-center select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Obrigatório
-                    </span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={block.required}
-                        onChange={(e) => onChange({ ...block, required: e.target.checked })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0d857a]"></div>
-                    </label>
+                  <div className="flex items-center gap-4 flex-wrap self-end sm:self-center">
+                    {/* FilledBy Selector */}
+                    <div className="flex items-center gap-2 select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        Preenchido por
+                      </span>
+                      <select
+                        value={block.filledBy || 'client'}
+                        onChange={(e) => onChange({ ...block, filledBy: e.target.value as any })}
+                        className="text-xs font-semibold bg-transparent border-0 text-slate-700 outline-none cursor-pointer focus:ring-0"
+                      >
+                        <option value="client">Cliente</option>
+                        <option value="company">Empresa</option>
+                        <option value="both">Ambos</option>
+                      </select>
+                    </div>
+
+                    {/* Required Toggle */}
+                    <div className="flex items-center gap-3 select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        Obrigatório
+                      </span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={block.required}
+                          onChange={(e) => onChange({ ...block, required: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0d857a]"></div>
+                      </label>
+                    </div>
                   </div>
                 )}
               </div>
