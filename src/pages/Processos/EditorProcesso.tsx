@@ -22,7 +22,8 @@ import {
   Building2,
   FolderOpen,
   Calendar,
-  UserCheck
+  UserCheck,
+  ShieldCheck
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

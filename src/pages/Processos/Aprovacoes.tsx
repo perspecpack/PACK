@@ -40,6 +40,7 @@ interface Publication {
   snapshot: any;
   status: 'awaiting_validation' | 'validated' | 'revoked';
   primary_result: string | null;
+  primary_result_type: string | null;
   published_at: string;
   validated_at: string | null;
   revoked_at: string | null;
@@ -104,7 +105,27 @@ export default function Aprovacoes() {
   };
 
   useEffect(() => {
-    fetchPublications();
+    if (user) {
+      fetchPublications();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handleVisibilityAndFocus = () => {
+      if (document.visibilityState === 'visible' || document.hasFocus()) {
+        fetchPublications();
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityAndFocus);
+    document.addEventListener('visibilitychange', handleVisibilityAndFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleVisibilityAndFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityAndFocus);
+    };
   }, [user]);
 
   // Actions

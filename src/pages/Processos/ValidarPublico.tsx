@@ -463,7 +463,7 @@ export default function ValidarPublico() {
       
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Erro ao registrar validação. Tente novamente.');
+      toast.error('Não foi possível registrar a validação. Verifique sua conexão e tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -1193,7 +1193,7 @@ export default function ValidarPublico() {
                 {submitting ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Enviando...</span>
+                    <span>Registrando validação...</span>
                   </>
                 ) : (
                   <>
