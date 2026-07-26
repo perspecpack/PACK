@@ -376,6 +376,7 @@ export default function ValidarPublico() {
             if (value.otherSelected) {
               other_text = value.otherText || '';
               selected_option_labels = ['Outro'];
+              answer = `Outro: ${other_text}`;
             }
           } else if (value) {
             answer = String(value);
@@ -389,6 +390,7 @@ export default function ValidarPublico() {
           if (Array.isArray(value)) {
             selected_option_labels = value;
             selected_option_ids = value.map(val => block.options?.find(o => o.text === val)?.id).filter(Boolean) as string[];
+            answer = value.join(', ');
           } else if (typeof value === 'object' && value !== null) {
             selected_option_labels = value.list || [];
             selected_option_ids = (value.list || []).map((val: string) => block.options?.find(o => o.text === val)?.id).filter(Boolean) as string[];
@@ -396,6 +398,7 @@ export default function ValidarPublico() {
               other_text = value.otherText || '';
               selected_option_labels.push('Outro');
             }
+            answer = selected_option_labels.join(', ');
           }
         } else if (block.type === 'acknowledgement') {
           confirmed = value === true;
