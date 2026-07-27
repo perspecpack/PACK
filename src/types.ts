@@ -171,6 +171,9 @@ export interface ChecklistTemplate {
   headerConfig?: ChecklistHeaderConfig;
   // For backwards compatibility in lists
   items?: any[];
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
 export interface ReferenceProjectEntry {

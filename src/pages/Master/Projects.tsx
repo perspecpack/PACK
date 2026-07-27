@@ -9,7 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit2, Trash2, X, AlertTriangle, Image, Paperclip } from 'lucide-react';
 
 export default function Projects() {
-  const { projects, oems, files, addProject, updateProject, deleteProject } = useApp();
+  const { 
+    projects, 
+    oems, 
+    files, 
+    addReferenceProject: addProject, 
+    updateReferenceProject: updateProject, 
+    deleteReferenceProject: deleteProject 
+  } = useApp() as any;
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);

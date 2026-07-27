@@ -32,7 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Block, validateBlock } from './BlockFactory';
+import { Block, validateBlock, BLOCK_METADATA } from './BlockFactory';
 import { 
   HeadingTextBlockEditor, 
   TextAnswerBlockEditor, 
@@ -52,7 +52,8 @@ export type RendererMode =
   | 'template-preview' 
   | 'approval-preparation' 
   | 'public-validation' 
-  | 'read-only-result';
+  | 'read-only-result'
+  | 'pdf';
 
 export interface CompanyBrandingData {
   companyName: string;
@@ -100,6 +101,9 @@ interface ApprovalDocumentRendererProps {
   answers?: any[];
   onAnswerChange?: (blockId: string, val: any) => void;
   validationErrors?: Record<string, string>;
+  onDocumentDataChange?: (data: Partial<DocumentData>) => void;
+  onAddMaterial?: (file: File, name: string, category: string, revision?: string) => Promise<void>;
+  onRemoveMaterial?: (materialId: string, filePath: string) => Promise<void>;
   
   // Public validation state
   respondentName?: string;
@@ -136,6 +140,9 @@ export default function ApprovalDocumentRenderer({
   answers = [],
   onAnswerChange,
   validationErrors = {},
+  onDocumentDataChange,
+  onAddMaterial,
+  onRemoveMaterial,
   
   respondentName = '',
   respondentRole = '',
@@ -474,26 +481,7 @@ export default function ApprovalDocumentRenderer({
           
           {mode === 'approval-preparation' ? (
             /* INTERACTIVE INPUTS FOR PREPARATION */
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="space-y-1.5">
-                <Label htmlFor="prep-client" className="text-[10px] font-bold text-slate-500 uppercase">Cliente *</Label>
-                <Input 
-                  id="prep-client"
-                  value={documentData.client || ''}
-                  disabled={true} // Loaded automatically in context
-                  className="h-9.5 text-xs bg-slate-100"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="prep-project" className="text-[10px] font-bold text-slate-500 uppercase">Projeto *</Label>
-                <Input 
-                  id="prep-project"
-                  value={documentData.project || ''}
-                  disabled={true}
-                  className="h-9.5 text-xs bg-slate-100"
-                />
-              </div>
-            </div>
+            renderRequestInfoForm(documentData, onDocumentDataChange)
           ) : (
             /* STATIC DISPLAY FOR CLIENT */
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs text-slate-700">
@@ -554,60 +542,77 @@ export default function ApprovalDocumentRenderer({
             </div>
           ) : (
             /* REAL MATERIALS LIST */
-            materials.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">Nenhum material de análise adicionado ainda.</p>
-            ) : (
-              <div className="border border-slate-150 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-white shadow-xs">
-                {materials.map((mat: any) => (
-                  <div key={mat.id} className="flex items-center justify-between p-3.5 hover:bg-slate-50/20 bg-white">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-8 w-8 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-semibold text-slate-800">{mat.name}</span>
-                          <span className="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">
-                            {mat.category}
-                          </span>
-                          {mat.revision && (
-                            <span className="text-[9px] font-mono text-slate-400">({mat.revision})</span>
-                          )}
+            <div className="space-y-4">
+              {mode === 'approval-preparation' && (
+                <MaterialsUploaderForm onAddMaterial={onAddMaterial} />
+              )}
+              {materials.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">Nenhum material de análise adicionado ainda.</p>
+              ) : (
+                <div className="border border-slate-150 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-white shadow-xs">
+                  {materials.map((mat: any) => (
+                    <div key={mat.id} className="flex items-center justify-between p-3.5 hover:bg-slate-50/20 bg-white">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500">
+                          <FileText className="w-4 h-4" />
                         </div>
-                        {mat.description && <p className="text-[10px] text-slate-455 mt-0.5">{mat.description}</p>}
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-slate-800">{mat.name}</span>
+                            <span className="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                              {mat.category}
+                            </span>
+                            {mat.revision && (
+                              <span className="text-[9px] font-mono text-slate-400">({mat.revision})</span>
+                            )}
+                          </div>
+                          {mat.description && <p className="text-[10px] text-slate-455 mt-0.5">{mat.description}</p>}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const { data, error } = await supabase.storage
+                                .from('request-materials')
+                                .download(mat.filePath);
+                              if (error) throw error;
+                              const url = URL.createObjectURL(data);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = mat.fileName;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              console.error(err);
+                              toast.error('Erro ao baixar arquivo de análise.');
+                            }
+                          }}
+                          className="p-1.5 text-[#0d857a] hover:bg-teal-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent flex items-center gap-1 text-[11px] font-bold"
+                        >
+                          <FileDown className="w-4 h-4" />
+                          Baixar
+                        </button>
+                        {mode === 'approval-preparation' && onRemoveMaterial && (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveMaterial(mat.id, mat.filePath)}
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                            title="Remover material"
+                          >
+                            <Trash2 className="w-4.5 h-4.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                    
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const { data, error } = await supabase.storage
-                            .from('request-materials')
-                            .download(mat.filePath);
-                          if (error) throw error;
-                          const url = URL.createObjectURL(data);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = mat.fileName;
-                          document.body.appendChild(a);
-                          a.click();
-                          document.body.removeChild(a);
-                          URL.revokeObjectURL(url);
-                        } catch (err) {
-                          console.error(err);
-                          toast.error('Erro ao baixar arquivo de análise.');
-                        }
-                      }}
-                      className="p-1.5 text-[#0d857a] hover:bg-teal-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent flex items-center gap-1 text-[11px] font-bold"
-                    >
-                      <FileDown className="w-4 h-4" />
-                      Baixar
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -624,6 +629,7 @@ export default function ApprovalDocumentRenderer({
             onDelete={onDeleteBlock ? () => onDeleteBlock(block.id) : undefined}
             onMove={onMoveBlock ? (dir) => onMoveBlock(block.id, dir) : undefined}
             onDuplicate={onDuplicateBlock ? () => onDuplicateBlock(block.id) : undefined}
+            onUpdate={onUpdateBlock ? (updatedBlock) => onUpdateBlock(block.id, updatedBlock) : undefined}
             isFirst={index === 0}
             isLast={index === blocks.length - 1}
           >
@@ -636,6 +642,11 @@ export default function ApprovalDocumentRenderer({
               error={validationErrors[block.id]}
               documentData={documentData}
               materials={materials}
+              isActive={activeBlockId === block.id}
+              onUpdateBlock={onUpdateBlock ? (updatedBlock) => onUpdateBlock(block.id, updatedBlock) : undefined}
+              onDocumentDataChange={onDocumentDataChange}
+              onAddMaterial={onAddMaterial}
+              onRemoveMaterial={onRemoveMaterial}
             />
           </BlockWrapper>
         ))}
@@ -804,6 +815,20 @@ export default function ApprovalDocumentRenderer({
   );
 }
 
+interface BlockWrapperProps {
+  block: Block;
+  mode: RendererMode;
+  isActive: boolean;
+  onSelect?: () => void;
+  onDelete?: () => void;
+  onMove?: (direction: 'up' | 'down') => void;
+  onDuplicate?: () => void;
+  onUpdate?: (updatedBlock: Block) => void;
+  isFirst: boolean;
+  isLast: boolean;
+  children: React.ReactNode;
+}
+
 /* BLOCK WRAPPER FOR TEMPLATE EDITING CONTROL AND DRAGGING */
 function BlockWrapper({
   block,
@@ -813,6 +838,7 @@ function BlockWrapper({
   onDelete,
   onMove,
   onDuplicate,
+  onUpdate,
   isFirst,
   isLast,
   children
@@ -846,6 +872,7 @@ function BlockWrapper({
 
   const isCompanyField = block.filledBy === 'company' || block.filledBy === 'both';
   const meta = BLOCK_METADATA[block.type];
+  const isHeading = block.type === 'heading_text';
 
   return (
     <div
@@ -899,55 +926,113 @@ function BlockWrapper({
         </div>
 
         {/* Children Visual Component */}
-        <div>
+        <div className="mb-4">
           {children}
         </div>
 
-        {/* Floating Quick Action Box */}
-        <div className="absolute top-1/2 -right-4 -translate-y-1/2 translate-x-full hidden group-hover:flex flex-col bg-white border border-slate-200 rounded-xl shadow-md p-1.5 gap-1 z-30 animate-in fade-in slide-in-from-left-2 duration-150">
-          {onMove && (
-            <>
-              <button
-                type="button"
-                disabled={isFirst}
-                onClick={(e) => { e.stopPropagation(); onMove('up'); }}
-                className="p-1.5 hover:bg-slate-50 text-slate-500 hover:text-slate-700 rounded-lg transition-colors cursor-pointer border-0 bg-transparent disabled:opacity-30 disabled:pointer-events-none"
-                title="Mover para cima"
-              >
-                <ArrowUp className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                disabled={isLast}
-                onClick={(e) => { e.stopPropagation(); onMove('down'); }}
-                className="p-1.5 hover:bg-slate-50 text-slate-500 hover:text-slate-700 rounded-lg transition-colors cursor-pointer border-0 bg-transparent disabled:opacity-30 disabled:pointer-events-none"
-                title="Mover para baixo"
-              >
-                <ArrowDown className="w-3.5 h-3.5" />
-              </button>
-            </>
-          )}
-          {onDuplicate && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
-              className="p-1.5 hover:bg-slate-50 text-slate-500 hover:text-slate-700 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-              title="Duplicar bloco"
-            >
-              <Copy className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1.5 hover:bg-rose-50 text-slate-500 hover:text-rose-600 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-              title="Excluir bloco"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+        {/* Selected Block Action Panel (Directly inside Card) */}
+        {isActive && (
+          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+            {/* Left: Reordering & Duplication & Delete */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {onMove && (
+                <>
+                  <button
+                    type="button"
+                    disabled={isFirst}
+                    onClick={(e) => { e.stopPropagation(); onMove('up'); }}
+                    className="h-8 w-8 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 disabled:opacity-30 transition-all cursor-pointer"
+                    title="Mover para cima"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLast}
+                    onClick={(e) => { e.stopPropagation(); onMove('down'); }}
+                    className="h-8 w-8 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 disabled:opacity-30 transition-all cursor-pointer"
+                    title="Mover para baixo"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+              <div className="h-6 w-px bg-slate-200 mx-1" />
+              
+              {onDuplicate && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+                  className="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1.5 text-xs font-semibold text-slate-650 transition-all cursor-pointer"
+                  title="Duplicar Bloco"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Duplicar</span>
+                </button>
+              )}
+
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                  className="h-8 px-2.5 bg-slate-50 hover:bg-red-50 hover:border-red-200 rounded-lg flex items-center gap-1.5 text-xs font-semibold text-red-600 border border-slate-200 transition-all cursor-pointer"
+                  title="Excluir Bloco"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Excluir</span>
+                </button>
+              )}
+            </div>
+
+            {/* Right: Required Switch & FilledBy (only if not heading_text) */}
+            {!isHeading && onUpdate && (
+              <div className="flex items-center gap-4 flex-wrap self-end sm:self-center">
+                {/* FilledBy Selector */}
+                {block.type === 'request_information' || block.type === 'analysis_materials' ? (
+                  <div className="flex items-center gap-2 select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Preenchido por
+                    </span>
+                    <span className="text-xs font-bold text-teal-600">
+                      Empresa (Fixo)
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Preenchido por
+                    </span>
+                    <select
+                      value={block.filledBy || 'client'}
+                      onChange={(e) => onUpdate({ ...block, filledBy: e.target.value as any })}
+                      className="text-xs font-semibold bg-transparent border-0 text-slate-700 outline-none cursor-pointer focus:ring-0"
+                    >
+                      <option value="client">Cliente</option>
+                      <option value="company">Empresa</option>
+                      <option value="both">Ambos</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Required Toggle */}
+                <div className="flex items-center gap-3 select-none bg-slate-50/60 border border-slate-150 px-3 py-1.5 rounded-xl">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Obrigatório
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={block.required}
+                      onChange={(e) => onUpdate({ ...block, required: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0d857a]"></div>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -962,6 +1047,212 @@ interface BlockInnerRendererProps {
   error?: string;
   documentData?: DocumentData;
   materials?: any[];
+  isActive?: boolean;
+  onUpdateBlock?: (updatedBlock: Block) => void;
+  onDocumentDataChange?: (data: Partial<DocumentData>) => void;
+  onAddMaterial?: (file: File, name: string, category: string, revision?: string) => Promise<void>;
+  onRemoveMaterial?: (materialId: string, filePath: string) => Promise<void>;
+}
+
+function renderRequestInfoForm(documentData: DocumentData, onDocumentDataChange?: (data: Partial<DocumentData>) => void) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs text-slate-700">
+      <div className="space-y-1.5 md:col-span-2">
+        <Label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider">Título da Solicitação *</Label>
+        <Input
+          value={documentData.title || ''}
+          onChange={(e) => onDocumentDataChange?.({ title: e.target.value })}
+          placeholder="Ex: Aprovação Rack Hyundai BC4B"
+          className="h-10 text-xs bg-white border-slate-200"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider">Cliente *</Label>
+        <Input
+          value={documentData.client || ''}
+          onChange={(e) => onDocumentDataChange?.({ client: e.target.value })}
+          placeholder="Ex: Volkswagen do Brasil"
+          className="h-10 text-xs bg-white border-slate-200"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider">Projeto *</Label>
+        <Input
+          value={documentData.project || ''}
+          onChange={(e) => onDocumentDataChange?.({ project: e.target.value })}
+          placeholder="Ex: Rack Hyundai BC4B"
+          className="h-10 text-xs bg-white border-slate-200"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider">Código do Projeto</Label>
+        <Input
+          value={documentData.code || ''}
+          onChange={(e) => onDocumentDataChange?.({ code: e.target.value })}
+          placeholder="Ex: 407-034368-26"
+          className="h-10 text-xs bg-white border-slate-200"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider">Revisão</Label>
+        <Input
+          value={documentData.revision || ''}
+          onChange={(e) => onDocumentDataChange?.({ revision: e.target.value })}
+          placeholder="Ex: 03"
+          className="h-10 text-xs bg-white border-slate-200"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider">Responsável Interno</Label>
+        <Input
+          value={documentData.responsible_internal || ''}
+          onChange={(e) => onDocumentDataChange?.({ responsible_internal: e.target.value })}
+          placeholder="Ex: Nome do responsável"
+          className="h-10 text-xs bg-white border-slate-200"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider">Prazo Limite para Resposta</Label>
+        <Input
+          type="datetime-local"
+          value={documentData.deadline ? documentData.deadline.substring(0, 16) : ''}
+          onChange={(e) => onDocumentDataChange?.({ deadline: e.target.value })}
+          className="h-10 text-xs bg-white border-slate-200"
+        />
+      </div>
+      <div className="space-y-1.5 md:col-span-2">
+        <Label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider">Descrição do Processo</Label>
+        <Textarea
+          value={documentData.description || ''}
+          onChange={(e) => onDocumentDataChange?.({ description: e.target.value })}
+          placeholder="Descrição geral sobre o que deve ser validado neste fluxo..."
+          className="min-h-[80px] text-xs bg-white border-slate-200"
+        />
+      </div>
+      <div className="space-y-1.5 md:col-span-2">
+        <Label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider">Observações / Instruções para o Cliente</Label>
+        <Textarea
+          value={documentData.notes_for_client || ''}
+          onChange={(e) => onDocumentDataChange?.({ notes_for_client: e.target.value })}
+          placeholder="Ex: Por favor, analise o desenho técnico..."
+          className="min-h-[80px] text-xs bg-white border-slate-200"
+        />
+      </div>
+    </div>
+  );
+}
+
+interface MaterialsUploaderFormProps {
+  onAddMaterial?: (file: File, name: string, category: string, revision?: string) => Promise<void>;
+  block?: Block;
+}
+
+function MaterialsUploaderForm({ onAddMaterial, block }: MaterialsUploaderFormProps) {
+  const [name, setName] = React.useState('');
+  const [desc, setDesc] = React.useState('');
+  const [cat, setCat] = React.useState('Desenho Técnico');
+  const [rev, setRev] = React.useState('');
+  const [file, setFile] = React.useState<File | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) {
+      toast.error('Por favor, selecione um arquivo.');
+      return;
+    }
+    if (!name.trim()) {
+      toast.error('Informe o nome do material.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (onAddMaterial) {
+        await onAddMaterial(file, name, cat, rev || undefined);
+        setName('');
+        setDesc('');
+        setRev('');
+        setFile(null);
+        const fileInput = document.getElementById('materials-file-input') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-slate-50 border border-slate-200 rounded-xl p-4.5 space-y-4 mb-4 select-none">
+      <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Adicionar Material de Análise</h4>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-bold text-slate-450">Nome do Material *</Label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ex: Desenho Técnico Geral"
+            className="h-8.5 text-xs bg-white border-slate-200"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-bold text-slate-450">Categoria {block?.requireCategory && '*'}</Label>
+          <select
+            value={cat}
+            onChange={(e) => setCat(e.target.value)}
+            className="w-full h-8.5 border border-slate-200 bg-white rounded-lg text-xs px-2.5 outline-none"
+          >
+            <option>Desenho Técnico</option>
+            <option>Modelo 3D</option>
+            <option>Render/Imagem</option>
+            <option>Vídeo de Funcionamento</option>
+            <option>Planilha Técnica</option>
+            <option>Relatório/Documento</option>
+            <option>Outro</option>
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-bold text-slate-450">Revisão {block?.requireRevision && '*'}</Label>
+          <Input
+            value={rev}
+            onChange={(e) => setRev(e.target.value)}
+            placeholder="Ex: Rev A"
+            className="h-8.5 text-xs bg-white border-slate-200"
+          />
+        </div>
+
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label className="text-[10px] font-bold text-slate-450">Arquivo * (PDF, STEP, DWG, ZIP, Imagens, etc)</Label>
+          <Input
+            id="materials-file-input"
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="h-8.5 text-xs bg-white py-1 border-slate-200"
+          />
+        </div>
+
+        <div className="flex items-end">
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full h-8.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg cursor-pointer border-0 flex items-center justify-center gap-1"
+          >
+            {loading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+            Adicionar Anexo
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
 }
 
 function BlockInnerRenderer({
@@ -971,9 +1262,45 @@ function BlockInnerRenderer({
   onAnswerChange,
   error,
   documentData,
-  materials = []
+  materials = [],
+  isActive = false,
+  onUpdateBlock,
+  onDocumentDataChange,
+  onAddMaterial,
+  onRemoveMaterial
 }: BlockInnerRendererProps) {
   
+  if (mode === 'template-editor' && isActive && onUpdateBlock) {
+    const errors = validateBlock(block);
+    const errorFields = errors.map(err => err.field);
+    const props = { block, onChange: onUpdateBlock, errors: errorFields };
+    switch (block.type) {
+      case 'heading_text':
+        return <HeadingTextBlockEditor {...props} />;
+      case 'short_answer':
+      case 'long_answer':
+        return <TextAnswerBlockEditor {...props} />;
+      case 'multiple_choice':
+      case 'checkbox':
+      case 'dropdown':
+        return <ChoiceAnswerBlockEditor {...props} />;
+      case 'date':
+        return <DateBlockEditor {...props} />;
+      case 'file_upload':
+        return <FileUploadBlockEditor {...props} />;
+      case 'approval_decision':
+        return <ApprovalDecisionBlockEditor {...props} />;
+      case 'acknowledgement':
+        return <AcknowledgementBlockEditor {...props} />;
+      case 'request_information':
+        return <RequestInfoBlockEditor {...props} />;
+      case 'analysis_materials':
+        return <AnalysisMaterialsBlockEditor {...props} />;
+      default:
+        return null;
+    }
+  }
+
   const isReadOnly = mode === 'read-only-result' || mode === 'template-editor' || mode === 'template-preview';
   const isPublicValidation = mode === 'public-validation';
   const isPreparation = mode === 'approval-preparation';
@@ -1004,6 +1331,9 @@ function BlockInnerRenderer({
       );
 
     case 'request_information': {
+      if (isPreparation) {
+        return documentData ? renderRequestInfoForm(documentData, onDocumentDataChange) : null;
+      }
       const enabledFields = (block.fields || []).filter(f => f.enabled && (isPreparation || f.visibleToClient));
       if (enabledFields.length === 0) {
         return <p className="text-xs text-slate-400 italic">Nenhuma informação geral visível.</p>;
@@ -1034,59 +1364,77 @@ function BlockInnerRenderer({
     }
 
     case 'analysis_materials': {
-      if (materials.length === 0) {
-        return <p className="text-xs text-slate-400 italic">Nenhum material de análise adicionado.</p>;
-      }
       return (
-        <div className="border border-slate-150 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-white shadow-xs">
-          {materials.map((mat: any) => (
-            <div key={mat.id} className="flex items-center justify-between p-3.5 hover:bg-slate-50/20 bg-white">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-slate-800">{mat.name}</span>
-                    <span className="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">
-                      {mat.category}
-                    </span>
-                    {mat.revision && (
-                      <span className="text-[9px] font-mono text-slate-400">({mat.revision})</span>
+        <div className="space-y-4">
+          {isPreparation && (
+            <MaterialsUploaderForm onAddMaterial={onAddMaterial} block={block} />
+          )}
+          {materials.length === 0 ? (
+            <p className="text-xs text-slate-400 italic">Nenhum material de análise adicionado ainda.</p>
+          ) : (
+            <div className="border border-slate-150 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-white shadow-xs">
+              {materials.map((mat: any) => (
+                <div key={mat.id} className="flex items-center justify-between p-3.5 hover:bg-slate-50/20 bg-white">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-slate-800">{mat.name}</span>
+                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                          {mat.category}
+                        </span>
+                        {mat.revision && (
+                          <span className="text-[9px] font-mono text-slate-400">({mat.revision})</span>
+                        )}
+                      </div>
+                      {mat.description && <p className="text-[10px] text-slate-455 mt-0.5">{mat.description}</p>}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const { data, error } = await supabase.storage
+                            .from('request-materials')
+                            .download(mat.filePath);
+                          if (error) throw error;
+                          const url = URL.createObjectURL(data);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = mat.fileName;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        } catch (err) {
+                          console.error(err);
+                          toast.error('Erro ao baixar arquivo de análise.');
+                        }
+                      }}
+                      className="p-1.5 text-[#0d857a] hover:bg-teal-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent flex items-center gap-1 text-[11px] font-bold"
+                    >
+                      <FileDown className="w-4 h-4" />
+                      Baixar
+                    </button>
+                    {isPreparation && onRemoveMaterial && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveMaterial(mat.id, mat.filePath)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                        title="Remover material"
+                      >
+                        <Trash2 className="w-4.5 h-4.5" />
+                      </button>
                     )}
                   </div>
-                  {mat.description && <p className="text-[10px] text-slate-455 mt-0.5">{mat.description}</p>}
                 </div>
-              </div>
-              
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const { data, error } = await supabase.storage
-                      .from('request-materials')
-                      .download(mat.filePath);
-                    if (error) throw error;
-                    const url = URL.createObjectURL(data);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = mat.fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                  } catch (err) {
-                    console.error(err);
-                    toast.error('Erro ao baixar arquivo de análise.');
-                  }
-                }}
-                className="p-1.5 text-[#0d857a] hover:bg-teal-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent flex items-center gap-1 text-[11px] font-bold"
-              >
-                <FileDown className="w-4 h-4" />
-                Baixar
-              </button>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       );
     }

@@ -17,7 +17,10 @@ const ICON_OPTIONS = [
 ];
 
 export default function Categories() {
-  const { categories, addCategory, updateCategory, deleteCategory } = useApp();
+  const { categories } = useApp();
+  const addCategory = (cat: any) => {};
+  const updateCategory = (id: any, cat: any) => {};
+  const deleteCategory = (id: any) => {};
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);

@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Plus, LayoutGrid, PlusCircle, ArrowDown } from 'lucide-react';
+import { Plus, LayoutGrid, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Block } from './BlockFactory';
-import BlockRenderer from './BlockRenderer';
+import ApprovalDocumentRenderer, { CompanyBrandingData, DocumentData } from './ApprovalDocumentRenderer';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 interface ProcessCanvasProps {
@@ -15,6 +15,8 @@ interface ProcessCanvasProps {
   onDeleteBlockClick: (id: string) => void;
   onMoveBlock: (id: string, direction: 'up' | 'down') => void;
   onDuplicateBlock: (id: string) => void;
+  companyBranding?: CompanyBrandingData;
+  documentData?: DocumentData;
 }
 
 export default function ProcessCanvas({
@@ -25,7 +27,9 @@ export default function ProcessCanvas({
   onAddBlockClick,
   onDeleteBlockClick,
   onMoveBlock,
-  onDuplicateBlock
+  onDuplicateBlock,
+  companyBranding,
+  documentData
 }: ProcessCanvasProps) {
   return (
     <div className="flex-1 flex flex-col justify-center min-h-[50vh] py-8">
@@ -38,7 +42,7 @@ export default function ProcessCanvas({
           className="max-w-md mx-auto w-full bg-white border border-dashed border-slate-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center space-y-6 shadow-xs hover:border-[#0d857a]/45 transition-colors"
         >
           <div className="h-12 w-12 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-400 shadow-inner">
-            <LayoutGrid className="w-5.5 h-5.5 text-slate-450" />
+            <LayoutGrid className="w-5.5 h-5.5 text-slate-455" />
           </div>
 
           <div className="space-y-2">
@@ -59,37 +63,21 @@ export default function ProcessCanvas({
           </Button>
         </motion.div>
       ) : (
-        /* Canvas with Blocks (connected visually) */
-        <div className="max-w-2xl mx-auto w-full space-y-6 px-1">
+        /* Canvas with unified renderer */
+        <div className="w-full space-y-6">
           <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-            {blocks.map((block, index) => (
-              <React.Fragment key={block.id}>
-                {index > 0 && (
-                  <div className="flex justify-center -my-3 h-6 relative">
-                    <div className="w-0.5 bg-slate-200 absolute top-0 bottom-0" />
-                    <div className="w-5 h-5 rounded-full bg-white border border-slate-200/90 flex items-center justify-center shadow-xs z-10">
-                      <ArrowDown className="w-3 h-3 text-slate-400" />
-                    </div>
-                  </div>
-                )}
-                <div
-                  id={`block-card-${block.id}`}
-                  className="scroll-mt-24"
-                >
-                  <BlockRenderer
-                    block={block}
-                    isActive={activeBlockId === block.id}
-                    onSelect={() => onSelectBlock(block.id)}
-                    onChange={(updatedBlock) => onUpdateBlock(block.id, updatedBlock)}
-                    onDelete={() => onDeleteBlockClick(block.id)}
-                    onMove={(direction) => onMoveBlock(block.id, direction)}
-                    onDuplicate={() => onDuplicateBlock(block.id)}
-                    isFirst={index === 0}
-                    isLast={index === blocks.length - 1}
-                  />
-                </div>
-              </React.Fragment>
-            ))}
+            <ApprovalDocumentRenderer
+              mode="template-editor"
+              blocks={blocks}
+              activeBlockId={activeBlockId}
+              onSelectBlock={onSelectBlock}
+              onUpdateBlock={onUpdateBlock}
+              onDeleteBlock={onDeleteBlockClick}
+              onMoveBlock={onMoveBlock}
+              onDuplicateBlock={onDuplicateBlock}
+              companyBranding={companyBranding}
+              documentData={documentData}
+            />
           </SortableContext>
 
           {/* Add block button at the bottom of the list */}

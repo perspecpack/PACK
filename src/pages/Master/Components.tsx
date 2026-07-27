@@ -82,6 +82,7 @@ export default function Components() {
 
     const componentData = {
       name,
+      organizationId: oemId,
       oemId,
       techCategory,
       description: description || undefined,

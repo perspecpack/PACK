@@ -28,6 +28,8 @@ import DeleteBlockDialog from '@/src/components/processos/DeleteBlockDialog';
 import { Block, BlockFactory, migrateLegacyBlocks, BLOCK_METADATA } from '@/src/components/processos/BlockFactory';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
+import { Monitor, Tablet as TabletIcon, Smartphone } from 'lucide-react';
+import ApprovalDocumentRenderer from '@/src/components/processos/ApprovalDocumentRenderer';
 
 // dnd-kit vertical dragging imports
 import {
@@ -75,6 +77,7 @@ export default function EditorProcesso() {
 
   // Modals state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [canvasWidth, setCanvasWidth] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
 
   // Configure sensors for dnd-kit
   const sensors = useSensors(
@@ -451,6 +454,30 @@ export default function EditorProcesso() {
     toast.success('Blocos especiais de preparação adicionados ao modelo!');
   };
 
+  const { profile } = useApp();
+  const companyBranding = {
+    companyName: profile?.companyName || 'Minha Empresa',
+    tradeName: profile?.tradeName || profile?.companyName || 'Minha Empresa',
+    companyLogoUrl: profile?.companyLogoUrl || '',
+    companyWebsite: profile?.companyWebsite || '',
+    corporateEmail: profile?.corporateEmail || '',
+    phone: profile?.phone || '',
+    shortDescription: profile?.shortDescription || '',
+    footerText: profile?.footerText || ''
+  };
+
+  const documentData = {
+    title: processo?.name || '',
+    description: processo?.description || '',
+    status: processo?.status || 'draft',
+    revision: '01',
+    code: 'MODELO',
+    deadline: null,
+    responsible_internal: '',
+    publication_code: 'MODELO',
+    version: 1
+  };
+
   return (
     <div className="w-full">
       {isLegacyModel && (
@@ -525,23 +552,71 @@ export default function EditorProcesso() {
           />
         }
         canvas={
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            onDragEnd={handleDragEnd}
-          >
-            <ProcessCanvas
-              blocks={processo.blocks || []}
-              activeBlockId={activeBlockId}
-              onSelectBlock={handleSelectBlock}
-              onUpdateBlock={handleUpdateBlock}
-              onAddBlockClick={() => setIsSidebarOpen(true)}
-              onDeleteBlockClick={handleDeleteBlockClick}
-              onMoveBlock={handleMoveBlock}
-              onDuplicateBlock={handleDuplicateBlock}
-            />
-          </DndContext>
+          <div className="w-full flex flex-col items-center">
+            {/* Canvas Responsive Width Selector */}
+            <div className="flex justify-center gap-1.5 mb-4 border-b border-slate-100 pb-3 select-none w-full max-w-2xl">
+              <button
+                onClick={() => setCanvasWidth('desktop')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                  canvasWidth === 'desktop'
+                    ? 'bg-teal-50 border-teal-200 text-[#0d857a] shadow-xs'
+                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span>Desktop (960px)</span>
+              </button>
+              <button
+                onClick={() => setCanvasWidth('tablet')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                  canvasWidth === 'tablet'
+                    ? 'bg-teal-50 border-teal-200 text-[#0d857a] shadow-xs'
+                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <TabletIcon className="w-3.5 h-3.5" />
+                <span>Tablet (768px)</span>
+              </button>
+              <button
+                onClick={() => setCanvasWidth('mobile')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                  canvasWidth === 'mobile'
+                    ? 'bg-teal-50 border-teal-200 text-[#0d857a] shadow-xs'
+                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Celular (390px)</span>
+              </button>
+            </div>
+
+            {/* Centered Canvas Container */}
+            <div className={`mx-auto transition-all duration-300 ${
+              canvasWidth === 'desktop' ? 'max-w-[960px] w-full' :
+              canvasWidth === 'tablet' ? 'max-w-[768px] w-full border-x border-slate-200 px-4' :
+              'max-w-[390px] w-full border-x border-slate-200 px-4'
+            }`}>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis]}
+                onDragEnd={handleDragEnd}
+              >
+                <ProcessCanvas
+                  blocks={processo.blocks || []}
+                  activeBlockId={activeBlockId}
+                  onSelectBlock={handleSelectBlock}
+                  onUpdateBlock={handleUpdateBlock}
+                  onAddBlockClick={() => setIsSidebarOpen(true)}
+                  onDeleteBlockClick={handleDeleteBlockClick}
+                  onMoveBlock={handleMoveBlock}
+                  onDuplicateBlock={handleDuplicateBlock}
+                  companyBranding={companyBranding}
+                  documentData={documentData}
+                />
+              </DndContext>
+            </div>
+          </div>
         }
         sidebar={
           <BlockSidebar
@@ -585,133 +660,14 @@ export default function EditorProcesso() {
               </div>
 
               {/* Preview Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs font-semibold text-slate-700">
-                <div className="space-y-2 border-b border-slate-100 pb-4">
-                  <h1 className="text-base font-bold text-slate-850">{processo.name}</h1>
-                  {processo.description && <p className="text-slate-500 text-[11px] leading-relaxed font-medium">{processo.description}</p>}
-                </div>
-                
-                {/* Respondent Identification (Static Mock) */}
-                <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3.5">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Identificação do Responsável</h3>
-                    <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md uppercase tracking-wider">
-                      Preenchido por: Cliente
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-[11px] text-slate-455 font-medium">
-                    <div className="space-y-1"><span className="block text-[9px] font-bold uppercase">Nome Completo *</span><div className="h-8 border border-slate-200 bg-white rounded-lg px-2 flex items-center">João da Silva</div></div>
-                    <div className="space-y-1"><span className="block text-[9px] font-bold uppercase">Cargo ou Função *</span><div className="h-8 border border-slate-200 bg-white rounded-lg px-2 flex items-center">Analista de Qualidade</div></div>
-                  </div>
-                </div>
-
-                {/* Render Process Blocks (Simulation) */}
-                <div className="space-y-6 pt-2">
-                  {processo.blocks.map((block, i) => (
-                    <div key={block.id} className="space-y-2 pb-4 border-b border-slate-100 last:border-0">
-                      {block.type !== 'heading_text' && (
-                        <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-bold text-slate-800 text-[12.5px] leading-tight">
-                            {i + 1}. {block.title}
-                            {block.required && <span className="text-red-500 font-bold ml-1">*</span>}
-                          </h4>
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                            block.filledBy === 'company' 
-                              ? 'bg-blue-50 text-blue-700 border border-blue-100' 
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                          }`}>
-                            Preenchido por: {block.filledBy === 'company' ? 'Empresa' : 'Cliente'}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {block.description && block.type !== 'heading_text' && (
-                        <p className="text-[10.5px] text-slate-450 leading-relaxed font-medium pb-1">{block.description}</p>
-                      )}
-
-                      {/* Input Types */}
-                      {block.type === 'heading_text' && (
-                        <div className="bg-slate-50/50 border border-slate-200 p-4 rounded-xl space-y-1">
-                          <h4 className="font-bold text-slate-800 text-xs">{block.title}</h4>
-                          <p className="text-[11px] text-slate-550 leading-normal font-medium">{block.description}</p>
-                        </div>
-                      )}
-
-                      {block.type === 'short_answer' && (
-                        <div className="h-9 border border-slate-200 rounded-lg bg-slate-50/30 text-slate-400 flex items-center px-3 text-xs select-none">
-                          {block.placeholder || 'Resposta curta...'}
-                        </div>
-                      )}
-
-                      {block.type === 'long_answer' && (
-                        <div className="h-16 border border-slate-200 rounded-lg bg-slate-50/30 text-slate-400 p-2.5 text-xs select-none">
-                          {block.placeholder || 'Resposta detalhada...'}
-                        </div>
-                      )}
-
-                      {block.type === 'multiple_choice' && (
-                        <div className="space-y-1.5 pt-0.5">
-                          {(block.options || []).map(o => (
-                            <div key={o.id} className="flex items-center gap-2">
-                              <div className="h-4 w-4 border border-slate-300 rounded-full" />
-                              <span className="text-[11.5px] text-slate-655 font-medium">{o.text}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {block.type === 'checkbox' && (
-                        <div className="space-y-1.5 pt-0.5">
-                          {(block.options || []).map(o => (
-                            <div key={o.id} className="flex items-center gap-2">
-                              <div className="h-4 w-4 border border-slate-300 rounded" />
-                              <span className="text-[11.5px] text-slate-655 font-medium">{o.text}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {block.type === 'dropdown' && (
-                        <div className="h-9 max-w-xs border border-slate-200 rounded-lg bg-white px-2.5 flex items-center justify-between text-slate-400 text-xs select-none">
-                          <span>Selecione uma opção...</span>
-                          <span className="text-slate-400">▼</span>
-                        </div>
-                      )}
-
-                      {block.type === 'date' && (
-                        <div className="h-9 max-w-xs border border-slate-200 rounded-lg bg-white px-2.5 flex items-center justify-between text-slate-400 text-xs select-none">
-                          <span>DD/MM/AAAA</span>
-                          <span className="text-slate-400">📅</span>
-                        </div>
-                      )}
-
-                      {block.type === 'file_upload' && (
-                        <div className="h-20 border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400 bg-slate-50/30 space-y-1 select-none">
-                          <span className="text-xs font-semibold text-slate-500">Clique para enviar arquivos</span>
-                          <span className="text-[9px]">Tamanho máximo: {block.maxSizeMB || 10}MB</span>
-                        </div>
-                      )}
-
-                      {block.type === 'acknowledgement' && (
-                        <div className="flex items-start gap-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl select-none">
-                          <div className="h-4.5 w-4.5 border border-slate-300 rounded shrink-0 mt-0.5" />
-                          <span className="text-[11px] text-slate-655 leading-relaxed font-medium">{block.declarationText}</span>
-                        </div>
-                      )}
-
-                      {block.type === 'approval_decision' && (
-                        <div className="space-y-3">
-                          <div className="flex gap-2 flex-wrap">
-                            {(block.decisions || []).map(dec => (
-                              <div key={dec.id} className="text-[9px] px-2.5 py-1 border border-slate-200 text-slate-455 font-bold uppercase tracking-wider rounded-lg">
-                                {dec.text}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+              <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+                <div className="max-w-[768px] mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                  <ApprovalDocumentRenderer
+                    mode="template-preview"
+                    blocks={processo.blocks}
+                    companyBranding={companyBranding}
+                    documentData={documentData}
+                  />
                 </div>
               </div>
 

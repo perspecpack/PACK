@@ -90,7 +90,7 @@ interface AppContextType {
   
   // Backward compatibility fields
   oems: Organization[];
-  categories: { id: string; name: string; slug: string; icon: string; status: 'active' }[];
+  categories: { id: string; name: string; slug: string; icon: string; status: 'active'; description?: string }[];
   files: FileEntry[];
   projects: any[];
 

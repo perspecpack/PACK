@@ -13,6 +13,7 @@ export default defineConfig(() => {
       },
     },
     optimizeDeps: {
+      // @ts-ignore
       esbuildOptions: {
         external: ['core-js', 'core-js/*']
       }
@@ -30,5 +31,5 @@ export default defineConfig(() => {
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
-  };
+  } as any;
 });

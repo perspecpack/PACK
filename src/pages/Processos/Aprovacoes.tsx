@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
 import { generateEmailMessage, exportTXTFile, generateTXTComprovante, generatePDFReport } from '@/src/utils/exportUtils';
+import ApprovalDocumentRenderer from '@/src/components/processos/ApprovalDocumentRenderer';
 
 interface Publication {
   id: string;
@@ -555,206 +556,54 @@ export default function Aprovacoes() {
               </div>
 
               {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-8 text-xs font-semibold text-slate-700">
-                {/* Identification */}
-                <div className="space-y-4 bg-slate-50 border border-slate-200/80 p-4.5 rounded-2xl">
-                  <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    Metadados da Validação
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-medium">Situação:</span>
-                      {selectedPub.status === 'awaiting_validation' && <span className="text-amber-600 font-bold">Aguardando Validação</span>}
-                      {selectedPub.status === 'validated' && <span className="text-emerald-600 font-bold">Validado</span>}
-                      {selectedPub.status === 'revoked' && <span className="text-red-500 font-bold">Revogado</span>}
-                    </div>
-                    {selectedPub.status === 'validated' && selectedPub.response && (
-                      <div>
-                        <span className="text-[10px] text-slate-400 block font-medium">Protocolo:</span>
-                        <span className="text-teal-700 font-bold">{selectedPub.response.protocol}</span>
-                      </div>
-                    )}
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-medium">Publicado em:</span>
-                      {new Date(selectedPub.published_at).toLocaleString('pt-BR')}
-                    </div>
-                    {selectedPub.status === 'validated' && selectedPub.response && (
-                      <div>
-                        <span className="text-[10px] text-slate-400 block font-medium">Validado em:</span>
-                        {new Date(selectedPub.response.submitted_at).toLocaleString('pt-BR')}
-                      </div>
-                    )}
-                    {selectedPub.status === 'revoked' && selectedPub.revoked_at && (
-                      <div>
-                        <span className="text-[10px] text-slate-400 block font-medium">Revogado em:</span>
-                        {new Date(selectedPub.revoked_at).toLocaleString('pt-BR')}
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+                {(() => {
+                  const companyBranding = {
+                    companyName: selectedPub.snapshot?.company_name || selectedPub.organization || 'PERSPECPACK',
+                    tradeName: selectedPub.snapshot?.trade_name || selectedPub.snapshot?.company_name || selectedPub.organization || 'PERSPECPACK',
+                    companyLogoUrl: selectedPub.snapshot?.company_logo_url || '',
+                    companyWebsite: selectedPub.snapshot?.company_website || '',
+                    corporateEmail: selectedPub.snapshot?.corporate_email || '',
+                    phone: selectedPub.snapshot?.phone || '',
+                    shortDescription: selectedPub.snapshot?.short_description || '',
+                    footerText: selectedPub.snapshot?.footer_text || ''
+                  };
 
-                {/* Respondent Profile */}
-                {selectedPub.status === 'validated' && selectedPub.response && (
-                  <div className="space-y-4 bg-teal-50/20 border border-teal-100 p-4.5 rounded-2xl">
-                    <h3 className="text-[11px] font-bold text-[#0d857a] uppercase tracking-wider flex items-center gap-1.5">
-                      <UserCheck className="w-4 h-4 text-[#0d857a]" />
-                      Responsável Externo
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-[10px] text-slate-450 block font-medium">Nome completo:</span>
-                        {selectedPub.response.respondent_name}
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-450 block font-medium">Cargo ou Função:</span>
-                        {selectedPub.response.respondent_role}
-                      </div>
-                      {selectedPub.response.respondent_email && (
-                        <div className="col-span-full">
-                          <span className="text-[10px] text-slate-450 block font-medium">E-mail:</span>
-                          {selectedPub.response.respondent_email}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                  const documentData = {
+                    title: selectedPub.snapshot?.title || selectedPub.snapshot?.name || '',
+                    client: selectedPub.snapshot?.client || '',
+                    project: selectedPub.snapshot?.project || '',
+                    code: selectedPub.snapshot?.code || '',
+                    revision: selectedPub.snapshot?.revision || '',
+                    responsible_internal: selectedPub.snapshot?.responsible_internal || '',
+                    deadline: selectedPub.snapshot?.deadline || null,
+                    description: selectedPub.snapshot?.description || '',
+                    notes_for_client: selectedPub.snapshot?.notes_for_client || '',
+                    status: selectedPub.status,
+                    publication_code: selectedPub.publication_code,
+                    version: selectedPub.version
+                  };
 
-                {/* Answers details */}
-                <div className="space-y-5">
-                  <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2 mb-2">
-                    Respostas dos Blocos
-                  </h3>
-                  
-                  {(selectedPub.snapshot?.blocks || []).map((block: any, index: number) => {
-                    const ans = selectedPub.response?.answers?.find((a: any) => (a.block_id || a.blockId) === block.id);
-                    
-                    if (block.type === 'heading_text') {
-                      return (
-                        <div key={block.id} className="bg-slate-50 border border-slate-155 p-3 rounded-lg space-y-1 font-medium">
-                          <span className="font-semibold text-slate-700 block">{block.title}</span>
-                          <span className="text-[10px] text-slate-450 whitespace-pre-line leading-relaxed">{block.description}</span>
-                        </div>
-                      );
-                    }
+                  const formattedAnswers = selectedPub.response?.answers?.map((a: any) => ({
+                    blockId: a.block_id || a.blockId,
+                    value: a.value !== undefined ? a.value : a.answer
+                  })) || [];
 
-                    if (selectedPub.status === 'awaiting_validation') {
-                      return (
-                        <div key={block.id} className="space-y-1 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
-                          <span className="text-slate-450 text-[10px] block font-medium">Questão {index + 1}: {block.title}</span>
-                          <span className="text-slate-400 font-medium italic block pt-1">Link aguardando validação...</span>
-                        </div>
-                      );
-                    }
-
-                    if (selectedPub.status === 'revoked') {
-                      return (
-                        <div key={block.id} className="space-y-1 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
-                          <span className="text-slate-450 text-[10px] block font-medium">Questão {index + 1}: {block.title}</span>
-                          <span className="text-slate-400 font-medium italic block pt-1">Link revogado antes de responder.</span>
-                        </div>
-                      );
-                    }
-
-                    if (!ans) {
-                      return (
-                        <div key={block.id} className="space-y-1 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
-                          <span className="text-slate-450 text-[10px] block font-medium">Questão {index + 1}: {block.title}</span>
-                          <span className="text-red-400 font-medium italic block pt-1">Sem resposta disponível.</span>
-                        </div>
-                      );
-                    }
-
-                    // Extract values supporting both formats
-                    const ansVal = ans.value !== undefined ? ans.value : ans.answer;
-                    const commentVal = ans.comment;
-                    const confirmedVal = ans.confirmed !== undefined ? ans.confirmed : (ans.value === true || ans.value === 'true');
-                    const attachedFiles = ans.attached_files || (Array.isArray(ans.value) ? ans.value : []);
-                    const selectedLabels = ans.selected_option_labels || [];
-
-                    return (
-                      <div key={block.id} className="space-y-1 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
-                        <span className="text-slate-450 text-[10px] block font-medium">Questão {index + 1}: {block.title}</span>
-                        
-                        <div className="pt-1.5 font-bold text-slate-750">
-                          {/* Acknowledgement */}
-                          {block.type === 'acknowledgement' && (
-                            <div className="flex items-center gap-2">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 border rounded-lg ${
-                                confirmedVal === true ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'
-                              }`}>
-                                {confirmedVal === true ? 'DECLARAÇÃO CONFIRMADA' : 'NÃO ACEITO'}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* File Upload */}
-                          {block.type === 'file_upload' && (
-                            <div className="space-y-1.5">
-                              {attachedFiles.length > 0 ? (
-                                attachedFiles.map((file: any) => (
-                                  <div 
-                                    key={file.path} 
-                                    onClick={() => handleDownloadAttachment(file.path, file.name)}
-                                    className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-lg max-w-sm hover:border-[#0d857a] hover:bg-[#0d857a]/5 cursor-pointer transition-all"
-                                  >
-                                    <span className="text-slate-655 font-semibold truncate max-w-[200px] flex items-center gap-1.5">
-                                      <FileText className="w-3.5 h-3.5 text-slate-400" />
-                                      {file.name}
-                                    </span>
-                                    <span className="text-[9px] text-[#0d857a] font-bold uppercase tracking-wider">Baixar</span>
-                                  </div>
-                                ))
-                              ) : (
-                                <span className="text-slate-400 italic font-medium">Nenhum arquivo enviado</span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Approval Decision */}
-                          {block.type === 'approval_decision' && (
-                            <div className="space-y-2">
-                              <span className={`text-[10px] font-bold px-3 py-1 border rounded-xl uppercase tracking-wider inline-block ${
-                                ansVal?.semanticType === 'positive' || ans.primary_decision?.semanticType === 'positive' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                                ansVal?.semanticType === 'attention' || ansVal?.semanticType === 'warning' || ans.primary_decision?.semanticType === 'attention' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                                ansVal?.semanticType === 'negative' || ans.primary_decision?.semanticType === 'negative' ? 'bg-red-50 text-red-800 border-red-200' :
-                                'bg-slate-550 text-slate-800 border-slate-300'
-                              }`}>
-                                {typeof ansVal === 'object' ? ansVal?.text : String(ansVal)}
-                              </span>
-                              {commentVal && (
-                                <div className="text-xs font-medium text-slate-500 leading-relaxed bg-slate-50/50 border border-slate-100 p-2.5 rounded-lg">
-                                  <span className="font-bold text-slate-600 block mb-0.5">Comentário/Justificativa:</span>
-                                  {commentVal}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Choice Option / Checkboxes */}
-                          {block.type === 'checkbox' && (
-                            <span className="text-xs text-slate-700 block leading-relaxed">
-                              {selectedLabels.length > 0 ? selectedLabels.join(', ') : Array.isArray(ansVal) ? ansVal.join(', ') : String(ansVal)}
-                            </span>
-                          )}
-
-                          {/* Multiple Choice */}
-                          {block.type === 'multiple_choice' && (
-                            <span className="text-xs text-slate-700 block">
-                              {selectedLabels.length > 0 ? selectedLabels[0] : typeof ansVal === 'object' ? ansVal?.text : String(ansVal)}
-                            </span>
-                          )}
-
-                          {/* Basic Text inputs */}
-                          {block.type !== 'acknowledgement' && block.type !== 'file_upload' && block.type !== 'approval_decision' && block.type !== 'checkbox' && block.type !== 'multiple_choice' && (
-                            <span className="text-xs text-slate-700 block leading-relaxed">{String(ansVal)}</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                  return (
+                    <ApprovalDocumentRenderer
+                      mode={selectedPub.status === 'validated' ? 'read-only-result' : 'template-preview'}
+                      companyBranding={companyBranding}
+                      documentData={documentData}
+                      blocks={selectedPub.snapshot?.blocks || []}
+                      materials={selectedPub.snapshot?.materials || []}
+                      answers={formattedAnswers}
+                      respondentName={selectedPub.response?.respondent_name}
+                      respondentRole={selectedPub.response?.respondent_role}
+                      respondentEmail={selectedPub.response?.respondent_email}
+                    />
+                  );
+                })()}
               </div>
-
               {/* Drawer Footer Actions */}
               <div className="p-4.5 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0 bg-slate-50">
                 {selectedPub.status === 'awaiting_validation' && (
