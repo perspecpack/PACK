@@ -63,6 +63,10 @@ export default function SolicitacaoForm() {
   const [description, setDescription] = useState('');
   const [notesForClient, setNotesForClient] = useState('');
   const [templateName, setTemplateName] = useState('');
+  const [respondentName, setRespondentName] = useState('');
+  const [respondentRole, setRespondentRole] = useState('');
+  const [respondentEmail, setRespondentEmail] = useState('');
+  const [answers, setAnswers] = useState<any[]>([]);
   const [processId, setProcessId] = useState('');
 
   // Blocks & Materials
@@ -82,10 +86,10 @@ export default function SolicitacaoForm() {
           if (supabase) {
             const { data, error } = await supabase
               .from('process_requests')
-              .select('*, processes(name)')
+              .select('*, processes(name), process_publications(id, status, process_validation_responses(*))')
               .eq('id', id)
               .single();
-
+ 
             if (error) throw error;
             if (data) {
               setProcessId(data.process_id);
@@ -100,8 +104,76 @@ export default function SolicitacaoForm() {
               setDescription(data.description || '');
               setNotesForClient(data.notes_for_client || '');
               setRequestStatus(data.status);
-              setBlocks(migrateLegacyBlocks(data.blocks || []));
+              
+              const currentBlocks = migrateLegacyBlocks(data.blocks || []);
+              setBlocks(currentBlocks);
               setMaterials(data.materials || []);
+
+              // Extract the validated response if exists
+              if (data.process_publications) {
+                const publicationsList = Array.isArray(data.process_publications)
+                  ? data.process_publications
+                  : [data.process_publications];
+                
+                const activePub = publicationsList.find((p: any) => p.status === 'validated') || publicationsList[0];
+                
+                if (activePub) {
+                  const responsesList = Array.isArray(activePub.process_validation_responses)
+                    ? activePub.process_validation_responses
+                    : [activePub.process_validation_responses];
+                  
+                  const response = responsesList.find((r: any) => r !== null && r !== undefined);
+                    
+                  if (response) {
+                    setRespondentName(response.respondent_name || '');
+                    setRespondentRole(response.respondent_role || '');
+                    setRespondentEmail(response.respondent_email || '');
+                    
+                    const respAnswers = response.answers?.map((a: any) => {
+                      const blockId = a.block_id || a.blockId;
+                      const type = a.block_type || a.blockType;
+                      let value = a.value !== undefined ? a.value : a.answer;
+                      
+                      if (type === 'approval_decision' && a.selected_option_ids?.[0]) {
+                        const decBlock = currentBlocks.find((b: any) => b.id === blockId);
+                        const decOpt = decBlock?.decisions?.find((d: any) => d.id === a.selected_option_ids[0]);
+                        value = {
+                          id: a.selected_option_ids[0],
+                          text: a.selected_option_labels?.[0] || a.answer || '',
+                          semanticType: decOpt?.semanticType || a.semantic_type || '',
+                          comment: a.comment || ''
+                        };
+                      } else if (type === 'acknowledgement') {
+                        value = a.confirmed === true || a.answer === 'Confirmado';
+                      } else if (type === 'checkbox') {
+                        const list = (a.selected_option_labels || []).filter((l: string) => l !== 'Outro');
+                        const otherSelected = (a.selected_option_labels || []).includes('Outro');
+                        value = {
+                          list,
+                          otherSelected,
+                          otherText: a.other_text || ''
+                        };
+                      } else if (type === 'multiple_choice') {
+                        const otherSelected = (a.selected_option_labels || []).includes('Outro');
+                        if (otherSelected) {
+                          value = {
+                            value: '',
+                            otherSelected: true,
+                            otherText: a.other_text || ''
+                          };
+                        } else {
+                          value = a.answer || '';
+                        }
+                      } else if (type === 'file_upload') {
+                        value = a.attached_files || [];
+                      }
+                      
+                      return { blockId, value };
+                    }) || [];
+                    setAnswers(respAnswers);
+                  }
+                }
+              }
             }
           }
         } else if (templateId) {
@@ -480,6 +552,10 @@ export default function SolicitacaoForm() {
           documentData={documentData}
           blocks={blocks}
           materials={materials}
+          answers={answers}
+          respondentName={respondentName}
+          respondentRole={respondentRole}
+          respondentEmail={respondentEmail}
           onDocumentDataChange={(data: any) => {
             if (data.title !== undefined) setTitle(data.title);
             if (data.client !== undefined) setClient(data.client);

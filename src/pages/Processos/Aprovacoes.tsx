@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -584,10 +584,49 @@ export default function Aprovacoes() {
                     version: selectedPub.version
                   };
 
-                  const formattedAnswers = selectedPub.response?.answers?.map((a: any) => ({
-                    blockId: a.block_id || a.blockId,
-                    value: a.value !== undefined ? a.value : a.answer
-                  })) || [];
+                  const formattedAnswers = selectedPub.response?.answers?.map((a: any) => {
+                    const blockId = a.block_id || a.blockId;
+                    const type = a.block_type || a.blockType;
+                    
+                    let value = a.value !== undefined ? a.value : a.answer;
+                    
+                    // Reconstruct rich object structures for the renderer's visual states
+                    if (type === 'approval_decision' && a.selected_option_ids?.[0]) {
+                      const decBlock = selectedPub.snapshot?.blocks?.find((b: any) => b.id === blockId);
+                      const decOpt = decBlock?.decisions?.find((d: any) => d.id === a.selected_option_ids[0]);
+                      value = {
+                        id: a.selected_option_ids[0],
+                        text: a.selected_option_labels?.[0] || a.answer || '',
+                        semanticType: decOpt?.semanticType || a.semantic_type || '',
+                        comment: a.comment || ''
+                      };
+                    } else if (type === 'acknowledgement') {
+                      value = a.confirmed === true || a.answer === 'Confirmado';
+                    } else if (type === 'checkbox') {
+                      const list = (a.selected_option_labels || []).filter((l: string) => l !== 'Outro');
+                      const otherSelected = (a.selected_option_labels || []).includes('Outro');
+                      value = {
+                        list,
+                        otherSelected,
+                        otherText: a.other_text || ''
+                      };
+                    } else if (type === 'multiple_choice') {
+                      const otherSelected = (a.selected_option_labels || []).includes('Outro');
+                      if (otherSelected) {
+                        value = {
+                          value: '',
+                          otherSelected: true,
+                          otherText: a.other_text || ''
+                        };
+                      } else {
+                        value = a.answer || '';
+                      }
+                    } else if (type === 'file_upload') {
+                      value = a.attached_files || [];
+                    }
+                    
+                    return { blockId, value };
+                  }) || [];
 
                   return (
                     <ApprovalDocumentRenderer
