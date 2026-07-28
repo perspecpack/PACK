@@ -25,7 +25,8 @@ import {
   AlertCircle, 
   AlertTriangle,
   FileDown,
-  CheckCircle2
+  CheckCircle2,
+  FolderArchive
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,6 +123,8 @@ interface ApprovalDocumentRendererProps {
   onGoToReview?: () => void;
   onGoBack?: () => void;
   handleDownloadPDF?: () => void;
+  pdfReportBlob?: Blob | null;
+  zipApprovalBlob?: Blob | null;
 }
 
 export default function ApprovalDocumentRenderer({
@@ -158,7 +161,9 @@ export default function ApprovalDocumentRenderer({
   onSubmitResponse,
   onGoToReview,
   onGoBack,
-  handleDownloadPDF
+  handleDownloadPDF,
+  pdfReportBlob = null,
+  zipApprovalBlob = null
 }: ApprovalDocumentRendererProps) {
   
   const hasRequestInfoBlock = blocks.some(b => b.type === 'request_information');
@@ -221,25 +226,75 @@ export default function ApprovalDocumentRenderer({
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-center pt-2 max-w-md mx-auto">
+        <div className="flex flex-col gap-4 pt-2 max-w-md mx-auto">
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+            {pdfReportBlob ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  const url = URL.createObjectURL(pdfReportBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `Relatorio-Oficial-${documentData.publication_code}.pdf`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(url);
+                }}
+                className="w-full sm:w-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 cursor-pointer h-9 px-5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                <FileDown className="w-4 h-4 text-[#0d857a]" />
+                <span>Baixar PDF Oficial</span>
+              </Button>
+            ) : handleDownloadPDF ? (
+              <Button
+                type="button"
+                onClick={handleDownloadPDF}
+                className="w-full sm:w-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 cursor-pointer h-9 px-5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                <FileDown className="w-4 h-4 text-[#0d857a]" />
+                <span>Baixar PDF</span>
+              </Button>
+            ) : null}
+
+            {zipApprovalBlob && (
+              <Button
+                type="button"
+                onClick={() => {
+                  const url = URL.createObjectURL(zipApprovalBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `Pacote-Aprovacao-${documentData.publication_code}.zip`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(url);
+                }}
+                className="w-full sm:w-auto bg-teal-50 hover:bg-teal-100 text-[#0d857a] border border-[#0d857a]/20 cursor-pointer h-9 px-5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                <FolderArchive className="w-4 h-4" />
+                <span>Baixar Pacote ZIP</span>
+              </Button>
+            )}
+          </div>
+          
+          <div className="p-4 bg-amber-50/50 border border-amber-200/50 rounded-xl text-left text-[11px] text-amber-800 leading-relaxed space-y-1">
+            <div className="font-bold flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              Política de Descarte de Arquivos
+            </div>
+            <p>
+              Os arquivos técnicos enviados para análise (modelos 3D, PDF, fotos e vídeos) foram **removidos definitivamente de nossos servidores** para garantir sua segurança e privacidade. O documento PDF oficial assinado acima é o único registro retido em nossa nuvem.
+            </p>
+          </div>
+
           <Button
             type="button"
             onClick={() => window.location.reload()}
-            className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-bold h-9 px-5 rounded-xl cursor-pointer border-0 text-xs shadow-sm"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold h-9 px-5 rounded-xl cursor-pointer border-0 text-xs shadow-sm mt-1"
           >
             Nova Resposta
           </Button>
-          
-          {handleDownloadPDF && (
-            <Button
-              type="button"
-              onClick={handleDownloadPDF}
-              className="w-full sm:w-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 cursor-pointer h-9 px-5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs"
-            >
-              <FileDown className="w-3.5 h-3.5 text-[#0d857a]" />
-              <span>Baixar PDF</span>
-            </Button>
-          )}
         </div>
       </div>
     );

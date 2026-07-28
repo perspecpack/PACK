@@ -21,7 +21,9 @@ import {
   Search, 
   Filter, 
   ArrowRight,
-  ClipboardCheck
+  ClipboardCheck,
+  ClipboardCopy,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +32,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
 import { validateProcess } from '@/src/components/processos/BlockFactory';
+import { generateEmailMessage, generateEmailHtml } from '@/src/utils/exportUtils';
 
 interface Solicitacao {
   id: string;
@@ -47,6 +50,8 @@ interface Solicitacao {
   materials: any[];
   template_name?: string;
   public_token?: string;
+  publication_code?: string;
+  version?: number;
   description?: string;
   notes_for_client?: string;
 }
@@ -84,7 +89,7 @@ export default function AprovacoesList() {
       // 1. Fetch Requests
       const { data: reqData, error: reqError } = await supabase
         .from('process_requests')
-        .select('*, processes(name), process_publications(public_token, status)')
+        .select('*, processes(name), process_publications(public_token, status, publication_code, version)')
         .order('updated_at', { ascending: false });
       
       if (reqError) throw reqError;
@@ -110,6 +115,8 @@ export default function AprovacoesList() {
           materials: Array.isArray(r.materials) ? r.materials : [],
           template_name: r.processes?.name || 'Modelo não encontrado',
           public_token: activePub?.public_token,
+          publication_code: activePub?.publication_code,
+          version: activePub?.version,
           description: r.description || '',
           notes_for_client: r.notes_for_client || ''
         };
@@ -222,6 +229,68 @@ export default function AprovacoesList() {
     }).catch(() => {
       toast.info(`Link: ${link}`);
     });
+  };
+
+  const handleCopyEmailHtml = async (req: Solicitacao, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!req.public_token) return;
+    
+    const url = `${window.location.origin}/validar/${req.public_token}`;
+    
+    const localBranding = {
+      companyName: req.blocks.find(b => b.type === 'request_information')?.company_name || 'PERSPECPACK',
+      tradeName: req.blocks.find(b => b.type === 'request_information')?.company_name || 'PERSPECPACK',
+      companyLogoUrl: '',
+      companyWebsite: '',
+      corporateEmail: '',
+      phone: '',
+      shortDescription: '',
+      footerText: ''
+    };
+
+    const mockPub = {
+      publication_code: req.publication_code || '',
+      version: req.version || 1,
+      public_token: req.public_token,
+      organization: localBranding.companyName,
+      snapshot: {
+        name: req.title,
+        project: req.project,
+        client: req.client,
+        revision: req.revision,
+        description: req.description,
+        responsible_internal: req.responsible_internal,
+        materials: req.materials,
+        blocks: req.blocks,
+        company_name: localBranding.companyName,
+        trade_name: localBranding.tradeName,
+        company_logo_url: localBranding.companyLogoUrl
+      }
+    };
+
+    const emailHtml = generateEmailHtml(mockPub, localBranding, url);
+    const emailText = generateEmailMessage(
+      req.title,
+      localBranding.tradeName,
+      req.publication_code || '',
+      req.version || 1,
+      url
+    );
+
+    try {
+      const htmlBlob = new Blob([emailHtml], { type: 'text/html' });
+      const textBlob = new Blob([emailText], { type: 'text/plain' });
+      const clipboardItem = new ClipboardItem({
+        'text/html': htmlBlob,
+        'text/plain': textBlob
+      });
+      await navigator.clipboard.write([clipboardItem]);
+      toast.success('Formulário em HTML copiado para o e-mail (Outlook/Gmail)!');
+    } catch (err) {
+      console.error(err);
+      navigator.clipboard.writeText(emailText);
+      toast.warning('Copiado apenas como texto. Use um navegador atualizado para copiar com formatação.');
+    }
   };
 
   const handleDuplicateRequest = async (req: Solicitacao, e: React.MouseEvent) => {
@@ -507,15 +576,26 @@ export default function AprovacoesList() {
 
                   {/* Copiar Link button */}
                   {req.status === 'published' && req.public_token && (
-                    <Button
-                      type="button"
-                      onClick={(e) => handleCopyLink(req.public_token!, e)}
-                      className="bg-emerald-55 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
-                      title="Copiar Link de Validação"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      Copiar Link
-                    </Button>
+                    <>
+                      <Button
+                        type="button"
+                        onClick={(e) => handleCopyLink(req.public_token!, e)}
+                        className="bg-emerald-55 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
+                        title="Copiar Link de Validação"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        Copiar Link
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={(e) => handleCopyEmailHtml(req, e)}
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
+                        title="Copiar formulário em HTML rico para e-mail"
+                      >
+                        <ClipboardCopy className="w-3.5 h-3.5 text-slate-550" />
+                        Copiar E-mail
+                      </Button>
+                    </>
                   )}
 
                   {/* Visualizar como cliente (Public link) */}

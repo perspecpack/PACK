@@ -31,6 +31,8 @@ import { useApp } from '@/src/context/AppContext';
 import { migrateLegacyBlocks, Block, validateProcess } from '@/src/components/processos/BlockFactory';
 import ApprovalDocumentRenderer from '@/src/components/processos/ApprovalDocumentRenderer';
 
+import { calculateSHA256 } from '@/src/utils/exportUtils';
+
 interface Material {
   id: string;
   name: string;
@@ -41,6 +43,7 @@ interface Material {
   filePath: string;
   fileSize: number;
   mimeType: string;
+  fileHash?: string;
 }
 
 export default function SolicitacaoForm() {
@@ -219,6 +222,8 @@ export default function SolicitacaoForm() {
       const uniqueId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
       const storagePath = `materials/${reqId}/${uniqueId}-${cleanFileName}`;
 
+      const fileHash = await calculateSHA256(file);
+
       const { error } = await supabase.storage
         .from('request-materials')
         .upload(storagePath, file, {
@@ -237,7 +242,8 @@ export default function SolicitacaoForm() {
         fileName: file.name,
         filePath: storagePath,
         fileSize: file.size,
-        mimeType: file.type
+        mimeType: file.type,
+        fileHash
       };
 
       setMaterials(prev => [...prev, newMaterial]);

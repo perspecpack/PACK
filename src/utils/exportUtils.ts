@@ -1,5 +1,14 @@
 import { jsPDF } from 'jspdf';
+import JSZip from 'jszip';
 import { BLOCK_METADATA } from '@/src/components/processos/BlockFactory';
+
+// Client-side SHA-256 calculator
+export async function calculateSHA256(file: File | Blob): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 // 1. Generate Email message
 export function generateEmailMessage(
@@ -19,6 +28,193 @@ ${link}\n
 Após a análise, preencha as informações solicitadas e registre sua decisão.\n
 Atenciosamente,
 ${organization || 'PERSPECPACK'}`;
+}
+
+export function generateEmailHtml(pub: any, branding: any, link: string): string {
+  const companyName = branding.tradeName || branding.companyName || pub.snapshot?.company_name || 'PERSPECPACK';
+  const logoUrl = branding.companyLogoUrl || pub.snapshot?.company_logo_url;
+  
+  let logoHtml = '';
+  if (logoUrl) {
+    logoHtml = `<div style="text-align: center; margin-bottom: 20px;"><img src="${logoUrl}" alt="Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;" /></div>`;
+  }
+  
+  const processName = pub.snapshot?.name || pub.snapshot?.title || 'Processo de Validação';
+  const code = pub.publication_code;
+  const version = pub.version || 1;
+  const project = pub.snapshot?.project || 'N/A';
+  const client = pub.snapshot?.client || 'N/A';
+  const revision = pub.snapshot?.revision || 'N/A';
+  const description = pub.snapshot?.description || 'Sem descrição fornecida.';
+  const responsible = pub.snapshot?.responsible_internal || 'N/A';
+  const dateStr = new Date(pub.published_at || pub.created_at || Date.now()).toLocaleDateString('pt-BR');
+
+  // Materials
+  const materialsList = pub.snapshot?.materials || [];
+  let materialsHtml = '';
+  if (materialsList.length > 0) {
+    materialsHtml = materialsList.map((m: any) => {
+      return `<li style="margin-bottom: 6px;"><strong>${m.name}</strong> [${m.category}] ${m.revision ? `(Rev ${m.revision})` : ''} - <em>${m.fileName}</em></li>`;
+    }).join('');
+  } else {
+    materialsHtml = '<li>Nenhum material de análise anexado.</li>';
+  }
+
+  // Blocks form
+  const blocks = pub.snapshot?.blocks || [];
+  let blocksHtml = '';
+  
+  blocks.forEach((block: any, index: number) => {
+    if (block.type === 'heading_text') {
+      blocksHtml += `
+        <div style="margin-top: 24px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; margin-bottom: 12px;">
+          <h3 style="margin: 0; font-size: 14px; color: #0d857a; font-weight: bold;">${block.title || 'Informativo'}</h3>
+          ${block.description ? `<p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b; line-height: 1.4;">${block.description}</p>` : ''}
+        </div>
+      `;
+    } else {
+      const displayTitle = (block.title && block.title.trim()) || (BLOCK_METADATA[block.type] as any)?.title || 'Resposta';
+      let blockContent = '';
+      
+      if (block.type === 'short_answer') {
+        blockContent = `<div style="border: 1px solid #cbd5e1; border-radius: 6px; height: 32px; margin-top: 6px; background-color: #f8fafc;"></div>`;
+      } else if (block.type === 'long_answer') {
+        blockContent = `<div style="border: 1px solid #cbd5e1; border-radius: 6px; height: 60px; margin-top: 6px; background-color: #f8fafc;"></div>`;
+      } else if (block.type === 'date') {
+        blockContent = `<div style="font-size: 12px; color: #475569; margin-top: 6px;">Data: _____ / _____ / _________</div>`;
+      } else if (block.type === 'dropdown') {
+        blockContent = `<div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; font-size: 11px; color: #64748b; margin-top: 6px; background-color: #f8fafc;">[ Selecionar na lista ]</div>`;
+      } else if (block.type === 'checkbox' || block.type === 'multiple_choice') {
+        const isCheckbox = block.type === 'checkbox';
+        const symbol = isCheckbox ? '[  ]' : '(  )';
+        const optionsList = block.options || [];
+        blockContent = `<ul style="list-style-type: none; padding-left: 0; margin: 6px 0 0 0;">`;
+        optionsList.forEach((opt: any) => {
+          blockContent += `<li style="margin-bottom: 6px; font-size: 12px; color: #334155;"><span style="font-family: monospace; font-weight: bold; margin-right: 8px;">${symbol}</span> ${opt.text}</li>`;
+        });
+        if (block.allowOther) {
+          blockContent += `<li style="margin-bottom: 6px; font-size: 12px; color: #334155;"><span style="font-family: monospace; font-weight: bold; margin-right: 8px;">${symbol}</span> Outro: _______________________________</li>`;
+        }
+        blockContent += `</ul>`;
+      } else if (block.type === 'file_upload') {
+        blockContent = `<div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 12px; text-align: center; font-size: 11px; color: #64748b; margin-top: 6px; background-color: #f8fafc;">[ Anexar arquivo de resposta ]</div>`;
+      } else if (block.type === 'acknowledgement') {
+        blockContent = `
+          <div style="font-size: 11px; color: #475569; line-height: 1.4; border-left: 3px solid #cbd5e1; padding-left: 10px; margin-top: 6px; font-style: italic;">
+            ${block.declarationText || ''}
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; font-weight: bold; color: #0d857a;">
+            <span style="font-family: monospace; margin-right: 8px;">[  ]</span> Aceito e confirmo a declaração acima
+          </div>
+        `;
+      } else if (block.type === 'approval_decision') {
+        const decisions = block.decisions || [];
+        blockContent = `<ul style="list-style-type: none; padding-left: 0; margin: 6px 0 0 0;">`;
+        decisions.forEach((dec: any) => {
+          blockContent += `<li style="margin-bottom: 6px; font-size: 12px; font-weight: bold; color: #334155;"><span style="font-family: monospace; margin-right: 8px;">(  )</span> ${dec.text}</li>`;
+        });
+        blockContent += `</ul>`;
+        blockContent += `
+          <div style="margin-top: 10px;">
+            <label style="font-size: 11px; font-weight: bold; color: #475569; display: block;">Justificativa/Comentários:</label>
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; height: 48px; margin-top: 4px; background-color: #f8fafc;"></div>
+          </div>
+        `;
+      }
+      
+      blocksHtml += `
+        <div style="margin-top: 18px; margin-bottom: 18px; page-break-inside: avoid;">
+          <label style="font-size: 12px; font-weight: bold; color: #334155; display: block;">
+            Questão ${index + 1}: ${displayTitle} ${block.required ? '<span style="color: #ef4444;">*</span>' : ''}
+          </label>
+          ${block.description ? `<p style="margin: 2px 0 6px 0; font-size: 11px; color: #64748b; line-height: 1.4;">${block.description}</p>` : ''}
+          ${blockContent}
+        </div>
+      `;
+    }
+  });
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; color: #1e293b; background-color: #ffffff;">
+      ${logoHtml}
+      
+      <div style="text-align: center; border-bottom: 2px solid #0d857a; padding-bottom: 12px; margin-bottom: 20px;">
+        <h2 style="margin: 0; font-size: 18px; color: #1e293b;">Solicitação de Aprovação Digital</h2>
+        <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Enviado por: <strong>${companyName}</strong></p>
+      </div>
+      
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px;">
+        <tr>
+          <td style="padding: 6px 0; font-weight: bold; color: #64748b; width: 140px;">PROCESSO:</td>
+          <td style="padding: 6px 0; font-weight: bold; color: #1e293b;">${processName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-weight: bold; color: #64748b;">CÓDIGO:</td>
+          <td style="padding: 6px 0; color: #334155; font-family: monospace;">${code}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-weight: bold; color: #64748b;">VERSÃO / REVISÃO:</td>
+          <td style="padding: 6px 0; color: #334155;">Versão ${String(version).padStart(2, '0')} ${revision !== 'N/A' ? `(Rev ${revision})` : ''}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-weight: bold; color: #64748b;">PROJETO:</td>
+          <td style="padding: 6px 0; color: #334155;">${project}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-weight: bold; color: #64748b;">CLIENTE:</td>
+          <td style="padding: 6px 0; color: #334155;">${client}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-weight: bold; color: #64748b;">RESPONSÁVEL INTERNO:</td>
+          <td style="padding: 6px 0; color: #334155;">${responsible}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-weight: bold; color: #64748b;">DATA DE ENVIO:</td>
+          <td style="padding: 6px 0; color: #334155;">${dateStr}</td>
+        </tr>
+        ${description ? `
+        <tr>
+          <td style="padding: 6px 0; font-weight: bold; color: #64748b; vertical-align: top;">DESCRIÇÃO:</td>
+          <td style="padding: 6px 0; color: #475569; line-height: 1.4;">${description}</td>
+        </tr>
+        ` : ''}
+      </table>
+      
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+        <h3 style="margin: 0 0 8px 0; font-size: 13px; color: #0d857a; font-weight: bold; text-transform: uppercase;">Materiais para Análise</h3>
+        <ul style="padding-left: 20px; margin: 0 0 12px 0; font-size: 12px; color: #334155; line-height: 1.5;">
+          ${materialsHtml}
+        </ul>
+        <div style="font-size: 11px; color: #b45309; font-weight: bold; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 8px;">
+          ⚠️ ATENÇÃO: Os arquivos acima devem ser anexados manualmente a esta mensagem de e-mail ao enviar ao cliente.
+        </div>
+      </div>
+      
+      <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 18px; margin-bottom: 24px;">
+        <h3 style="margin: 0 0 12px 0; font-size: 13px; color: #1e293b; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
+          Formulário de Validação
+        </h3>
+        <p style="font-size: 11px; color: #64748b; margin-bottom: 16px;">
+          Por favor, preencha as respostas assinalando as opções e inserindo as informações solicitadas.
+        </p>
+        ${blocksHtml}
+      </div>
+      
+      <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 12px; background-color: #f8fafc;">
+        <h4 style="margin: 0 0 8px 0; color: #334155; font-weight: bold;">IDENTIFICAÇÃO DO RESPONSÁVEL</h4>
+        <div style="margin-bottom: 8px;"><strong>Nome Completo:</strong> ____________________________________________</div>
+        <div style="margin-bottom: 8px;"><strong>Cargo ou Função:</strong> __________________________________________</div>
+        <div style="margin-bottom: 8px;"><strong>E-mail Profissional:</strong> ________________________________________</div>
+        <div style="margin-bottom: 8px;"><strong>Data:</strong> ____ / ____ / ________</div>
+        <div><strong>Assinatura:</strong> __________________________________________________</div>
+      </div>
+
+      <div style="text-align: center; border-top: 1px solid #e2e8f0; padding-top: 14px; margin-top: 24px; font-size: 11px; color: #94a3b8; font-weight: bold;">
+        <span>Se preferir, valide online através do link:</span><br/>
+        <a href="${link}" target="_blank" style="color: #0d857a; text-decoration: underline; display: inline-block; margin-top: 6px; font-family: monospace;">${link}</a>
+      </div>
+    </div>
+  `;
 }
 
 // 2. Export TXT file helper
@@ -72,9 +268,9 @@ export function generateTXTComprovante(pub: any, resp: any): string {
     }
   });
 
-  return `==================================================
+  return ` ==================================================
 RELATÓRIO DE VALIDAÇÃO DIGITAL - PERSPECPACK
-==================================================
+ ==================================================
 Protocolo: ${resp.protocol}
 Processo: ${pub.snapshot?.name || pub.name}
 Código da Publicação: ${pub.publication_code}
@@ -97,7 +293,7 @@ RESPOSTAS DOS BLOCOS
 ${blockText}
 --------------------------------------------------
 PERSPECPACK - Validação Segura e Descentralizada
-==================================================`;
+ ==================================================`;
 }
 
 // Helper to draw header on jsPDF
@@ -307,8 +503,8 @@ export function generatePDFForm(pub: any): void {
   doc.save(`Formulario-${pub.publication_code}.pdf`);
 }
 
-// 5. Generate PDF Report (With Answers)
-export function generatePDFReport(pub: any, resp: any): void {
+// Helper to construct the official validation PDF document
+export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPDF {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -318,44 +514,42 @@ export function generatePDFReport(pub: any, resp: any): void {
   const blocks = pub.snapshot?.blocks || [];
   let y = 52;
   
-  drawPDFHeader(doc, 'Relatório de Validação', pub.publication_code, pub.version, pub.organization || '');
+  drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
   
   // Meta Details Box
   doc.setDrawColor(226, 232, 240);
   doc.setFillColor(248, 250, 252);
-  doc.rect(14, y, 182, 34, 'FD');
+  doc.rect(14, y, 182, 40, 'FD');
   
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(100, 116, 139);
   
-  doc.text('PROCESSO:', 18, y + 6);
-  doc.text('ORGANIZAÇÃO:', 18, y + 12);
-  doc.text('PROTOCOLO:', 18, y + 18);
-  doc.text('SITUAÇÃO:', 18, y + 24);
-  doc.text('VALIDADO EM:', 18, y + 30);
+  doc.text('PROCESSO:', 18, y + 5);
+  doc.text('ORGANIZAÇÃO:', 18, y + 10);
+  doc.text('PROJETO:', 18, y + 15);
+  doc.text('CLIENTE:', 18, y + 20);
+  doc.text('REVISÃO:', 18, y + 25);
+  doc.text('PROTOCOLO:', 18, y + 30);
+  doc.text('VALIDADO EM:', 18, y + 35);
   
   doc.setFont('Helvetica', 'normal');
   doc.setTextColor(30, 41, 59);
-  doc.text(pub.snapshot?.name || pub.name, 48, y + 6);
-  doc.text(pub.organization || 'PERSPECPACK', 48, y + 12);
-  doc.text(resp.protocol, 48, y + 18);
+  doc.text(pub.snapshot?.name || pub.name || '', 48, y + 5);
+  doc.text(pub.organization || 'PERSPECPACK', 48, y + 10);
+  doc.text(pub.snapshot?.project || 'N/A', 48, y + 15);
+  doc.text(pub.snapshot?.client || 'N/A', 48, y + 20);
+  doc.text(pub.snapshot?.revision || 'N/A', 48, y + 25);
+  doc.text(resp.protocol || 'N/A', 48, y + 30);
+  doc.text(resp.submitted_at ? new Date(resp.submitted_at).toLocaleString('pt-BR') : 'N/A', 48, y + 35);
   
-  doc.setFont('Helvetica', 'bold');
-  doc.setTextColor(16, 185, 129); // emerald-500
-  doc.text('VALIDADO', 48, y + 24);
-  
-  doc.setFont('Helvetica', 'normal');
-  doc.setTextColor(30, 41, 59);
-  doc.text(new Date(resp.submitted_at).toLocaleString('pt-BR'), 48, y + 30);
-  
-  y += 42;
+  y += 48;
 
   // Respondent Info Header
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(13, 133, 122);
-  doc.text('RESPONSÁVEL PELA APROVAÇÃO', 14, y);
+  doc.text('RESPONSÁVEL PELA VALIDAÇÃO', 14, y);
   
   doc.setLineWidth(0.3);
   doc.setDrawColor(13, 133, 122);
@@ -373,19 +567,18 @@ export function generatePDFReport(pub: any, resp: any): void {
 
   doc.setFont('Helvetica', 'normal');
   doc.setTextColor(30, 41, 59);
-  doc.text(resp.respondent_name, 45, y);
-  doc.text(resp.respondent_role, 45, y + 6);
+  doc.text(resp.respondent_name || '', 45, y);
+  doc.text(resp.respondent_role || '', 45, y + 6);
   doc.text(resp.respondent_email || 'Não informado', 45, y + 12);
   
-  // Highlighting final decision result semantic
   const decisionText = resp.primary_decision?.text || 'Nenhum';
   const semantic = resp.primary_decision?.semanticType || 'neutral';
   
   doc.setFont('Helvetica', 'bold');
-  if (semantic === 'positive') doc.setTextColor(16, 185, 129); // green
-  else if (semantic === 'attention') doc.setTextColor(245, 158, 11); // amber
-  else if (semantic === 'negative') doc.setTextColor(239, 68, 68); // red
-  else doc.setTextColor(100, 116, 139); // slate
+  if (semantic === 'positive') doc.setTextColor(16, 185, 129);
+  else if (semantic === 'attention') doc.setTextColor(245, 158, 11);
+  else if (semantic === 'negative') doc.setTextColor(239, 68, 68);
+  else doc.setTextColor(100, 116, 139);
   
   doc.text(decisionText.toUpperCase(), 45, y + 18);
   
@@ -393,10 +586,9 @@ export function generatePDFReport(pub: any, resp: any): void {
 
   // Blocks Loop
   blocks.forEach((block: any, index: number) => {
-    // Check page overflow
-    if (y > 255) {
+    if (y > 250) {
       doc.addPage();
-      drawPDFHeader(doc, 'Relatório de Validação', pub.publication_code, pub.version, pub.organization || '');
+      drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
       y = 50;
     }
 
@@ -404,17 +596,18 @@ export function generatePDFReport(pub: any, resp: any): void {
     const blockTitle = (block.type === 'request_information' || block.type === 'analysis_materials')
       ? displayTitle
       : `Questão ${index + 1}: ${displayTitle}`;
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
     doc.text(blockTitle, 14, y);
     y += 5;
 
-    // Fetch respondent answer
     const ans = resp.answers?.find((a: any) => a.blockId === block.id);
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(9.5);
     doc.setTextColor(51, 65, 85);
 
     if (block.type === 'heading_text') {
-      doc.setFont('Helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
       const splitText = doc.splitTextToSize(block.description || '', 182);
@@ -436,6 +629,11 @@ export function generatePDFReport(pub: any, resp: any): void {
           else if (field.key === 'notes_for_client') val = pub.snapshot?.notes_for_client || '';
           
           if (val) {
+            if (y > 270) {
+              doc.addPage();
+              drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+              y = 50;
+            }
             doc.setFont('Helvetica', 'bold');
             doc.text(`${field.label}:`, 18, y);
             doc.setFont('Helvetica', 'normal');
@@ -453,6 +651,11 @@ export function generatePDFReport(pub: any, resp: any): void {
       const materialsList = pub.snapshot?.materials || [];
       if (materialsList.length > 0) {
         materialsList.forEach((m: any) => {
+          if (y > 270) {
+            doc.addPage();
+            drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+            y = 50;
+          }
           const info = `${m.name} [${m.category}] ${m.revision ? `(Rev ${m.revision})` : ''} - ${m.fileName}`;
           const splitInfo = doc.splitTextToSize(info, 175);
           doc.text(splitInfo, 18, y);
@@ -471,7 +674,26 @@ export function generatePDFReport(pub: any, resp: any): void {
     } else if (block.type === 'multiple_choice' || block.type === 'checkbox') {
       const val = ans?.value;
       let textToShow = '';
-      if (Array.isArray(val)) {
+      if (val && typeof val === 'object') {
+        if (block.type === 'checkbox') {
+          const list = val.list || [];
+          const labels = [...list];
+          if (val.otherSelected && val.otherText) {
+            labels.push(`Outro: ${val.otherText}`);
+          } else if (val.otherSelected) {
+            labels.push('Outro');
+          }
+          textToShow = labels.join(', ');
+        } else {
+          if (val.otherSelected && val.otherText) {
+            textToShow = `Outro: ${val.otherText}`;
+          } else if (val.otherSelected) {
+            textToShow = 'Outro';
+          } else {
+            textToShow = val.value || '';
+          }
+        }
+      } else if (Array.isArray(val)) {
         textToShow = val.join(', ');
       } else {
         textToShow = val ? String(val) : 'Sem resposta';
@@ -483,6 +705,11 @@ export function generatePDFReport(pub: any, resp: any): void {
       const files = Array.isArray(ans?.value) ? ans.value : [];
       if (files.length > 0) {
         files.forEach((f: any) => {
+          if (y > 270) {
+            doc.addPage();
+            drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+            y = 50;
+          }
           doc.text(`Anexo: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`, 14, y);
           y += 5;
         });
@@ -521,16 +748,168 @@ export function generatePDFReport(pub: any, resp: any): void {
         y += 2;
       }
     }
-
-    y += 2; // spacing between blocks
+    y += 2;
   });
 
-  // Add page numbers
+  // Section: RASTREABILIDADE DE ARQUIVOS (SHA-256)
+  if (y > 220) {
+    doc.addPage();
+    drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+    y = 50;
+  }
+  
+  y += 4;
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(13, 133, 122);
+  doc.text('RASTREABILIDADE DE ARQUIVOS (SHA-256)', 14, y);
+  
+  doc.setLineWidth(0.3);
+  doc.setDrawColor(13, 133, 122);
+  doc.line(14, y + 2, 196, y + 2);
+  y += 8;
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Arquivo', 16, y);
+  doc.text('Origem / Tipo', 110, y);
+  doc.text('Código Hash SHA-256', 142, y);
+  y += 4;
+  doc.line(14, y, 196, y);
+  y += 5;
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 41, 59);
+
+  let hasArchivedFiles = false;
+
+  // List company materials
+  const materialsList = pub.snapshot?.materials || [];
+  materialsList.forEach((m: any) => {
+    if (y > 270) {
+      doc.addPage();
+      drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+      y = 50;
+    }
+    const nameSplit = doc.splitTextToSize(m.fileName || m.name, 90);
+    doc.text(nameSplit, 16, y);
+    doc.text(`Empresa [${m.category}]`, 110, y);
+    doc.setFont('Courier', 'normal');
+    doc.text(m.fileHash || 'N/A', 142, y);
+    doc.setFont('Helvetica', 'normal');
+    y += (nameSplit.length * 4) + 1;
+    hasArchivedFiles = true;
+  });
+
+  // List client uploads
+  blocks.forEach((block: any) => {
+    if (block.type === 'file_upload') {
+      const ans = resp.answers?.find((a: any) => a.blockId === block.id);
+      const files = Array.isArray(ans?.value) ? ans.value : [];
+      files.forEach((f: any) => {
+        if (y > 270) {
+          doc.addPage();
+          drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+          y = 50;
+        }
+        const nameSplit = doc.splitTextToSize(f.name, 90);
+        doc.text(nameSplit, 16, y);
+        doc.text('Cliente (Upload)', 110, y);
+        doc.setFont('Courier', 'normal');
+        doc.text(f.fileHash || 'N/A', 142, y);
+        doc.setFont('Helvetica', 'normal');
+        y += (nameSplit.length * 4) + 1;
+        hasArchivedFiles = true;
+      });
+    }
+  });
+
+  if (!hasArchivedFiles) {
+    doc.text('Nenhum arquivo enviado para análise nesta publicação.', 16, y);
+    y += 6;
+  }
+
+  // Section: ASSINATURA DIGITAL DO RELATÓRIO
+  if (y > 240) {
+    doc.addPage();
+    drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+    y = 50;
+  }
+
+  y += 6;
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(13, 133, 122);
+  doc.text('ASSINATURA DIGITAL DO DOCUMENTO', 14, y);
+  doc.setLineWidth(0.3);
+  doc.setDrawColor(13, 133, 122);
+  doc.line(14, y + 2, 196, y + 2);
+  y += 8;
+
+  const currentPdfHash = pdfHashOverride || resp.pdf_hash;
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Hash SHA-256 de Rastreabilidade:', 14, y);
+  
+  doc.setFont('Courier', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(30, 41, 59);
+  doc.text(currentPdfHash || 'PENDENTE DE ASSINATURA', 72, y);
+  y += 6;
+
+  // Draw Page Number Footers
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    drawPDFFooter(doc, i, pageCount);
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    
+    const textLeft = 'PERSPECPACK - Documento Oficial de Validação';
+    const textRight = `Página ${i} de ${pageCount}`;
+    
+    doc.text(textLeft, 14, 285);
+    doc.text(textRight, 196 - doc.getTextWidth(textRight), 285);
   }
 
-  doc.save(`Relatorio-${pub.publication_code}.pdf`);
+  return doc;
+}
+
+// 5. Generate PDF Report (With Answers)
+export function generatePDFReport(pub: any, resp: any): void {
+  // First pass: build without final self-referential hash
+  const docFirst = buildPDFDoc(pub, resp);
+  const pdfBlob = docFirst.output('blob');
+  
+  // Calculate SHA-256 hash of this PDF structure
+  const arrayBuffer = docFirst.output('arraybuffer');
+  crypto.subtle.digest('SHA-256', arrayBuffer).then((hashBuffer) => {
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const pdfHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // Second pass: draw the hash on the final PDF
+    const docFinal = buildPDFDoc(pub, resp, pdfHash);
+    docFinal.save(`Relatorio-${pub.publication_code}.pdf`);
+  }).catch((err) => {
+    console.error('Error generating PDF hash, saving unhashed version:', err);
+    docFirst.save(`Relatorio-${pub.publication_code}.pdf`);
+  });
+}
+
+// Generate PDF Report Blob and Hash
+export async function generatePDFReportBlobAndHash(pub: any, resp: any): Promise<{ blob: Blob, hash: string }> {
+  // First pass
+  const docFirst = buildPDFDoc(pub, resp);
+  const arrayBuffer = docFirst.output('arraybuffer');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const pdfHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  // Second pass
+  const docFinal = buildPDFDoc(pub, resp, pdfHash);
+  const finalBlob = docFinal.output('blob');
+  return { blob: finalBlob, hash: pdfHash };
 }

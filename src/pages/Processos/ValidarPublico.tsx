@@ -23,7 +23,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { Block, validateBlock } from '@/src/components/processos/BlockFactory';
-import { generatePDFReport, exportTXTFile, generateTXTComprovante } from '@/src/utils/exportUtils';
+import { generatePDFReport, exportTXTFile, generateTXTComprovante, calculateSHA256, generatePDFReportBlobAndHash } from '@/src/utils/exportUtils';
+import JSZip from 'jszip';
 import ApprovalDocumentRenderer from '@/src/components/processos/ApprovalDocumentRenderer';
 
 interface AnswerState {
@@ -57,6 +58,8 @@ export default function ValidarPublico() {
   
   const [submitting, setSubmitting] = useState(false);
   const [successData, setSuccessData] = useState<any>(null);
+  const [pdfReportBlob, setPdfReportBlob] = useState<Blob | null>(null);
+  const [zipApprovalBlob, setZipApprovalBlob] = useState<Blob | null>(null);
 
   const hasRequestInfoBlock = (publication?.snapshot?.blocks || []).some((b: any) => b.type === 'request_information');
   const hasAnalysisMaterialsBlock = (publication?.snapshot?.blocks || []).some((b: any) => b.type === 'analysis_materials');
@@ -186,6 +189,8 @@ export default function ValidarPublico() {
         const uuid = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
         const storagePath = `${token}/${uuid}-${cleanFileName}`;
         
+        const fileHash = await calculateSHA256(file);
+
         const { data, error } = await supabase.storage
           .from('validation-attachments')
           .upload(storagePath, file, {
@@ -199,7 +204,8 @@ export default function ValidarPublico() {
           name: file.name,
           size: file.size,
           path: storagePath,
-          mimeType: file.type
+          mimeType: file.type,
+          fileHash
         });
         
         setUploadsProgress(prev => ({ ...prev, [block.id]: 70 }));
@@ -454,26 +460,169 @@ export default function ValidarPublico() {
               storage_path: file.path,
               original_name: file.name,
               mime_type: file.mimeType,
-              size_bytes: file.size
+              size_bytes: file.size,
+              fileHash: file.fileHash
             });
           });
         }
       });
 
-      // Invoke transaction secure RPC
-      const { data, error } = await supabase.rpc('submit_validation_response', {
+      // Fetch materials and calculate hashes list
+      const materialsList = publication.snapshot?.materials || [];
+      const materialsHashesMap: { [name: string]: string } = {};
+      materialsList.forEach((m: any) => {
+        materialsHashesMap[m.fileName || m.name] = m.fileHash || 'N/A';
+      });
+
+      // Call submit RPC first to generate protocol and metadata columns
+      const { data: submitData, error: submitError } = await supabase.rpc('submit_validation_response', {
         p_token: token,
         p_respondent_name: respondentName.trim(),
         p_respondent_role: respondentRole.trim(),
         p_respondent_email: respondentEmail.trim() || null,
         p_answers: formattedAnswers,
         p_primary_decision: primaryDecisionObj,
-        p_attachments: attachmentList
+        p_attachments: attachmentList,
+        p_pdf_hash: null, // will be updated immediately below
+        p_materials_hashes: materialsHashesMap,
+        p_client_attachments_count: attachmentList.length,
+        p_client_attachments_names: attachmentList.map(a => a.original_name),
+        p_validation_source: 'web',
+        p_metadata: {
+          client_ip: 'anonymous',
+          user_agent: navigator.userAgent
+        }
       });
 
-      if (error) throw error;
+      if (submitError) throw submitError;
 
-      setSuccessData(data);
+      // Now generate the PDF report locally using the official validation response metadata
+      const tempResp = {
+        protocol: submitData.protocol,
+        respondent_name: respondentName.trim(),
+        respondent_role: respondentRole.trim(),
+        respondent_email: respondentEmail.trim() || 'Não informado',
+        primary_decision: primaryDecisionObj,
+        answers: formattedAnswers,
+        submitted_at: submitData.submitted_at
+      };
+
+      const { blob: pdfBlob, hash: pdfHash } = await generatePDFReportBlobAndHash(publication, tempResp);
+
+      // Save PDF report Blob to local state
+      setPdfReportBlob(pdfBlob);
+
+      // Upload the official PDF report to storage
+      const pdfStoragePath = `${token}/report.pdf`;
+      const { error: pdfUploadError } = await supabase.storage
+        .from('validation-attachments')
+        .upload(pdfStoragePath, pdfBlob, {
+          cacheControl: '3600',
+          contentType: 'application/pdf',
+          upsert: true
+        });
+
+      if (pdfUploadError) throw pdfUploadError;
+
+      // Update the pdf_hash in the database via update_pdf_hash RPC
+      const { error: hashUpdateError } = await supabase.rpc('update_pdf_hash', {
+        p_token: token,
+        p_pdf_hash: pdfHash
+      });
+
+      if (hashUpdateError) throw hashUpdateError;
+
+      // Create ZIP containing the PDF report, manifest and all analyzed files (materials and attachments)
+      const zip = new JSZip();
+      
+      // Add PDF report
+      zip.file(`Relatorio-Oficial-${publication.publication_code}.pdf`, pdfBlob);
+
+      // Download and add company materials to ZIP
+      for (const mat of materialsList) {
+        try {
+          const { data, error } = await supabase.storage
+            .from('request-materials')
+            .download(mat.filePath);
+          if (!error && data) {
+            zip.file(`Materiais_Analise/${mat.fileName || mat.name}`, data);
+          }
+        } catch (e) {
+          console.error('Falha ao baixar material para incluir no ZIP:', mat, e);
+        }
+      }
+
+      // Download and add client attachments to ZIP
+      for (const att of attachmentList) {
+        try {
+          const { data, error } = await supabase.storage
+            .from('validation-attachments')
+            .download(att.storage_path);
+          if (!error && data) {
+            zip.file(`Anexos_Resposta/${att.original_name}`, data);
+          }
+        } catch (e) {
+          console.error('Falha ao baixar anexo do cliente para incluir no ZIP:', att, e);
+        }
+      }
+
+      // Add audit manifest json file
+      const manifest = {
+        protocol: submitData.protocol,
+        date: submitData.submitted_at,
+        process: {
+          name: publication.snapshot?.name,
+          code: publication.publication_code,
+          version: publication.version,
+          project: publication.snapshot?.project,
+          client: publication.snapshot?.client,
+          revision: publication.snapshot?.revision
+        },
+        respondent: {
+          name: respondentName.trim(),
+          role: respondentRole.trim(),
+          email: respondentEmail.trim() || 'Não informado'
+        },
+        decision: primaryDecisionObj,
+        pdf_report: {
+          fileName: `Relatorio-Oficial-${publication.publication_code}.pdf`,
+          sha256: pdfHash
+        },
+        analyzed_materials_hashes: materialsHashesMap,
+        client_attachments_hashes: attachmentList.map(a => ({
+          fileName: a.original_name,
+          sha256: a.fileHash || 'N/A'
+        }))
+      };
+      
+      zip.file('manifesto_validacao.json', JSON.stringify(manifest, null, 2));
+
+      // Generate ZIP blob and save to local state
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      setZipApprovalBlob(zipBlob);
+
+      // Perform cleanup: Delete all temporary files from the server Storage!
+      // 1. Delete company materials from request-materials bucket
+      const materialsPaths = materialsList.map((m: any) => m.filePath).filter(Boolean);
+      if (materialsPaths.length > 0) {
+        try {
+          await supabase.storage.from('request-materials').remove(materialsPaths);
+        } catch (e) {
+          console.error('Error during cleanup of request-materials:', e);
+        }
+      }
+
+      // 2. Delete client attachments from validation-attachments bucket (excluding report.pdf)
+      const attachmentPaths = attachmentList.map((a: any) => a.storage_path).filter(Boolean);
+      if (attachmentPaths.length > 0) {
+        try {
+          await supabase.storage.from('validation-attachments').remove(attachmentPaths);
+        } catch (e) {
+          console.error('Error during cleanup of validation-attachments:', e);
+        }
+      }
+
+      setSuccessData(submitData);
       setStep(3);
       toast.success('Validação registrada com sucesso!');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -662,6 +811,8 @@ export default function ValidarPublico() {
           onGoToReview={handleGoToReview}
           onGoBack={() => setStep(1)}
           handleDownloadPDF={handleDownloadPDF}
+          pdfReportBlob={pdfReportBlob}
+          zipApprovalBlob={zipApprovalBlob}
         />
       </div>
     </div>

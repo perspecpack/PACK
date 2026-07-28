@@ -21,7 +21,8 @@ import {
   Loader2,
   FileText,
   UserCheck,
-  History
+  History,
+  ClipboardCopy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
-import { generateEmailMessage, exportTXTFile, generateTXTComprovante, generatePDFReport } from '@/src/utils/exportUtils';
+import { generateEmailMessage, exportTXTFile, generateTXTComprovante, generatePDFReport, generateEmailHtml } from '@/src/utils/exportUtils';
 import ApprovalDocumentRenderer from '@/src/components/processos/ApprovalDocumentRenderer';
 
 interface Publication {
@@ -152,6 +153,44 @@ export default function Aprovacoes() {
     toast.success('Mensagem de e-mail copiada!');
   };
 
+  const handleCopyEmailHtml = async (pub: Publication) => {
+    const url = `${window.location.origin}/validar/${pub.public_token}`;
+    const companyBranding = {
+      companyName: pub.snapshot?.company_name || pub.organization || 'PERSPECPACK',
+      tradeName: pub.snapshot?.trade_name || pub.snapshot?.company_name || pub.organization || 'PERSPECPACK',
+      companyLogoUrl: pub.snapshot?.company_logo_url || '',
+      companyWebsite: pub.snapshot?.company_website || '',
+      corporateEmail: pub.snapshot?.corporate_email || '',
+      phone: pub.snapshot?.phone || '',
+      shortDescription: pub.snapshot?.short_description || '',
+      footerText: pub.snapshot?.footer_text || ''
+    };
+
+    const emailHtml = generateEmailHtml(pub, companyBranding, url);
+    const emailText = generateEmailMessage(
+      pub.snapshot?.name || 'Processo de Aprovação',
+      pub.organization || '',
+      pub.publication_code,
+      pub.version,
+      url
+    );
+
+    try {
+      const htmlBlob = new Blob([emailHtml], { type: 'text/html' });
+      const textBlob = new Blob([emailText], { type: 'text/plain' });
+      const clipboardItem = new ClipboardItem({
+        'text/html': htmlBlob,
+        'text/plain': textBlob
+      });
+      await navigator.clipboard.write([clipboardItem]);
+      toast.success('Formulário em HTML copiado para o e-mail (Outlook/Gmail)!');
+    } catch (err) {
+      console.error(err);
+      navigator.clipboard.writeText(emailText);
+      toast.warning('Copiado apenas como texto. Use um navegador atualizado para copiar com formatação.');
+    }
+  };
+
   const handleRevoke = async (pubId: string) => {
     const confirm = window.confirm('Deseja realmente revogar este link de validação? O cliente não poderá mais enviar respostas.');
     if (!confirm || !supabase) return;
@@ -201,9 +240,32 @@ export default function Aprovacoes() {
     }
   };
 
-  const handleDownloadPDFReport = (pub: Publication) => {
+  const handleDownloadPDFReport = async (pub: Publication) => {
     if (!pub.response) return;
-    generatePDFReport(pub, pub.response);
+    if (pub.response.pdf_hash && supabase) {
+      try {
+        const { data, error } = await supabase.storage
+          .from('validation-attachments')
+          .download(`${pub.public_token}/report.pdf`);
+        if (error) throw error;
+
+        const url = URL.createObjectURL(data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Relatorio-Oficial-${pub.publication_code}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast.success('Download do PDF oficial concluído!');
+      } catch (err) {
+        console.error(err);
+        toast.warning('Erro ao baixar PDF oficial do servidor. Gerando localmente...');
+        generatePDFReport(pub, pub.response);
+      }
+    } else {
+      generatePDFReport(pub, pub.response);
+    }
   };
 
   const handleDownloadTXTReport = (pub: Publication) => {
@@ -477,6 +539,13 @@ export default function Aprovacoes() {
                               <Mail className="w-4 h-4" />
                             </button>
                             <button
+                              onClick={() => handleCopyEmailHtml(pub)}
+                              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-[#0d857a] rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                              title="Copiar Form. para E-mail"
+                            >
+                              <ClipboardCopy className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => handleRevoke(pub.id)}
                               className="p-1.5 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
                               title="Revogar Link"
@@ -658,6 +727,14 @@ export default function Aprovacoes() {
                       className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold h-9 px-4 rounded-xl cursor-pointer border-0 text-xs shadow-xs"
                     >
                       Copiar Link
+                    </Button>
+                    <Button
+                      onClick={() => handleCopyEmailHtml(selectedPub)}
+                      variant="outline"
+                      className="border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer h-9 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5"
+                    >
+                      <ClipboardCopy className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Copiar Form. p/ E-mail</span>
                     </Button>
                   </>
                 )}
