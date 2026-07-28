@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { BLOCK_METADATA } from '@/src/components/processos/BlockFactory';
 
 // 1. Generate Email message
 export function generateEmailMessage(
@@ -38,7 +39,8 @@ export function generateTXTComprovante(pub: any, resp: any): string {
   let blockText = '';
   
   blocks.forEach((block: any, index: number) => {
-    blockText += `\n[Bloco ${index + 1}] ${block.title || 'Informativo'}\n`;
+    const displayTitle = (block.title && block.title.trim()) || (BLOCK_METADATA[block.type as any] as any)?.title || 'Informativo';
+    blockText += `\n[Bloco ${index + 1}] ${displayTitle}\n`;
     if (block.description) {
       blockText += `Descrição: ${block.description}\n`;
     }
@@ -215,11 +217,8 @@ export function generatePDFForm(pub: any): void {
       y = 50;
     }
 
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    
-    const blockTitle = `Questão ${index + 1}: ${block.title || 'Informativo'}`;
+    const displayTitle = (block.title && block.title.trim()) || (BLOCK_METADATA[block.type as any] as any)?.title || 'Informativo';
+    const blockTitle = `Questão ${index + 1}: ${displayTitle}`;
     const requiredMarker = block.required ? ' *' : '';
     doc.text(blockTitle + requiredMarker, 14, y);
     y += 5;
@@ -401,13 +400,10 @@ export function generatePDFReport(pub: any, resp: any): void {
       y = 50;
     }
 
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    
+    const displayTitle = (block.title && block.title.trim()) || (BLOCK_METADATA[block.type as any] as any)?.title || 'Informativo';
     const blockTitle = (block.type === 'request_information' || block.type === 'analysis_materials')
-      ? (block.title || 'Informações')
-      : `Questão ${index + 1}: ${block.title || 'Informativo'}`;
+      ? displayTitle
+      : `Questão ${index + 1}: ${displayTitle}`;
     doc.text(blockTitle, 14, y);
     y += 5;
 

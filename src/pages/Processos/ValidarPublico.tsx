@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -282,7 +282,10 @@ export default function ValidarPublico() {
             }
           }
         } else if (block.type === 'checkbox') {
-          if (!Array.isArray(val) || val.length === 0) {
+          const isSelected = Array.isArray(val)
+            ? val.length > 0
+            : (val && typeof val === 'object' ? (val.list?.length > 0 || !!val.otherSelected) : false);
+          if (!isSelected) {
             errors[block.id] = 'Selecione pelo menos uma opção.';
           }
         } else if (block.type === 'file_upload') {
@@ -295,12 +298,17 @@ export default function ValidarPublico() {
       }
 
       // Check min/max checkbox limits
-      if (block.type === 'checkbox' && Array.isArray(val) && val.length > 0) {
-        if (block.minSelections !== undefined && val.length < block.minSelections) {
-          errors[block.id] = `Selecione no mínimo ${block.minSelections} opção(ões).`;
-        }
-        if (block.maxSelections !== undefined && val.length > block.maxSelections) {
-          errors[block.id] = `Selecione no máximo ${block.maxSelections} opção(ões).`;
+      if (block.type === 'checkbox') {
+        const count = Array.isArray(val)
+          ? val.length
+          : (val && typeof val === 'object' ? (val.list?.length || 0) + (val.otherSelected ? 1 : 0) : 0);
+        if (count > 0) {
+          if (block.minSelections !== undefined && count < block.minSelections) {
+            errors[block.id] = `Selecione no mínimo ${block.minSelections} opção(ões).`;
+          }
+          if (block.maxSelections !== undefined && count > block.maxSelections) {
+            errors[block.id] = `Selecione no máximo ${block.maxSelections} opção(ões).`;
+          }
         }
       }
     });

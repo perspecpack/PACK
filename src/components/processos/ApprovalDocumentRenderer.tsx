@@ -46,6 +46,7 @@ import {
 } from './BlockEditors';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import BlockFieldHeader from './BlockFieldHeader';
 
 export type RendererMode = 
   | 'template-editor' 
@@ -1441,8 +1442,8 @@ function BlockInnerRenderer({
 
     case 'short_answer':
     case 'long_answer': {
-      if (canRespond && onAnswerChange) {
-        return block.type === 'long_answer' ? (
+      const fieldContent = (canRespond && onAnswerChange) ? (
+        block.type === 'long_answer' ? (
           <Textarea 
             value={val || ''}
             onChange={(e) => onAnswerChange(e.target.value)}
@@ -1456,13 +1457,24 @@ function BlockInnerRenderer({
             placeholder={block.placeholder || 'Sua resposta curta...'}
             className="h-9.5 text-xs border-slate-200 bg-white"
           />
-        );
-      }
-      
-      // Static display
-      return (
-        <div className="text-xs text-slate-700 bg-slate-50/50 border border-slate-155 p-3 rounded-xl leading-relaxed whitespace-pre-wrap min-h-[38px] flex items-center">
+        )
+      ) : (
+        <div className="text-xs text-slate-700 bg-slate-50/50 border border-slate-155 p-3 rounded-xl leading-relaxed whitespace-pre-wrap min-h-[38px] flex items-center w-full">
           {val ? String(val) : <span className="text-slate-350 italic">Sem resposta</span>}
+        </div>
+      );
+
+      return (
+        <div className="w-full">
+          <BlockFieldHeader
+            title={block.title}
+            description={block.description}
+            required={block.required}
+            blockType={block.type}
+            mode={mode}
+            validationMessage={error}
+          />
+          {fieldContent}
         </div>
       );
     }
@@ -1470,9 +1482,46 @@ function BlockInnerRenderer({
     case 'multiple_choice':
     case 'dropdown':
     case 'checkbox': {
+      const isMultiple = block.type === 'checkbox';
+      const isDropdown = block.type === 'dropdown';
+
+      const getCheckboxState = (currentVal: any) => {
+        if (Array.isArray(currentVal)) {
+          const otherSelected = currentVal.includes('Outro');
+          const list = currentVal.filter(item => item !== 'Outro');
+          return { list, otherSelected, otherText: '' };
+        }
+        if (currentVal && typeof currentVal === 'object') {
+          return {
+            list: currentVal.list || [],
+            otherSelected: !!currentVal.otherSelected,
+            otherText: currentVal.otherText || ''
+          };
+        }
+        return { list: [], otherSelected: false, otherText: '' };
+      };
+
+      const getRadioState = (currentVal: any) => {
+        if (currentVal && typeof currentVal === 'object') {
+          return {
+            value: currentVal.value || '',
+            otherSelected: !!currentVal.otherSelected,
+            otherText: currentVal.otherText || ''
+          };
+        }
+        if (typeof currentVal === 'string') {
+          if (currentVal === 'Outro') {
+            return { value: '', otherSelected: true, otherText: '' };
+          }
+          return { value: currentVal, otherSelected: false, otherText: '' };
+        }
+        return { value: '', otherSelected: false, otherText: '' };
+      };
+
+      let fieldContent = null;
       if (canRespond && onAnswerChange) {
-        if (block.type === 'dropdown') {
-          return (
+        if (isDropdown) {
+          fieldContent = (
             <select
               value={val || ''}
               onChange={(e) => onAnswerChange(e.target.value)}
@@ -1484,192 +1533,348 @@ function BlockInnerRenderer({
               ))}
             </select>
           );
-        }
+        } else if (isMultiple) {
+          const state = getCheckboxState(val);
+          const handleOptionClick = (optText: string) => {
+            const nextList = state.list.includes(optText)
+              ? state.list.filter(t => t !== optText)
+              : [...state.list, optText];
+            onAnswerChange({ ...state, list: nextList });
+          };
+          const handleOtherClick = () => {
+            onAnswerChange({ ...state, otherSelected: !state.otherSelected });
+          };
+          const handleOtherTextChange = (text: string) => {
+            onAnswerChange({ ...state, otherText: text });
+          };
 
-        // Choice options check/radio list
-        const isMultiple = block.type === 'checkbox';
-        const checkedList = Array.isArray(val) ? val : (val ? [val] : []);
-
-        const handleOptionClick = (optText: string) => {
-          if (isMultiple) {
-            const next = checkedList.includes(optText)
-              ? checkedList.filter(t => t !== optText)
-              : [...checkedList, optText];
-            onAnswerChange(next);
-          } else {
+          fieldContent = (
+            <div className="space-y-2.5 pt-1">
+              {(block.options || []).map(opt => {
+                const isChecked = state.list.includes(opt.text);
+                return (
+                  <label key={opt.id} className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleOptionClick(opt.text)}
+                      className="rounded border-slate-300 text-[#0d857a] w-4 h-4 cursor-pointer"
+                    />
+                    <span>{opt.text}</span>
+                  </label>
+                );
+              })}
+              {block.allowOther && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={state.otherSelected}
+                      onChange={handleOtherClick}
+                      className="rounded border-slate-300 text-[#0d857a] w-4 h-4 cursor-pointer"
+                    />
+                    <span>Outro</span>
+                  </label>
+                  {state.otherSelected && (
+                    <Input
+                      type="text"
+                      value={state.otherText}
+                      onChange={(e) => handleOtherTextChange(e.target.value)}
+                      placeholder="Por favor, especifique..."
+                      className="h-8.5 text-xs border-slate-200 bg-white max-w-xs focus-visible:border-[#0d857a]"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        } else {
+          const state = getRadioState(val);
+          const handleOptionClick = (optText: string) => {
             onAnswerChange(optText);
-          }
-        };
+          };
+          const handleOtherClick = () => {
+            onAnswerChange({ value: '', otherSelected: true, otherText: '' });
+          };
+          const handleOtherTextChange = (text: string) => {
+            onAnswerChange({ value: '', otherSelected: true, otherText: text });
+          };
 
-        return (
-          <div className="space-y-2.5 pt-1">
-            {(block.options || []).map(opt => {
-              const isChecked = checkedList.includes(opt.text);
-              return (
-                <label key={opt.id} className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer select-none">
-                  <input
-                    type={isMultiple ? "checkbox" : "radio"}
-                    checked={isChecked}
-                    onChange={() => handleOptionClick(opt.text)}
-                    className="rounded border-slate-300 text-[#0d857a] w-4 h-4 cursor-pointer"
-                  />
-                  <span>{opt.text}</span>
-                </label>
-              );
-            })}
-          </div>
-        );
-      }
-
-      // Static visual display
-      return (
-        <div className="space-y-1.5 pt-1 text-xs">
-          {block.type === 'dropdown' ? (
+          fieldContent = (
+            <div className="space-y-2.5 pt-1">
+              {(block.options || []).map(opt => {
+                const isChecked = !state.otherSelected && state.value === opt.text;
+                return (
+                  <label key={opt.id} className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="radio"
+                      checked={isChecked}
+                      onChange={() => handleOptionClick(opt.text)}
+                      className="rounded-full border-slate-300 text-[#0d857a] w-4.5 h-4.5 cursor-pointer"
+                    />
+                    <span>{opt.text}</span>
+                  </label>
+                );
+              })}
+              {block.allowOther && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="radio"
+                      checked={state.otherSelected}
+                      onChange={handleOtherClick}
+                      className="rounded-full border-slate-300 text-[#0d857a] w-4.5 h-4.5 cursor-pointer"
+                    />
+                    <span>Outro</span>
+                  </label>
+                  {state.otherSelected && (
+                    <Input
+                      type="text"
+                      value={state.otherText}
+                      onChange={(e) => handleOtherTextChange(e.target.value)}
+                      placeholder="Por favor, especifique..."
+                      className="h-8.5 text-xs border-slate-200 bg-white max-w-xs focus-visible:border-[#0d857a]"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        }
+      } else {
+        if (isDropdown) {
+          fieldContent = (
             <div className="font-semibold text-slate-800">
               {val || <span className="text-slate-350 italic font-normal">Nenhuma selecionada</span>}
             </div>
-          ) : (
-            (block.options || []).map(opt => {
-              const checkedList = Array.isArray(val) ? val : (val ? [val] : []);
-              const isChecked = checkedList.includes(opt.text);
-              return (
-                <div key={opt.id} className="flex items-center gap-2.5 select-none opacity-85">
-                  <div className={`h-4.5 w-4.5 border flex items-center justify-center ${
-                    isChecked 
+          );
+        } else if (isMultiple) {
+          const state = getCheckboxState(val);
+          fieldContent = (
+            <div className="space-y-2 pt-1 text-xs">
+              {(block.options || []).map(opt => {
+                const isChecked = state.list.includes(opt.text);
+                return (
+                  <div key={opt.id} className="flex items-center gap-2.5 select-none opacity-85">
+                    <div className={`h-4.5 w-4.5 border flex items-center justify-center rounded ${
+                      isChecked 
+                        ? 'border-[#0d857a] bg-[#0d857a]/10 text-[#0d857a]' 
+                        : 'border-slate-300 bg-slate-50/50'
+                      }`}
+                    >
+                      {isChecked && <div className="h-2 w-2 bg-[#0d857a] rounded-full" />}
+                    </div>
+                    <span className={`font-medium ${isChecked ? 'text-slate-800 font-bold' : 'text-slate-505'}`}>{opt.text}</span>
+                  </div>
+                );
+              })}
+              {block.allowOther && (
+                <div className="flex items-start gap-2.5 select-none opacity-85">
+                  <div className={`h-4.5 w-4.5 border flex items-center justify-center rounded ${
+                    state.otherSelected 
                       ? 'border-[#0d857a] bg-[#0d857a]/10 text-[#0d857a]' 
                       : 'border-slate-300 bg-slate-50/50'
-                    } ${block.type === 'multiple_choice' ? 'rounded-full' : 'rounded'}`}
+                    }`}
                   >
-                    {isChecked && <div className="h-2 w-2 bg-[#0d857a] rounded-full" />}
+                    {state.otherSelected && <div className="h-2 w-2 bg-[#0d857a] rounded-full" />}
                   </div>
-                  <span className={`font-medium ${isChecked ? 'text-slate-800 font-bold' : 'text-slate-505'}`}>{opt.text}</span>
+                  <span className={`font-medium ${state.otherSelected ? 'text-slate-800 font-bold' : 'text-slate-505'}`}>
+                    Outro{state.otherSelected && state.otherText ? `: ${state.otherText}` : ''}
+                  </span>
                 </div>
-              );
-            })
-          )}
+              )}
+            </div>
+          );
+        } else {
+          const state = getRadioState(val);
+          fieldContent = (
+            <div className="space-y-2 pt-1 text-xs">
+              {(block.options || []).map(opt => {
+                const isChecked = !state.otherSelected && state.value === opt.text;
+                return (
+                  <div key={opt.id} className="flex items-center gap-2.5 select-none opacity-85">
+                    <div className={`h-4.5 w-4.5 border flex items-center justify-center rounded-full ${
+                      isChecked 
+                        ? 'border-[#0d857a] bg-[#0d857a]/10 text-[#0d857a]' 
+                        : 'border-slate-300 bg-slate-50/50'
+                      }`}
+                    >
+                      {isChecked && <div className="h-2 w-2 bg-[#0d857a] rounded-full" />}
+                    </div>
+                    <span className={`font-medium ${isChecked ? 'text-slate-800 font-bold' : 'text-slate-505'}`}>{opt.text}</span>
+                  </div>
+                );
+              })}
+              {block.allowOther && (
+                <div className="flex items-start gap-2.5 select-none opacity-85">
+                  <div className={`h-4.5 w-4.5 border flex items-center justify-center rounded-full ${
+                    state.otherSelected 
+                      ? 'border-[#0d857a] bg-[#0d857a]/10 text-[#0d857a]' 
+                      : 'border-slate-300 bg-slate-50/50'
+                    }`}
+                  >
+                    {state.otherSelected && <div className="h-2 w-2 bg-[#0d857a] rounded-full" />}
+                  </div>
+                  <span className={`font-medium ${state.otherSelected ? 'text-slate-800 font-bold' : 'text-slate-505'}`}>
+                    Outro{state.otherSelected && state.otherText ? `: ${state.otherText}` : ''}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        }
+      }
+
+      return (
+        <div className="w-full">
+          <BlockFieldHeader
+            title={block.title}
+            description={block.description}
+            required={block.required}
+            blockType={block.type}
+            mode={mode}
+            validationMessage={error}
+          />
+          {fieldContent}
         </div>
       );
     }
 
     case 'date': {
-      if (canRespond && onAnswerChange) {
-        return (
-          <Input 
-            type="date"
-            value={val || ''}
-            onChange={(e) => onAnswerChange(e.target.value)}
-            className="h-9.5 text-xs border-slate-200 bg-white max-w-xs"
-          />
-        );
-      }
-      return (
+      const fieldContent = (canRespond && onAnswerChange) ? (
+        <Input 
+          type="date"
+          value={val || ''}
+          onChange={(e) => onAnswerChange(e.target.value)}
+          className="h-9.5 text-xs border-slate-200 bg-white max-w-xs"
+        />
+      ) : (
         <div className="text-xs text-slate-700 bg-slate-50/50 border border-slate-150 px-3.5 py-2.5 rounded-xl inline-flex items-center gap-2">
           <Calendar className="w-4 h-4 text-slate-400" />
           <span>{val ? new Date(val).toLocaleDateString('pt-BR') : <span className="text-slate-350 italic">Não selecionada</span>}</span>
         </div>
       );
+
+      return (
+        <div className="w-full">
+          <BlockFieldHeader
+            title={block.title}
+            description={block.description}
+            required={block.required}
+            blockType={block.type}
+            mode={mode}
+            validationMessage={error}
+          />
+          {fieldContent}
+        </div>
+      );
     }
 
     case 'file_upload': {
+      let fieldContent = null;
       // In template editor/preview, display generic placeholder
       if (mode === 'template-editor' || mode === 'template-preview') {
-        return (
+        fieldContent = (
           <div className="border border-dashed border-slate-250 rounded-xl p-4 bg-slate-50/40 text-center text-[11px] text-slate-400 select-none">
             Área de upload de arquivos (PDF, imagens, zip, etc.) que o cliente responderá.
           </div>
         );
+      } else {
+        fieldContent = isReadOnly ? (
+          /* READ ONLY FILE LIST */
+          (!val || val.length === 0) ? (
+            <p className="text-xs text-slate-400 italic">Nenhum arquivo anexado.</p>
+          ) : (
+            <div className="border border-slate-150 rounded-xl divide-y divide-slate-100 overflow-hidden bg-white">
+              {(val as any[]).map((f: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between p-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs text-slate-700 font-semibold">{f.originalName || f.fileName || f.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+          /* ACTIVE UPLOAD CONTROLS (TBD or using validation responses storage bucket) */
+          <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center bg-white flex flex-col items-center justify-center space-y-1.5 text-slate-400">
+            <Plus className="w-5 h-5 text-slate-350" />
+            <p className="text-xs font-bold text-slate-650 uppercase tracking-wider">Clique para anexar arquivo</p>
+            <p className="text-[10px] text-slate-400">Máximo: {block.maxFiles || 5} arquivos, {block.maxSizeMB || 10}MB cada</p>
+          </div>
+        );
       }
 
-      // Real uploads
       return (
-        <div className="space-y-3">
-          {isReadOnly ? (
-            /* READ ONLY FILE LIST */
-            (!val || val.length === 0) ? (
-              <p className="text-xs text-slate-400 italic">Nenhum arquivo anexado.</p>
-            ) : (
-              <div className="border border-slate-150 rounded-xl divide-y divide-slate-100 overflow-hidden bg-white">
-                {(val as any[]).map((f: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between p-3">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-slate-400" />
-                      <span className="text-xs text-slate-700 font-semibold">{f.originalName || f.fileName}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : (
-            /* ACTIVE UPLOAD CONTROLS (TBD or using validation responses storage bucket) */
-            <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center bg-white flex flex-col items-center justify-center space-y-1.5 text-slate-400">
-              <Plus className="w-5 h-5 text-slate-350" />
-              <p className="text-xs font-bold text-slate-650 uppercase tracking-wider">Clique para anexar arquivo</p>
-              <p className="text-[10px] text-slate-400">Máximo: {block.maxFiles || 5} arquivos, {block.maxSizeMB || 10}MB cada</p>
-            </div>
-          )}
+        <div className="w-full">
+          <BlockFieldHeader
+            title={block.title}
+            description={block.description}
+            required={block.required}
+            blockType={block.type}
+            mode={mode}
+            validationMessage={error}
+          />
+          {fieldContent}
         </div>
       );
     }
 
     case 'approval_decision': {
-      if (canRespond && onAnswerChange) {
-        return (
-          <div className="space-y-3.5">
-            <div className="flex flex-wrap gap-2 pt-1">
-              {(block.decisions || []).map(dec => {
-                const isSelected = val?.id === dec.id;
-                let stylePill = 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50';
-                if (isSelected) {
-                  stylePill = 
-                    dec.semanticType === 'positive' ? 'border-emerald-300 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20' :
-                    dec.semanticType === 'attention' ? 'border-amber-300 bg-amber-50 text-amber-800 ring-2 ring-amber-500/20' :
-                    dec.semanticType === 'negative' ? 'border-red-300 bg-red-50 text-red-800 ring-2 ring-red-500/20' :
-                    'border-slate-800 bg-slate-900 text-white';
-                }
-                
-                return (
-                  <button
-                    type="button"
-                    key={dec.id}
-                    onClick={() => onAnswerChange({ id: dec.id, text: dec.text, semanticType: dec.semanticType, comment: val?.comment || '' })}
-                    className={`text-[10px] px-3.5 py-1.5 border rounded-xl font-bold uppercase tracking-wider transition-all cursor-pointer ${stylePill}`}
-                  >
-                    {dec.text}
-                  </button>
-                );
-              })}
-            </div>
-            
-            {/* Conditional Comments */}
-            {(() => {
-              const decOpt = block.decisions?.find((d: any) => d.id === val?.id);
-              if (decOpt) {
-                return (
-                  <div className="space-y-1.5 animate-fadeIn">
-                    <Label htmlFor={`comment-${block.id}`} className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      Justificativa / Comentários {decOpt.requireComment && <span className="text-red-500 font-bold">*</span>}
-                    </Label>
-                    <Textarea 
-                      id={`comment-${block.id}`}
-                      value={val?.comment || ''}
-                      onChange={(e) => onAnswerChange({ ...val, comment: e.target.value })}
-                      placeholder={decOpt.requireComment 
-                        ? "É obrigatório inserir uma justificativa para a decisão selecionada..." 
-                        : "Justificativa ou comentário adicional (opcional)..."
-                      }
-                      className="min-h-[80px] text-xs border-slate-200 focus-visible:border-[#0d857a]"
-                    />
-                  </div>
-                );
+      const fieldContent = (canRespond && onAnswerChange) ? (
+        <div className="space-y-3.5">
+          <div className="flex flex-wrap gap-2 pt-1">
+            {(block.decisions || []).map(dec => {
+              const isSelected = val?.id === dec.id;
+              let stylePill = 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50';
+              if (isSelected) {
+                stylePill = 
+                  dec.semanticType === 'positive' ? 'border-emerald-300 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20' :
+                  dec.semanticType === 'attention' ? 'border-amber-300 bg-amber-50 text-amber-800 ring-2 ring-amber-500/20' :
+                  dec.semanticType === 'negative' ? 'border-red-300 bg-red-50 text-red-800 ring-2 ring-red-500/20' :
+                  'border-slate-800 bg-slate-900 text-white';
               }
-              return null;
-            })()}
+              
+              return (
+                <button
+                  type="button"
+                  key={dec.id}
+                  onClick={() => onAnswerChange({ id: dec.id, text: dec.text, semanticType: dec.semanticType, comment: val?.comment || '' })}
+                  className={`text-[10px] px-3.5 py-1.5 border rounded-xl font-bold uppercase tracking-wider transition-all cursor-pointer ${stylePill}`}
+                >
+                  {dec.text}
+                </button>
+              );
+            })}
           </div>
-        );
-      }
-
-      // Static visual display
-      return (
+          
+          {/* Conditional Comments */}
+          {(() => {
+            const decOpt = block.decisions?.find((d: any) => d.id === val?.id);
+            if (decOpt) {
+              return (
+                <div className="space-y-1.5 animate-fadeIn">
+                  <Label htmlFor={`comment-${block.id}`} className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Justificativa / Comentários {decOpt.requireComment && <span className="text-red-500 font-bold">*</span>}
+                  </Label>
+                  <Textarea 
+                    id={`comment-${block.id}`}
+                    value={val?.comment || ''}
+                    onChange={(e) => onAnswerChange({ ...val, comment: e.target.value })}
+                    placeholder={decOpt.requireComment 
+                      ? "É obrigatório inserir uma justificativa para a decisão selecionada..." 
+                      : "Justificativa ou comentário adicional (opcional)..."
+                    }
+                    className="min-h-[80px] text-xs border-slate-200 focus-visible:border-[#0d857a]"
+                  />
+                </div>
+              );
+            }
+            return null;
+          })()}
+        </div>
+      ) : (
         <div className="space-y-3 pt-1">
           {val?.id ? (
             <div className="space-y-3">
@@ -1698,42 +1903,64 @@ function BlockInnerRenderer({
           )}
         </div>
       );
+
+      return (
+        <div className="w-full">
+          <BlockFieldHeader
+            title={block.title}
+            description={block.description}
+            required={block.required}
+            blockType={block.type}
+            mode={mode}
+            validationMessage={error}
+          />
+          {fieldContent}
+        </div>
+      );
     }
 
     case 'acknowledgement': {
-      if (canRespond && onAnswerChange) {
-        return (
-          <label className="flex items-start gap-3 text-xs text-slate-700 leading-relaxed cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={val === true}
-              onChange={(e) => onAnswerChange(e.target.checked)}
-              className="rounded border-slate-300 text-[#0d857a] w-4.5 h-4.5 mt-0.5 cursor-pointer shrink-0"
-            />
-            <div>
-              <span className="font-semibold block text-slate-800">Declaração de ciência e conformidade</span>
-              <p className="text-[11px] text-slate-500 mt-1 bg-slate-50 border border-slate-200/80 p-3 rounded-lg leading-relaxed whitespace-pre-line italic">
-                "{block.declarationText || 'Confirmo que revisei o projeto e autorizo o início das atividades correspondentes.'}"
-              </p>
-            </div>
-          </label>
-        );
-      }
-
-      // Static visual display
-      const isAccepted = val === true;
-      return (
+      const fieldContent = (canRespond && onAnswerChange) ? (
+        <label className="flex items-start gap-3 text-xs text-slate-700 leading-relaxed cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={val === true}
+            onChange={(e) => onAnswerChange(e.target.checked)}
+            className="rounded border-slate-300 text-[#0d857a] w-4.5 h-4.5 mt-0.5 cursor-pointer shrink-0"
+          />
+          <div>
+            <span className="font-semibold block text-slate-800">Declaração de ciência e conformidade</span>
+            <p className="text-[11px] text-slate-500 mt-1 bg-slate-50 border border-slate-200/80 p-3 rounded-lg leading-relaxed whitespace-pre-line italic">
+              "{block.declarationText || 'Confirmo que revisei o projeto e autorizo o início das atividades correspondentes.'}"
+            </p>
+          </div>
+        </label>
+      ) : (
         <div className="text-xs leading-relaxed space-y-3.5 select-none">
           <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl italic text-slate-655 whitespace-pre-line">
             "{block.declarationText || 'Confirmo que revisei o projeto e autorizo o início das atividades correspondentes.'}"
           </div>
           
           <div className={`flex items-center gap-2 font-bold text-xs uppercase tracking-wider select-none ${
-            isAccepted ? 'text-emerald-700' : 'text-slate-400 italic font-semibold'
+            val === true ? 'text-emerald-700' : 'text-slate-400 italic font-semibold'
           }`}>
-            <CheckCircle className={`w-5 h-5 shrink-0 ${isAccepted ? 'text-emerald-600' : 'text-slate-300'}`} />
-            <span>{isAccepted ? 'Termo aceito e assinado digitalmente' : 'Termo ainda não aceito'}</span>
+            <CheckCircle className={`w-5 h-5 shrink-0 ${val === true ? 'text-emerald-600' : 'text-slate-300'}`} />
+            <span>{val === true ? 'Termo aceito e assinado digitalmente' : 'Termo ainda não aceito'}</span>
           </div>
+        </div>
+      );
+
+      return (
+        <div className="w-full">
+          <BlockFieldHeader
+            title={block.title}
+            description={block.description}
+            required={block.required}
+            blockType={block.type}
+            mode={mode}
+            validationMessage={error}
+          />
+          {fieldContent}
         </div>
       );
     }

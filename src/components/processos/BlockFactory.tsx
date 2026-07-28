@@ -482,16 +482,28 @@ export interface ProcessValidationResult {
 
 export function validateProcess(blocks: Block[]): ProcessValidationResult {
   let allErrors: ValidationError[] = [];
+  const warnings: string[] = [];
+  const responsiveTypes = [
+    'short_answer', 'long_answer', 'multiple_choice', 'checkbox', 
+    'dropdown', 'date', 'file_upload', 'approval_decision', 'acknowledgement'
+  ];
   
   blocks.forEach(block => {
     const blockErrors = validateBlock(block);
     allErrors = [...allErrors, ...blockErrors];
+    
+    if (responsiveTypes.includes(block.type)) {
+      if (!block.description || !block.description.trim()) {
+        const blockName = block.title ? `"${block.title}"` : `de tipo "${BLOCK_METADATA[block.type]?.title || block.type}"`;
+        warnings.push(`O bloco ${blockName} não possui descrição ou instrução.`);
+      }
+    }
   });
 
   return {
     isValid: allErrors.length === 0,
     errors: allErrors,
-    warnings: []
+    warnings
   };
 }
 

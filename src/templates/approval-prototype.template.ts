@@ -50,12 +50,14 @@ export const approvalPrototypeTemplate: ProcessTemplate = {
     {
       type: 'short_answer',
       title: 'Local da avaliação',
+      description: 'Informe o local ou laboratório onde a avaliação foi realizada.',
       required: false,
       placeholder: 'Ex: Laboratório de Validação'
     },
     {
       type: 'checkbox',
       title: 'Itens avaliados no protótipo',
+      description: 'Selecione os aspectos que foram verificados durante a avaliação do protótipo.',
       required: true,
       options: [
         { id: '1', text: 'Dimensões' },
@@ -93,6 +95,7 @@ export const approvalPrototypeTemplate: ProcessTemplate = {
     {
       type: 'approval_decision',
       title: 'Decisão sobre o protótipo',
+      description: 'Selecione o resultado final da análise.',
       required: true,
       decisions: [
         { id: '1', text: 'Protótipo aprovado para fabricação do lote', semanticType: 'positive', requireComment: false },
@@ -104,6 +107,7 @@ export const approvalPrototypeTemplate: ProcessTemplate = {
     {
       type: 'acknowledgement',
       title: 'Declaração de ciência',
+      description: 'Confirme a declaração de ciência antes de concluir a validação.',
       required: true,
       declarationText: 'Confirmo que o protótipo apresentado foi avaliado e que a fabricação do lote poderá utilizar esta configuração como referência. Alterações posteriores poderão gerar impactos em custos, prazos, ferramental e documentação.'
     }

@@ -51,7 +51,7 @@ export const approvalProjectTemplate: ProcessTemplate = {
     {
       type: 'checkbox',
       title: 'Itens avaliados',
-      description: 'Selecione os aspectos analisados durante a validação do projeto.',
+      description: 'Selecione os itens que foram analisados durante a validação do projeto.',
       required: true,
       options: [
         { id: '1', text: 'Dimensões gerais' },
@@ -79,7 +79,7 @@ export const approvalProjectTemplate: ProcessTemplate = {
     {
       type: 'approval_decision',
       title: 'Decisão sobre o projeto',
-      description: 'Selecione a decisão correspondente à análise realizada.',
+      description: 'Selecione o resultado final da análise.',
       required: true,
       decisions: [
         { id: '1', text: 'Aprovado', semanticType: 'positive', requireComment: false },
@@ -90,6 +90,7 @@ export const approvalProjectTemplate: ProcessTemplate = {
     {
       type: 'acknowledgement',
       title: 'Declaração de ciência',
+      description: 'Confirme a declaração de ciência antes de concluir a validação.',
       required: true,
       declarationText: 'Confirmo que analisei o conteúdo disponibilizado e estou ciente de que a fabricação poderá seguir conforme a revisão aprovada. Alterações posteriores poderão impactar custos, prazos e documentação técnica.'
     }

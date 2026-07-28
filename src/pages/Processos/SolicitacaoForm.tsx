@@ -28,7 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
-import { migrateLegacyBlocks, Block } from '@/src/components/processos/BlockFactory';
+import { migrateLegacyBlocks, Block, validateProcess } from '@/src/components/processos/BlockFactory';
 import ApprovalDocumentRenderer from '@/src/components/processos/ApprovalDocumentRenderer';
 
 interface Material {
@@ -315,6 +315,21 @@ export default function SolicitacaoForm() {
 
   // Publish flow inside form
   const handlePublish = async () => {
+    // 1. Validate blocks before publication
+    const validation = validateProcess(blocks);
+    const hasMissingTitle = validation.errors.some(e => e.field === 'title');
+    if (hasMissingTitle) {
+      toast.error('Não é possível publicar: todos os blocos de resposta devem conter um título.');
+      return;
+    }
+
+    if (validation.warnings.length > 0) {
+      const confirmWarning = window.confirm(
+        `Aviso: Existem blocos de resposta sem descrição ou instrução:\n\n${validation.warnings.join('\n')}\n\nDeseja publicar mesmo assim?`
+      );
+      if (!confirmWarning) return;
+    }
+
     const confirmPublish = window.confirm('Deseja publicar esta solicitação agora?');
     if (!confirmPublish) return;
 
