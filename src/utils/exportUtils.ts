@@ -229,63 +229,399 @@ export function exportTXTFile(filename: string, content: string): void {
   document.body.removeChild(link);
 }
 
+// Helper to build normalized validation report data (consumed by PDF, TXT, and visual ApprovalDocumentRenderer)
+export function buildApprovalReportData(pub: any, resp: any) {
+  if (!pub) {
+    return {
+      publication: {} as any,
+      respondent: {} as any,
+      result: {} as any,
+      blocks: [] as any[],
+      materials: [] as any[],
+      attachments: [] as any[],
+      rendererAnswers: [] as any[]
+    };
+  }
+
+  const snapshot = pub.snapshot || {};
+  const rawAnswers = resp?.answers || [];
+  const rawMaterials = snapshot.materials || pub.materials || [];
+
+  // 1. Respondent
+  const respondent = {
+    name: resp?.respondent_name || resp?.respondentName || '',
+    role: resp?.respondent_role || resp?.respondentRole || '',
+    email: resp?.respondent_email || resp?.respondentEmail || 'Não informado'
+  };
+
+  // 2. Publication metadata
+  const publication = {
+    id: pub.id,
+    code: pub.publication_code || pub.publicationCode || '',
+    version: pub.version || 1,
+    processTitle: snapshot.name || snapshot.title || pub.name || '',
+    company: pub.organization || 'PERSPECPACK',
+    client: snapshot.client || 'N/A',
+    project: snapshot.project || 'N/A',
+    projectCode: snapshot.code || 'N/A',
+    revision: snapshot.revision || 'N/A',
+    protocol: resp?.protocol || 'N/A',
+    validatedAt: resp?.submitted_at || resp?.validated_at || null,
+    status: pub.status
+  };
+
+  // 3. Result (decision)
+  let decisionText = resp?.primary_decision?.text || resp?.primaryDecision?.text;
+  let decisionSemantic = resp?.primary_decision?.semanticType || resp?.primary_decision?.semantic_type || resp?.primaryDecision?.semanticType;
+  let decisionComment = resp?.primary_decision?.comment || resp?.primaryDecision?.comment || '';
+
+  // Fallback to block response if primary_decision is empty
+  if (!decisionText && rawAnswers.length > 0) {
+    const decAns = rawAnswers.find((a: any) => (a.block_type || a.blockType) === 'approval_decision');
+    if (decAns) {
+      const decVal = decAns.value || decAns.answer || decAns.decision;
+      if (decVal && typeof decVal === 'object') {
+        decisionText = decVal.text || decVal.value;
+        decisionSemantic = decVal.semanticType || decVal.semantic_type;
+        decisionComment = decVal.comment || '';
+      } else if (typeof decVal === 'string') {
+        decisionText = decVal;
+        decisionComment = decAns.comment || '';
+      }
+    }
+  }
+
+  // Secondary fallback to publication fields
+  if (!decisionText) {
+    decisionText = pub.primary_result || '';
+    decisionSemantic = pub.primary_result_type || 'neutral';
+  }
+
+  const result = {
+    label: decisionText || 'Pendente',
+    semanticType: decisionSemantic || 'neutral',
+    comment: decisionComment
+  };
+
+  // 4. Blocks Loop
+  const snapshotBlocks = snapshot.blocks || [];
+  const rendererAnswers: any[] = [];
+  const attachments: any[] = [];
+
+  const normalizedBlocks = snapshotBlocks.map((block: any) => {
+    const ans = rawAnswers.find((a: any) => (a.block_id || a.blockId) === block.id);
+    let value: any = undefined;
+    let answerText = '';
+    let confirmed: boolean | undefined = undefined;
+    let decision: any = undefined;
+    let files: any[] = [];
+
+    // Helper default
+    const rawVal = ans?.value !== undefined ? ans.value : ans?.answer;
+
+    if (block.type === 'heading_text') {
+      value = '';
+      answerText = block.description || '';
+    } else if (block.type === 'request_information') {
+      value = '';
+      answerText = '';
+    } else if (block.type === 'analysis_materials') {
+      value = '';
+      answerText = '';
+    } else if (block.type === 'short_answer' || block.type === 'long_answer' || block.type === 'dropdown') {
+      value = rawVal !== undefined ? String(rawVal) : '';
+      answerText = value.trim() ? value : 'Não informado';
+    } else if (block.type === 'date') {
+      value = rawVal !== undefined ? String(rawVal) : '';
+      if (value) {
+        const parts = value.split('-');
+        if (parts.length === 3) {
+          answerText = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        } else {
+          const d = new Date(value);
+          if (!isNaN(d.getTime())) {
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const year = d.getUTCFullYear();
+            answerText = `${day}/${month}/${year}`;
+          } else {
+            answerText = value;
+          }
+        }
+      } else {
+        answerText = 'Não informado';
+      }
+    } else if (block.type === 'checkbox') {
+      let list: string[] = [];
+      let otherSelected = false;
+      let otherText = '';
+
+      if (ans) {
+        if (ans.selected_option_labels !== undefined) {
+          list = (ans.selected_option_labels || []).filter((l: string) => l !== 'Outro');
+          otherSelected = (ans.selected_option_labels || []).includes('Outro');
+          otherText = ans.other_text || ans.otherText || '';
+        } else if (ans.value !== undefined) {
+          if (typeof ans.value === 'object' && ans.value !== null) {
+            list = ans.value.list || [];
+            otherSelected = !!ans.value.otherSelected;
+            otherText = ans.value.otherText || ans.value.other_text || '';
+          } else if (Array.isArray(ans.value)) {
+            list = ans.value.filter((item: any) => item !== 'Outro');
+            otherSelected = ans.value.includes('Outro');
+          }
+        } else if (ans.answer !== undefined) {
+          const items = String(ans.answer).split(',').map(s => s.trim());
+          list = items.filter(item => item !== 'Outro');
+          otherSelected = items.includes('Outro');
+          otherText = ans.other_text || ans.otherText || '';
+        }
+      }
+
+      value = { list, otherSelected, otherText };
+      
+      const labels = [...list];
+      if (otherSelected) {
+        labels.push(otherText ? `Outro: ${otherText}` : 'Outro');
+      }
+      answerText = labels.length > 0 ? labels.join(', ') : 'Não informado';
+    } else if (block.type === 'multiple_choice') {
+      let radioVal = '';
+      let otherSelected = false;
+      let otherText = '';
+
+      if (ans) {
+        if (ans.selected_option_labels !== undefined) {
+          const hasOther = (ans.selected_option_labels || []).includes('Outro');
+          if (hasOther) {
+            otherSelected = true;
+            otherText = ans.other_text || ans.otherText || '';
+          } else {
+            radioVal = ans.selected_option_labels?.[0] || ans.answer || '';
+          }
+        } else if (ans.value !== undefined) {
+          if (typeof ans.value === 'object' && ans.value !== null) {
+            radioVal = ans.value.value || '';
+            otherSelected = !!ans.value.otherSelected;
+            otherText = ans.value.otherText || ans.value.other_text || '';
+          } else if (typeof ans.value === 'string') {
+            if (ans.value === 'Outro') {
+              otherSelected = true;
+              otherText = ans.other_text || ans.otherText || '';
+            } else {
+              radioVal = ans.value;
+            }
+          }
+        } else if (ans.answer !== undefined) {
+          if (String(ans.answer).startsWith('Outro:')) {
+            otherSelected = true;
+            otherText = String(ans.answer).replace('Outro:', '').trim();
+          } else if (ans.answer === 'Outro') {
+            otherSelected = true;
+          } else {
+            radioVal = String(ans.answer);
+          }
+        }
+      }
+
+      value = otherSelected ? { value: '', otherSelected: true, otherText } : radioVal;
+      
+      if (otherSelected) {
+        answerText = otherText ? `Outro: ${otherText}` : 'Outro';
+      } else {
+        answerText = radioVal || 'Não informado';
+      }
+    } else if (block.type === 'acknowledgement') {
+      confirmed = false;
+      if (ans) {
+        if (ans.confirmed !== undefined) {
+          confirmed = ans.confirmed === true;
+        } else if (ans.value !== undefined) {
+          confirmed = ans.value === true || ans.value === 'true';
+        } else if (ans.answer !== undefined) {
+          confirmed = ans.answer === 'Confirmado' || ans.answer === 'true' || ans.answer === true;
+        } else if (ans.accepted !== undefined) {
+          confirmed = ans.accepted === true;
+        }
+      }
+      value = confirmed;
+      answerText = confirmed ? 'Termo aceito e assinado digitalmente' : 'Declaração não confirmada';
+    } else if (block.type === 'approval_decision') {
+      let decId = '';
+      let decText = '';
+      let decSemantic = '';
+      let decComment = '';
+
+      if (ans) {
+        if (ans.selected_option_ids?.[0]) {
+          decId = ans.selected_option_ids[0];
+          decText = ans.selected_option_labels?.[0] || ans.answer || '';
+          decComment = ans.comment || '';
+          
+          const decOpt = block.decisions?.find((d: any) => d.id === decId);
+          decSemantic = decOpt?.semanticType || ans.semantic_type || '';
+        } else if (ans.value !== undefined) {
+          if (typeof ans.value === 'object' && ans.value !== null) {
+            decId = ans.value.id || '';
+            decText = ans.value.text || ans.value.value || '';
+            decSemantic = ans.value.semanticType || ans.value.semantic_type || '';
+            decComment = ans.value.comment || '';
+          } else if (typeof ans.value === 'string') {
+            decText = ans.value;
+            decComment = ans.comment || '';
+          }
+        } else if (ans.answer !== undefined) {
+          decText = String(ans.answer);
+          decComment = ans.comment || '';
+        }
+      }
+
+      decision = { id: decId, text: decText, semanticType: decSemantic, comment: decComment };
+      value = decision;
+      answerText = decText || 'Não informado';
+    } else if (block.type === 'file_upload') {
+      let rawFiles: any[] = [];
+      if (ans) {
+        if (Array.isArray(ans.attached_files)) {
+          rawFiles = ans.attached_files;
+        } else if (Array.isArray(ans.value)) {
+          rawFiles = ans.value;
+        } else if (ans.value && typeof ans.value === 'object') {
+          rawFiles = [ans.value];
+        }
+      }
+
+      files = rawFiles.map((f: any) => ({
+        name: f.name || f.originalName || f.original_name || f.fileName || 'Arquivo',
+        size: f.size || f.size_bytes || 0,
+        fileHash: f.fileHash || f.file_hash || f.hash || 'N/A',
+        mimeType: f.mimeType || f.mime_type || f.type || 'application/octet-stream'
+      }));
+
+      value = files;
+      answerText = files.length > 0 ? `${files.length} arquivo(s) enviado(s)` : 'Não informado';
+      
+      files.forEach(f => attachments.push(f));
+    }
+
+    rendererAnswers.push({ blockId: block.id, value });
+
+    return {
+      id: block.id,
+      type: block.type,
+      title: block.title,
+      description: block.description,
+      required: !!block.required,
+      options: block.options,
+      decisions: block.decisions,
+      declarationText: block.declarationText,
+      value,
+      answerText,
+      confirmed,
+      decision,
+      files
+    };
+  });
+
+  return {
+    publication,
+    respondent,
+    result,
+    blocks: normalizedBlocks,
+    materials: rawMaterials,
+    attachments,
+    rendererAnswers
+  };
+}
+
 // 3. Generate TXT Comprovante content
 export function generateTXTComprovante(pub: any, resp: any): string {
-  const blocks = pub.snapshot?.blocks || [];
+  const reportData = buildApprovalReportData(pub, resp);
   let blockText = '';
-  
-  blocks.forEach((block: any, index: number) => {
+  let questionNumber = 0;
+
+  reportData.blocks.forEach((block: any) => {
     const displayTitle = (block.title && block.title.trim()) || (BLOCK_METADATA[block.type as any] as any)?.title || 'Informativo';
-    blockText += `\n[Bloco ${index + 1}] ${displayTitle}\n`;
+    
+    let blockTitle = displayTitle;
+    const isAnswerable = !['heading_text', 'request_information', 'analysis_materials'].includes(block.type);
+    if (isAnswerable) {
+      questionNumber++;
+      blockTitle = `Questão ${questionNumber}: ${displayTitle}`;
+    }
+
+    blockText += `\n[${blockTitle}]\n`;
     if (block.description) {
       blockText += `Descrição: ${block.description}\n`;
     }
     
-    const ans = resp.answers?.find((a: any) => a.blockId === block.id);
-    
     if (block.type === 'heading_text') {
       blockText += `Instrução: ${block.description || ''}\n`;
     } else if (block.type === 'acknowledgement') {
-      const isConfirmed = ans?.value === true || ans?.value === 'true';
-      blockText += `Declaração: ${block.declarationText}\n`;
-      blockText += `Confirmação: ${isConfirmed ? 'CONFIRMADO' : 'NÃO CONFIRMADO'}\n`;
+      blockText += `Declaração: ${block.declarationText || ''}\n`;
+      blockText += `Confirmação: ${block.confirmed ? 'CONFIRMADO E ASSINADO DIGITALMENTE' : 'NÃO CONFIRMADO'}\n`;
     } else if (block.type === 'approval_decision') {
-      const decisionText = ans?.value?.text || 'Sem resposta';
-      const commentText = ans?.value?.comment ? `\nComentário: ${ans.value.comment}` : '';
+      const decisionText = block.decision?.text || 'Sem resposta';
+      const commentText = block.decision?.comment ? `\nComentário: ${block.decision.comment}` : '\nComentário: Não foram registradas observações.';
       blockText += `Decisão: ${decisionText}${commentText}\n`;
     } else if (block.type === 'file_upload') {
-      const files = Array.isArray(ans?.value) ? ans.value : [];
+      const files = block.files || [];
       if (files.length > 0) {
         blockText += `Arquivos enviados:\n`;
         files.forEach((f: any) => {
-          blockText += `- ${f.name} (${(f.size / 1024).toFixed(1)} KB)\n`;
+          blockText += `- ${f.name} (${(f.size / 1024).toFixed(1)} KB) [Hash: ${f.fileHash}]\n`;
         });
       } else {
         blockText += `Resposta: Nenhum arquivo enviado\n`;
       }
+    } else if (block.type === 'checkbox' || block.type === 'multiple_choice') {
+      const options = block.options || [];
+      const isCheckbox = block.type === 'checkbox';
+      if (options.length > 0) {
+        options.forEach((opt: any) => {
+          let isSelected = false;
+          if (isCheckbox) {
+            isSelected = block.value?.list?.includes(opt.text) === true;
+          } else {
+            const radioVal = block.value;
+            isSelected = (typeof radioVal === 'string' && radioVal === opt.text) || (radioVal?.value === opt.text);
+          }
+          blockText += `${isSelected ? '[X]' : '[ ]'} ${opt.text}\n`;
+        });
+        if (block.allowOther) {
+          const otherSelected = !!block.value?.otherSelected;
+          const otherText = block.value?.otherText || '';
+          const otherTextSuffix = (otherSelected && otherText) ? `: ${otherText}` : '';
+          blockText += `${otherSelected ? '[X]' : '[ ]'} Outro${otherTextSuffix}\n`;
+        }
+      } else {
+        blockText += `Resposta: ${block.answerText}\n`;
+      }
+    } else if (block.type === 'dropdown') {
+      blockText += `Resposta selecionada: ${block.answerText}\n`;
     } else {
-      blockText += `Resposta: ${ans?.value !== undefined ? String(ans.value) : 'Sem resposta'}\n`;
+      blockText += `Resposta: ${block.answerText}\n`;
     }
   });
 
   return ` ==================================================
 RELATÓRIO DE VALIDAÇÃO DIGITAL - PERSPECPACK
  ==================================================
-Protocolo: ${resp.protocol}
-Processo: ${pub.snapshot?.name || pub.name}
-Código da Publicação: ${pub.publication_code}
-Versão: ${String(pub.version).padStart(2, '0')}
+Protocolo: ${reportData.publication.protocol}
+Processo: ${reportData.publication.processTitle}
+Código da Publicação: ${reportData.publication.code}
+Versão: ${String(reportData.publication.version).padStart(2, '0')}
 Situação: VALIDADO
 Data de Publicação: ${new Date(pub.published_at).toLocaleString('pt-BR')}
-Data de Validação: ${new Date(resp.submitted_at).toLocaleString('pt-BR')}
+Data de Validação: ${reportData.publication.validatedAt ? new Date(reportData.publication.validatedAt).toLocaleString('pt-BR') : 'N/A'}
 
 --------------------------------------------------
 RESPONSÁVEL PELA VALIDAÇÃO
 --------------------------------------------------
-Nome: ${resp.respondent_name}
-Cargo/Função: ${resp.respondent_role}
-E-mail: ${resp.respondent_email || 'Não informado'}
-Decisão Final: ${resp.primary_decision?.text || 'Nenhum'}
+Nome: ${reportData.respondent.name}
+Cargo/Função: ${reportData.respondent.role}
+E-mail: ${reportData.respondent.email}
+Decisão Final: ${reportData.result.label}
 
 --------------------------------------------------
 RESPOSTAS DOS BLOCOS
@@ -511,10 +847,16 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
     format: 'a4'
   });
   
-  const blocks = pub.snapshot?.blocks || [];
+  const reportData = buildApprovalReportData(pub, resp);
   let y = 52;
   
-  drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+  drawPDFHeader(
+    doc,
+    'Relatório Oficial de Validação',
+    reportData.publication.code,
+    reportData.publication.version,
+    reportData.publication.company
+  );
   
   // Meta Details Box
   doc.setDrawColor(226, 232, 240);
@@ -535,16 +877,22 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   
   doc.setFont('Helvetica', 'normal');
   doc.setTextColor(30, 41, 59);
-  doc.text(pub.snapshot?.name || pub.name || '', 48, y + 5);
-  doc.text(pub.organization || 'PERSPECPACK', 48, y + 10);
-  doc.text(pub.snapshot?.project || 'N/A', 48, y + 15);
-  doc.text(pub.snapshot?.client || 'N/A', 48, y + 20);
-  doc.text(pub.snapshot?.revision || 'N/A', 48, y + 25);
-  doc.text(resp.protocol || 'N/A', 48, y + 30);
-  doc.text(resp.submitted_at ? new Date(resp.submitted_at).toLocaleString('pt-BR') : 'N/A', 48, y + 35);
+  doc.text(reportData.publication.processTitle, 48, y + 5);
+  doc.text(reportData.publication.company, 48, y + 10);
+  doc.text(reportData.publication.project, 48, y + 15);
+  doc.text(reportData.publication.client, 48, y + 20);
+  doc.text(reportData.publication.revision, 48, y + 25);
+  doc.text(reportData.publication.protocol, 48, y + 30);
+  doc.text(
+    reportData.publication.validatedAt
+      ? new Date(reportData.publication.validatedAt).toLocaleString('pt-BR')
+      : 'N/A',
+    48,
+    y + 35
+  );
   
   y += 48;
-
+ 
   // Respondent Info Header
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(11);
@@ -564,15 +912,15 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   doc.text('Cargo / Função:', 14, y + 6);
   doc.text('E-mail:', 14, y + 12);
   doc.text('Resultado Final:', 14, y + 18);
-
+ 
   doc.setFont('Helvetica', 'normal');
   doc.setTextColor(30, 41, 59);
-  doc.text(resp.respondent_name || '', 45, y);
-  doc.text(resp.respondent_role || '', 45, y + 6);
-  doc.text(resp.respondent_email || 'Não informado', 45, y + 12);
+  doc.text(reportData.respondent.name, 45, y);
+  doc.text(reportData.respondent.role, 45, y + 6);
+  doc.text(reportData.respondent.email, 45, y + 12);
   
-  const decisionText = resp.primary_decision?.text || 'Nenhum';
-  const semantic = resp.primary_decision?.semanticType || 'neutral';
+  const decisionText = reportData.result.label;
+  const semantic = reportData.result.semanticType;
   
   doc.setFont('Helvetica', 'bold');
   if (semantic === 'positive') doc.setTextColor(16, 185, 129);
@@ -583,30 +931,42 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   doc.text(decisionText.toUpperCase(), 45, y + 18);
   
   y += 28;
+ 
+  let questionNumber = 0;
 
   // Blocks Loop
-  blocks.forEach((block: any, index: number) => {
+  reportData.blocks.forEach((block: any) => {
     if (y > 250) {
       doc.addPage();
-      drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+      drawPDFHeader(
+        doc,
+        'Relatório Oficial de Validação',
+        reportData.publication.code,
+        reportData.publication.version,
+        reportData.publication.company
+      );
       y = 50;
     }
-
+ 
     const displayTitle = (block.title && block.title.trim()) || (BLOCK_METADATA[block.type as any] as any)?.title || 'Informativo';
-    const blockTitle = (block.type === 'request_information' || block.type === 'analysis_materials')
-      ? displayTitle
-      : `Questão ${index + 1}: ${displayTitle}`;
+    
+    let blockTitle = displayTitle;
+    const isAnswerable = !['heading_text', 'request_information', 'analysis_materials'].includes(block.type);
+    if (isAnswerable) {
+      questionNumber++;
+      blockTitle = `Questão ${questionNumber}: ${displayTitle}`;
+    }
+
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(30, 41, 59);
     doc.text(blockTitle, 14, y);
     y += 5;
-
-    const ans = resp.answers?.find((a: any) => a.blockId === block.id);
+ 
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(9.5);
     doc.setTextColor(51, 65, 85);
-
+ 
     if (block.type === 'heading_text') {
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
@@ -618,11 +978,11 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
       if (enabledFields.length > 0) {
         enabledFields.forEach((field: any) => {
           let val = '';
-          if (field.key === 'title') val = pub.snapshot?.title || '';
-          else if (field.key === 'client') val = pub.snapshot?.client || '';
-          else if (field.key === 'project') val = pub.snapshot?.project || '';
-          else if (field.key === 'code') val = pub.snapshot?.code || '';
-          else if (field.key === 'revision') val = pub.snapshot?.revision || '';
+          if (field.key === 'title') val = reportData.publication.processTitle;
+          else if (field.key === 'client') val = reportData.publication.client;
+          else if (field.key === 'project') val = reportData.publication.project;
+          else if (field.key === 'code') val = reportData.publication.projectCode;
+          else if (field.key === 'revision') val = reportData.publication.revision;
           else if (field.key === 'responsible_internal') val = pub.snapshot?.responsible_internal || '';
           else if (field.key === 'deadline') val = pub.snapshot?.deadline ? new Date(pub.snapshot.deadline).toLocaleString('pt-BR') : '';
           else if (field.key === 'description') val = pub.snapshot?.description || '';
@@ -631,7 +991,13 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
           if (val) {
             if (y > 270) {
               doc.addPage();
-              drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+              drawPDFHeader(
+                doc,
+                'Relatório Oficial de Validação',
+                reportData.publication.code,
+                reportData.publication.version,
+                reportData.publication.company
+              );
               y = 50;
             }
             doc.setFont('Helvetica', 'bold');
@@ -648,12 +1014,18 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
         y += 6;
       }
     } else if (block.type === 'analysis_materials') {
-      const materialsList = pub.snapshot?.materials || [];
+      const materialsList = reportData.materials;
       if (materialsList.length > 0) {
         materialsList.forEach((m: any) => {
           if (y > 270) {
             doc.addPage();
-            drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+            drawPDFHeader(
+              doc,
+              'Relatório Oficial de Validação',
+              reportData.publication.code,
+              reportData.publication.version,
+              reportData.publication.company
+            );
             y = 50;
           }
           const info = `${m.name} [${m.category}] ${m.revision ? `(Rev ${m.revision})` : ''} - ${m.fileName}`;
@@ -667,47 +1039,81 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
         y += 6;
       }
     } else if (block.type === 'short_answer' || block.type === 'long_answer' || block.type === 'dropdown' || block.type === 'date') {
-      const val = ans?.value !== undefined ? String(ans.value) : 'Sem resposta';
-      const splitVal = doc.splitTextToSize(val, 182);
+      let valToShow = block.answerText;
+      if (block.type === 'dropdown') {
+        valToShow = `Resposta selecionada:\n${block.answerText}`;
+      }
+      const splitVal = doc.splitTextToSize(valToShow, 182);
       doc.text(splitVal, 14, y);
       y += (splitVal.length * 4.5) + 4;
     } else if (block.type === 'multiple_choice' || block.type === 'checkbox') {
-      const val = ans?.value;
-      let textToShow = '';
-      if (val && typeof val === 'object') {
-        if (block.type === 'checkbox') {
-          const list = val.list || [];
-          const labels = [...list];
-          if (val.otherSelected && val.otherText) {
-            labels.push(`Outro: ${val.otherText}`);
-          } else if (val.otherSelected) {
-            labels.push('Outro');
+      const options = block.options || [];
+      const isCheckbox = block.type === 'checkbox';
+
+      if (options.length > 0) {
+        options.forEach((opt: any) => {
+          if (y > 270) {
+            doc.addPage();
+            drawPDFHeader(
+              doc,
+              'Relatório Oficial de Validação',
+              reportData.publication.code,
+              reportData.publication.version,
+              reportData.publication.company
+            );
+            y = 50;
           }
-          textToShow = labels.join(', ');
-        } else {
-          if (val.otherSelected && val.otherText) {
-            textToShow = `Outro: ${val.otherText}`;
-          } else if (val.otherSelected) {
-            textToShow = 'Outro';
+          
+          let isSelected = false;
+          if (isCheckbox) {
+            isSelected = block.value?.list?.includes(opt.text) === true;
           } else {
-            textToShow = val.value || '';
+            const radioVal = block.value;
+            isSelected = (typeof radioVal === 'string' && radioVal === opt.text) || (radioVal?.value === opt.text);
           }
+
+          doc.text(`${isSelected ? '[X]' : '[ ]'} ${opt.text}`, 14, y);
+          y += 6;
+        });
+
+        if (block.allowOther) {
+          if (y > 270) {
+            doc.addPage();
+            drawPDFHeader(
+              doc,
+              'Relatório Oficial de Validação',
+              reportData.publication.code,
+              reportData.publication.version,
+              reportData.publication.company
+            );
+            y = 50;
+          }
+          const otherSelected = !!block.value?.otherSelected;
+          const otherText = block.value?.otherText || '';
+          const otherTextSuffix = (otherSelected && otherText) ? `: ${otherText}` : '';
+          doc.text(`${otherSelected ? '[X]' : '[ ]'} Outro${otherTextSuffix}`, 14, y);
+          y += 6;
         }
-      } else if (Array.isArray(val)) {
-        textToShow = val.join(', ');
       } else {
-        textToShow = val ? String(val) : 'Sem resposta';
+        // Fallback for missing options in older validations
+        const splitVal = doc.splitTextToSize(block.answerText, 182);
+        doc.text(splitVal, 14, y);
+        y += (splitVal.length * 4.5) + 4;
       }
-      const splitVal = doc.splitTextToSize(textToShow, 182);
-      doc.text(splitVal, 14, y);
-      y += (splitVal.length * 4.5) + 4;
+      y += 2;
     } else if (block.type === 'file_upload') {
-      const files = Array.isArray(ans?.value) ? ans.value : [];
+      const files = block.files || [];
       if (files.length > 0) {
         files.forEach((f: any) => {
           if (y > 270) {
             doc.addPage();
-            drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+            drawPDFHeader(
+              doc,
+              'Relatório Oficial de Validação',
+              reportData.publication.code,
+              reportData.publication.version,
+              reportData.publication.company
+            );
             y = 50;
           }
           doc.text(`Anexo: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`, 14, y);
@@ -719,10 +1125,11 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
         y += 6;
       }
     } else if (block.type === 'acknowledgement') {
-      const isConfirmed = ans?.value === true || ans?.value === 'true';
+      const isConfirmed = !!block.confirmed;
       doc.setFont('Helvetica', 'bold');
       doc.setTextColor(isConfirmed ? 16 : 220, isConfirmed ? 185 : 38, isConfirmed ? 129 : 38);
-      doc.text(isConfirmed ? '[X] DECLARAÇÃO CONFIRMADA' : '[ ] DECLARAÇÃO NÃO CONFIRMADA', 14, y);
+      doc.text(isConfirmed ? '[X] TERMO ACEITO E ASSINADO DIGITALMENTE' : '[ ] DECLARAÇÃO NÃO CONFIRMADA', 14, y);
+      doc.setTextColor(30, 41, 59); // Reset
       y += 5;
       
       doc.setFont('Helvetica', 'normal');
@@ -730,31 +1137,54 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
       const declLines = doc.splitTextToSize(block.declarationText || '', 182);
       doc.text(declLines, 14, y);
       y += (declLines.length * 4.5) + 4;
+
+      if (isConfirmed) {
+        doc.setFont('Helvetica', 'oblique');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        const signText = `Assinado por ${reportData.respondent.name} (${reportData.respondent.role}) em ${
+          reportData.publication.validatedAt ? new Date(reportData.publication.validatedAt).toLocaleString('pt-BR') : 'N/A'
+        } - Protocolo: ${reportData.publication.protocol}`;
+        doc.text(signText, 14, y);
+        y += 6;
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(9.5);
+      }
     } else if (block.type === 'approval_decision') {
-      const decisionVal = ans?.value?.text || 'Sem resposta';
-      const commentVal = ans?.value?.comment;
+      const decState = block.decision;
+      const decisionVal = decState?.text || 'Sem resposta';
+      const commentVal = decState?.comment || '';
       
       doc.setFont('Helvetica', 'bold');
-      doc.text(`Decisão Selecionada: ${decisionVal}`, 14, y);
+      if (decState?.semanticType === 'positive') doc.setTextColor(16, 185, 129);
+      else if (decState?.semanticType === 'attention') doc.setTextColor(245, 158, 11);
+      else if (decState?.semanticType === 'negative') doc.setTextColor(239, 68, 68);
+      else doc.setTextColor(100, 116, 139);
+
+      doc.text(`Decisão Selecionada: ${decisionVal.toUpperCase()}`, 14, y);
+      doc.setTextColor(30, 41, 59); // Reset
       y += 5;
       
-      if (commentVal) {
-        doc.setFont('Helvetica', 'normal');
-        doc.setTextColor(100, 116, 139);
-        const commentLines = doc.splitTextToSize(`Justificativa/Comentários: ${commentVal}`, 182);
-        doc.text(commentLines, 14, y);
-        y += (commentLines.length * 4.5) + 4;
-      } else {
-        y += 2;
-      }
+      doc.setFont('Helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      const commentText = commentVal ? `Justificativa/Comentários: ${commentVal}` : 'Não foram registradas observações.';
+      const commentLines = doc.splitTextToSize(commentText, 182);
+      doc.text(commentLines, 14, y);
+      y += (commentLines.length * 4.5) + 4;
     }
     y += 2;
   });
-
+ 
   // Section: RASTREABILIDADE DE ARQUIVOS (SHA-256)
   if (y > 220) {
     doc.addPage();
-    drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+    drawPDFHeader(
+      doc,
+      'Relatório Oficial de Validação',
+      reportData.publication.code,
+      reportData.publication.version,
+      reportData.publication.company
+    );
     y = 50;
   }
   
@@ -768,7 +1198,7 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   doc.setDrawColor(13, 133, 122);
   doc.line(14, y + 2, 196, y + 2);
   y += 8;
-
+ 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(100, 116, 139);
@@ -778,19 +1208,25 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   y += 4;
   doc.line(14, y, 196, y);
   y += 5;
-
+ 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(30, 41, 59);
-
+ 
   let hasArchivedFiles = false;
-
+ 
   // List company materials
-  const materialsList = pub.snapshot?.materials || [];
+  const materialsList = reportData.materials;
   materialsList.forEach((m: any) => {
     if (y > 270) {
       doc.addPage();
-      drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+      drawPDFHeader(
+        doc,
+        'Relatório Oficial de Validação',
+        reportData.publication.code,
+        reportData.publication.version,
+        reportData.publication.company
+      );
       y = 50;
     }
     const nameSplit = doc.splitTextToSize(m.fileName || m.name, 90);
@@ -802,16 +1238,21 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
     y += (nameSplit.length * 4) + 1;
     hasArchivedFiles = true;
   });
-
+ 
   // List client uploads
-  blocks.forEach((block: any) => {
+  reportData.blocks.forEach((block: any) => {
     if (block.type === 'file_upload') {
-      const ans = resp.answers?.find((a: any) => a.blockId === block.id);
-      const files = Array.isArray(ans?.value) ? ans.value : [];
+      const files = block.files || [];
       files.forEach((f: any) => {
         if (y > 270) {
           doc.addPage();
-          drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+          drawPDFHeader(
+            doc,
+            'Relatório Oficial de Validação',
+            reportData.publication.code,
+            reportData.publication.version,
+            reportData.publication.company
+          );
           y = 50;
         }
         const nameSplit = doc.splitTextToSize(f.name, 90);
@@ -825,19 +1266,25 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
       });
     }
   });
-
+ 
   if (!hasArchivedFiles) {
     doc.text('Nenhum arquivo enviado para análise nesta publicação.', 16, y);
     y += 6;
   }
-
+ 
   // Section: ASSINATURA DIGITAL DO RELATÓRIO
   if (y > 240) {
     doc.addPage();
-    drawPDFHeader(doc, 'Relatório Oficial de Validação', pub.publication_code, pub.version, pub.organization || '');
+    drawPDFHeader(
+      doc,
+      'Relatório Oficial de Validação',
+      reportData.publication.code,
+      reportData.publication.version,
+      reportData.publication.company
+    );
     y = 50;
   }
-
+ 
   y += 6;
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(11);
@@ -847,7 +1294,7 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   doc.setDrawColor(13, 133, 122);
   doc.line(14, y + 2, 196, y + 2);
   y += 8;
-
+ 
   const currentPdfHash = pdfHashOverride || resp.pdf_hash;
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8.5);
@@ -859,7 +1306,7 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   doc.setTextColor(30, 41, 59);
   doc.text(currentPdfHash || 'PENDENTE DE ASSINATURA', 72, y);
   y += 6;
-
+ 
   // Draw Page Number Footers
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
@@ -874,7 +1321,7 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
     doc.text(textLeft, 14, 285);
     doc.text(textRight, 196 - doc.getTextWidth(textRight), 285);
   }
-
+ 
   return doc;
 }
 
