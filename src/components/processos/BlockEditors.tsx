@@ -125,7 +125,7 @@ export function TextAnswerBlockEditor({ block, onChange }: EditorProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor={`placeholder-${block.id}`} className="text-[11px] font-semibold text-slate-500">
-              Texto de Exemplo / Placeholder (opcional)
+              Exemplo de preenchimento (opcional)
             </Label>
             <Input
               id={`placeholder-${block.id}`}
@@ -951,76 +951,144 @@ export function RequestInfoBlockEditor({ block, onChange }: EditorProps) {
         </Label>
         
         <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-          {fields.map((field) => (
-            <div key={field.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-700">{field.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-450 uppercase font-bold">Ativo</span>
-                  <input
-                    type="checkbox"
-                    checked={field.enabled}
-                    disabled={field.key === 'title'}
-                    onChange={(e) => handleFieldChange(field.id, { enabled: e.target.checked })}
-                    className="cursor-pointer"
-                  />
-                </div>
-              </div>
+          {fields.map((field) => {
+            let pSettings = {
+              placeholder: 'Ex: Digite aqui...',
+              helperText: 'Ex: Adicione orientações de preenchimento.'
+            };
+            switch (field.key) {
+              case 'client':
+                pSettings = {
+                  placeholder: 'Ex: Volkswagen do Brasil',
+                  helperText: 'Ex: Informe o nome da empresa ou organização que realizará a validação.'
+                };
+                break;
+              case 'project':
+                pSettings = {
+                  placeholder: 'Ex: Rack Hyundai BC4B',
+                  helperText: 'Ex: Informe o nome ou identificação principal do projeto.'
+                };
+                break;
+              case 'code':
+                pSettings = {
+                  placeholder: 'Ex: 407-034368-26',
+                  helperText: 'Ex: Informe o código interno, número do pedido ou referência aplicável.'
+                };
+                break;
+              case 'revision':
+                pSettings = {
+                  placeholder: 'Ex: 03',
+                  helperText: 'Ex: Informe exatamente a revisão dos documentos enviados para análise.'
+                };
+                break;
+              case 'responsible_internal':
+                pSettings = {
+                  placeholder: 'Ex: Airon Denis Otaviano',
+                  helperText: 'Ex: Informe o nome do responsável interno pela solicitação.'
+                };
+                break;
+              case 'deadline':
+                pSettings = {
+                  placeholder: 'Ex: 30/07/2026',
+                  helperText: 'Ex: Informe a data limite para a conclusão da análise.'
+                };
+                break;
+              case 'description':
+                pSettings = {
+                  placeholder: 'Ex: Informe o objetivo desta solicitação de aprovação.',
+                  helperText: 'Ex: Descreva resumidamente o objetivo ou escopo desta validação.'
+                };
+                break;
+              case 'notes_for_client':
+                pSettings = {
+                  placeholder: 'Ex: Adicione orientações importantes para o cliente.',
+                  helperText: 'Ex: Adicione observações ou instruções adicionais.'
+                };
+                break;
+            }
 
-              {field.enabled && (
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
-                  <div className="col-span-2 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Rótulo (Label)</label>
-                    <Input
-                      type="text"
-                      value={field.label}
-                      onChange={(e) => handleFieldChange(field.id, { label: e.target.value })}
-                      className="h-8 text-xs bg-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Placeholder</label>
-                    <Input
-                      type="text"
-                      value={field.placeholder || ''}
-                      onChange={(e) => handleFieldChange(field.id, { placeholder: e.target.value })}
-                      className="h-8 text-xs bg-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Helper Text</label>
-                    <Input
-                      type="text"
-                      value={field.helperText || ''}
-                      onChange={(e) => handleFieldChange(field.id, { helperText: e.target.value })}
-                      className="h-8 text-xs bg-white"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 select-none">
+            return (
+              <div key={field.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700">{field.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-450 uppercase font-bold">Ativo</span>
                     <input
                       type="checkbox"
-                      id={`req-${field.id}`}
-                      checked={field.required}
+                      checked={field.enabled}
                       disabled={field.key === 'title'}
-                      onChange={(e) => handleFieldChange(field.id, { required: e.target.checked })}
+                      onChange={(e) => handleFieldChange(field.id, { enabled: e.target.checked })}
                       className="cursor-pointer"
                     />
-                    <label htmlFor={`req-${field.id}`} className="text-[10px] font-bold text-slate-550 uppercase cursor-pointer">Obrigatório</label>
-                  </div>
-                  <div className="flex items-center gap-2 select-none">
-                    <input
-                      type="checkbox"
-                      id={`vis-${field.id}`}
-                      checked={field.visibleToClient}
-                      onChange={(e) => handleFieldChange(field.id, { visibleToClient: e.target.checked })}
-                      className="cursor-pointer"
-                    />
-                    <label htmlFor={`vis-${field.id}`} className="text-[10px] font-bold text-slate-550 uppercase cursor-pointer">Visível ao cliente</label>
                   </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {field.enabled && (
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                    <div className="col-span-2 space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Nome do campo</label>
+                      <Input
+                        type="text"
+                        value={field.label}
+                        onChange={(e) => handleFieldChange(field.id, { label: e.target.value })}
+                        className="h-8 text-xs bg-white"
+                      />
+                      <span className="block text-[9px] text-slate-400 font-normal leading-tight">
+                        Texto que identifica esta informação para a empresa e para o cliente.
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Exemplo de preenchimento</label>
+                      <Input
+                        type="text"
+                        value={field.placeholder || ''}
+                        onChange={(e) => handleFieldChange(field.id, { placeholder: e.target.value })}
+                        placeholder={pSettings.placeholder}
+                        className="h-8 text-xs bg-white"
+                      />
+                      <span className="block text-[9px] text-slate-400 font-normal leading-tight">
+                        Exemplo exibido dentro do campo antes do preenchimento.
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Texto de orientação</label>
+                      <Input
+                        type="text"
+                        value={field.helperText || ''}
+                        onChange={(e) => handleFieldChange(field.id, { helperText: e.target.value })}
+                        placeholder={pSettings.helperText}
+                        className="h-8 text-xs bg-white"
+                      />
+                      <span className="block text-[9px] text-slate-400 font-normal leading-tight">
+                        Informação complementar exibida para ajudar no preenchimento.
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 select-none">
+                      <input
+                        type="checkbox"
+                        id={`req-${field.id}`}
+                        checked={field.required}
+                        disabled={field.key === 'title'}
+                        onChange={(e) => handleFieldChange(field.id, { required: e.target.checked })}
+                        className="cursor-pointer"
+                      />
+                      <label htmlFor={`req-${field.id}`} className="text-[10px] font-bold text-slate-550 uppercase cursor-pointer">Obrigatório</label>
+                    </div>
+                    <div className="flex items-center gap-2 select-none">
+                      <input
+                        type="checkbox"
+                        id={`vis-${field.id}`}
+                        checked={field.visibleToClient}
+                        onChange={(e) => handleFieldChange(field.id, { visibleToClient: e.target.checked })}
+                        className="cursor-pointer"
+                      />
+                      <label htmlFor={`vis-${field.id}`} className="text-[10px] font-bold text-slate-550 uppercase cursor-pointer">Visível ao cliente</label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
