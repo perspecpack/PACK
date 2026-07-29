@@ -45,11 +45,12 @@ export default function DeleteBlockDialog({ isOpen, onClose, onConfirm }: Delete
           </Button>
           <Button
             type="button"
+            variant="destructive"
             onClick={() => {
               onConfirm();
               onClose();
             }}
-            className="bg-red-650 hover:bg-red-750 text-white font-semibold h-9 px-4 text-xs rounded-xl cursor-pointer border-0 shadow-xs"
+            className="h-9 px-4 text-xs rounded-xl font-semibold cursor-pointer shadow-xs"
           >
             Excluir Bloco
           </Button>

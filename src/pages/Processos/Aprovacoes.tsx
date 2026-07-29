@@ -718,7 +718,8 @@ export default function Aprovacoes() {
                   <>
                     <Button
                       onClick={() => handleRevoke(selectedPub.id)}
-                      className="bg-red-500 hover:bg-red-650 text-white font-bold h-9 px-4 rounded-xl cursor-pointer border-0 text-xs shadow-xs"
+                      variant="destructive"
+                      className="font-bold h-9 px-4 rounded-xl cursor-pointer shadow-xs text-xs"
                     >
                       Revogar Link
                     </Button>
