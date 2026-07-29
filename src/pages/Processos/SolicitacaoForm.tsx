@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -78,6 +78,68 @@ export default function SolicitacaoForm() {
   const [uploadingMaterial, setUploadingMaterial] = useState(false);
 
   const isReadOnly = requestStatus === 'published' || requestStatus === 'validated' || requestStatus === 'revoked';
+
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [previewStep, setPreviewStep] = useState<number>(1);
+
+  const pendingFields = useMemo(() => {
+    let missing: string[] = [];
+    if (!title.trim()) {
+      missing.push('Título da solicitação');
+    }
+    const reqInfoBlock = blocks.find(b => b.type === 'request_information');
+    if (reqInfoBlock) {
+      (reqInfoBlock.fields || []).filter(f => f.enabled && f.required).forEach(field => {
+        if (field.key === 'title' && !title.trim()) missing.push(field.label);
+        else if (field.key === 'client' && !client.trim()) missing.push(field.label);
+        else if (field.key === 'project' && !project.trim()) missing.push(field.label);
+        else if (field.key === 'code' && !code.trim()) missing.push(field.label);
+        else if (field.key === 'revision' && !revision.trim()) missing.push(field.label);
+        else if (field.key === 'responsible_internal' && !responsibleInternal.trim()) missing.push(field.label);
+        else if (field.key === 'deadline' && !deadline.trim()) missing.push(field.label);
+        else if (field.key === 'description' && !description.trim()) missing.push(field.label);
+        else if (field.key === 'notes_for_client' && !notesForClient.trim()) missing.push(field.label);
+      });
+    } else {
+      if (!client.trim()) missing.push('Cliente');
+      if (!project.trim()) missing.push('Projeto');
+    }
+
+    for (const block of blocks) {
+      if (block.type === 'request_information' || block.type === 'analysis_materials') continue;
+      if (block.required && (block.filledBy === 'company' || block.filledBy === 'both')) {
+        if (block.value === undefined || block.value === null || String(block.value).trim() === '') {
+          missing.push(`Bloco obrigatório: "${block.title}"`);
+        }
+      }
+    }
+
+    const matBlock = blocks.find(b => b.type === 'analysis_materials');
+    if (matBlock) {
+      const minFiles = matBlock.minFiles ?? 0;
+      if (materials.length < minFiles) {
+        missing.push(`Mínimo de materiais (${minFiles} anexos necessários)`);
+      }
+    }
+
+    return missing;
+  }, [title, client, project, code, revision, responsibleInternal, deadline, description, notesForClient, blocks, materials]);
+
+  const handleScrollToFirstError = () => {
+    if (pendingFields.length > 0) {
+      toast.error(`Campos pendentes obrigatórios: ${pendingFields.join(', ')}`);
+    }
+
+    const inputs = document.querySelectorAll('input, textarea');
+    for (let i = 0; i < inputs.length; i++) {
+      const input = inputs[i] as HTMLInputElement | HTMLTextAreaElement;
+      if (input.required && !input.value.trim()) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input.focus();
+        break;
+      }
+    }
+  };
 
   // Load template or request data
   useEffect(() => {
@@ -497,63 +559,88 @@ export default function SolicitacaoForm() {
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/app/aprovacoes')}
-            className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+      {/* Preview Mode Banner */}
+      {isPreviewMode ? (
+        <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 text-teal-800 text-xs">
+            <div className="h-8 w-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 shrink-0">
+              <Send className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-bold text-slate-800">Modo de Pré-visualização</p>
+              <p className="text-slate-500">Esta é a visualização exata do formulário que o cliente receberá para validação.</p>
+            </div>
+          </div>
+          <Button
+            onClick={() => {
+              setIsPreviewMode(false);
+              setPreviewStep(1);
+            }}
+            className="bg-teal-650 hover:bg-teal-750 text-white text-xs font-bold h-9 px-4 rounded-xl cursor-pointer"
           >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">
-              {id ? 'Preparar Aprovação' : 'Nova Aprovação'}
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Baseada no modelo: <strong className="text-slate-700">{templateName}</strong>
-            </p>
+            Voltar para Preparação
+          </Button>
+        </div>
+      ) : (
+        /* Normal Header */
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/app/aprovacoes')}
+              className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+                {id ? 'Preparar Aprovação' : 'Nova Aprovação'}
+              </h1>
+              <p className="text-xs text-slate-500 mt-1">
+                Baseada no modelo: <strong className="text-slate-700">{templateName}</strong>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Status Badge */}
+            {id && (
+              <div className="mr-2">
+                {requestStatus === 'draft' && <Badge className="bg-slate-100 text-slate-700">Rascunho</Badge>}
+                {requestStatus === 'ready' && <Badge className="bg-teal-50 text-teal-700 border-teal-200">Pronta para publicar</Badge>}
+                {requestStatus === 'published' && <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">Publicada</Badge>}
+                {requestStatus === 'validated' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Validada</Badge>}
+                {requestStatus === 'revoked' && <Badge className="bg-red-50 text-red-700 border-red-200">Revogada</Badge>}
+              </div>
+            )}
+
+            {!isReadOnly && (
+              <>
+                <Button
+                  onClick={() => handleSave('draft')}
+                  disabled={saving}
+                  className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 h-9 px-4 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Salvar Rascunho
+                </Button>
+                <Button
+                  onClick={handlePublish}
+                  disabled={saving}
+                  className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 h-9 px-5 text-xs font-bold rounded-xl border-0 cursor-pointer flex items-center gap-1.5 shadow-sm shadow-[#00F59B]/20"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Publicar Agora
+                </Button>
+              </>
+            )}
           </div>
         </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Status Badge */}
-          {id && (
-            <div className="mr-2">
-              {requestStatus === 'draft' && <Badge className="bg-slate-100 text-slate-700">Rascunho</Badge>}
-              {requestStatus === 'ready' && <Badge className="bg-teal-50 text-teal-700 border-teal-200">Pronta para publicar</Badge>}
-              {requestStatus === 'published' && <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">Publicada</Badge>}
-              {requestStatus === 'validated' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Validada</Badge>}
-              {requestStatus === 'revoked' && <Badge className="bg-red-50 text-red-700 border-red-200">Revogada</Badge>}
-            </div>
-          )}
-
-          {!isReadOnly && (
-            <>
-              <Button
-                onClick={() => handleSave('draft')}
-                disabled={saving}
-                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 h-9 px-4 text-xs font-bold rounded-xl cursor-pointer"
-              >
-                Salvar Rascunho
-              </Button>
-              <Button
-                onClick={handlePublish}
-                disabled={saving}
-                className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 h-9 px-5 text-xs font-bold rounded-xl border-0 cursor-pointer flex items-center gap-1.5 shadow-sm shadow-[#00F59B]/20"
-              >
-                <Send className="w-3.5 h-3.5" />
-                Publicar Agora
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Integrated Unified Document Renderer */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
         <ApprovalDocumentRenderer
-          mode={isReadOnly ? 'read-only-result' : 'approval-preparation'}
+          mode={isPreviewMode ? 'public-validation' : (isReadOnly ? 'read-only-result' : 'approval-preparation')}
+          step={isPreviewMode ? previewStep : 1}
           companyBranding={companyBranding}
           documentData={documentData}
           blocks={blocks}
@@ -576,6 +663,34 @@ export default function SolicitacaoForm() {
           onAnswerChange={handleBlockValueChange}
           onAddMaterial={uploadMaterial}
           onRemoveMaterial={handleRemoveMaterial}
+          
+          // Conclusion parameters for preparation mode
+          onSaveDraft={() => handleSave('draft')}
+          onPublish={handlePublish}
+          pendingFields={pendingFields}
+          submitting={saving}
+          
+          // Navigation controls inside preview mode
+          onGoToReview={() => {
+            if (isPreviewMode) {
+              setPreviewStep(2);
+            } else {
+              setIsPreviewMode(true);
+              setPreviewStep(1);
+            }
+          }}
+          onGoBack={() => {
+            if (isPreviewMode) {
+              if (previewStep === 2) setPreviewStep(1);
+            } else {
+              handleScrollToFirstError();
+            }
+          }}
+          onSubmitResponse={() => {
+            if (isPreviewMode) {
+              toast.info('Esta é uma pré-visualização offline. Os dados não serão enviados ao servidor.');
+            }
+          }}
         />
       </div>
     </div>

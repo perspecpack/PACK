@@ -125,6 +125,9 @@ interface ApprovalDocumentRendererProps {
   handleDownloadPDF?: () => void;
   pdfReportBlob?: Blob | null;
   zipApprovalBlob?: Blob | null;
+  onSaveDraft?: () => void;
+  onPublish?: () => void;
+  pendingFields?: string[];
 }
 
 export default function ApprovalDocumentRenderer({
@@ -163,7 +166,10 @@ export default function ApprovalDocumentRenderer({
   onGoBack,
   handleDownloadPDF,
   pdfReportBlob = null,
-  zipApprovalBlob = null
+  zipApprovalBlob = null,
+  onSaveDraft,
+  onPublish,
+  pendingFields = []
 }: ApprovalDocumentRendererProps) {
   
   const hasRequestInfoBlock = blocks.some(b => b.type === 'request_information');
@@ -831,6 +837,102 @@ export default function ApprovalDocumentRenderer({
                 <span>Baixar Relatório PDF</span>
               </Button>
             )}
+          </div>
+        ) : mode === 'approval-preparation' ? (
+          /* AREA DE CONCLUSÃO DA PREPARAÇÃO */
+          <div className="bg-slate-50/50 border border-slate-200/80 p-6 rounded-2xl space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 tracking-tight">Finalizar preparação</h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Revise as informações preenchidas e publique quando a aprovação estiver pronta para ser enviada ao cliente.
+                </p>
+              </div>
+
+              {/* Estado de salvamento */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] font-medium text-slate-400">
+                  {submitting ? (
+                    <span className="flex items-center gap-1.5 text-teal-650 font-semibold bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-lg">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Salvando...</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-slate-500 font-semibold bg-slate-100/80 border border-slate-200/60 px-2.5 py-1 rounded-lg">
+                      <span>Alterações salvas</span>
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Resumo do estado da aprovação (Pendências) */}
+            <div className="border-t border-b border-slate-150/65 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              {(!pendingFields || pendingFields.length === 0) ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-emerald-700">Pronta para publicar</span>
+                    <span className="text-slate-450 block text-[11px] mt-0.5">Todos os campos obrigatórios foram preenchidos.</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-3">
+                  <div className="flex items-start gap-2">
+                    <div className="h-5 w-5 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-amber-700">Existem pendências</span>
+                      <span className="text-slate-455 block text-[11px] mt-0.5">Preencha os campos obrigatórios antes de publicar.</span>
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={onGoBack} // Ver pendências rolls back to first input
+                    className="text-[#0d857a] hover:text-[#0b6a62] font-bold text-xs flex items-center gap-1 cursor-pointer border-0 bg-transparent"
+                  >
+                    <span>Ver pendências</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Ações Finais */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                onClick={onSaveDraft}
+                disabled={submitting}
+                className="w-full sm:w-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 h-10 px-5 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Salvar Rascunho
+              </Button>
+              {onGoToReview && (
+                <Button
+                  type="button"
+                  onClick={onGoToReview}
+                  disabled={submitting}
+                  variant="outline"
+                  className="w-full sm:w-auto border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer h-10 px-5 text-xs font-bold rounded-xl"
+                >
+                  Rever Aprovação
+                </Button>
+              )}
+              <Button
+                type="button"
+                onClick={onPublish}
+                disabled={submitting || (pendingFields && pendingFields.length > 0)}
+                className="w-full sm:w-auto bg-[#00F59B] hover:bg-[#00D485] text-slate-900 h-10 px-6 text-xs font-bold rounded-xl border-0 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm shadow-[#00F59B]/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                title={pendingFields && pendingFields.length > 0 ? "Conclua os campos obrigatórios para publicar." : ""}
+              >
+                <span>Publicar Agora</span>
+              </Button>
+            </div>
           </div>
         ) : (
           /* PREVIEW STUB FOR EDITOR */
