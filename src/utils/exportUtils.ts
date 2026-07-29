@@ -10,6 +10,26 @@ export async function calculateSHA256(file: File | Blob): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+export const loadImage = (src: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = src;
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+  });
+};
+
+function getInitials(name: string): string {
+  if (!name) return 'PP';
+  return name
+    .split(' ')
+    .filter(n => n.length > 0)
+    .slice(0, 2)
+    .map(n => n[0].toUpperCase())
+    .join('');
+}
+
 // 1. Generate Email message
 export function generateEmailMessage(
   processName: string,
@@ -236,6 +256,7 @@ export function buildApprovalReportData(pub: any, resp: any) {
       publication: {} as any,
       respondent: {} as any,
       result: {} as any,
+      companyBranding: {} as any,
       blocks: [] as any[],
       materials: [] as any[],
       attachments: [] as any[],
@@ -268,6 +289,18 @@ export function buildApprovalReportData(pub: any, resp: any) {
     protocol: resp?.protocol || 'N/A',
     validatedAt: resp?.submitted_at || resp?.validated_at || null,
     status: pub.status
+  };
+
+  // 2b. Company Branding
+  const companyBranding = {
+    companyName: snapshot.company_name || snapshot.companyName || pub.organization || 'PERSPECPACK',
+    tradeName: snapshot.trade_name || snapshot.tradeName || snapshot.company_name || snapshot.companyName || pub.organization || 'PERSPECPACK',
+    companyLogoUrl: snapshot.company_logo_url || snapshot.companyLogoUrl || '',
+    companyWebsite: snapshot.company_website || snapshot.companyWebsite || '',
+    corporateEmail: snapshot.corporate_email || snapshot.corporateEmail || '',
+    phone: snapshot.phone || snapshot.phone || '',
+    shortDescription: snapshot.short_description || snapshot.shortDescription || '',
+    footerText: snapshot.footer_text || snapshot.footerText || ''
   };
 
   // 3. Result (decision)
@@ -527,6 +560,7 @@ export function buildApprovalReportData(pub: any, resp: any) {
     publication,
     respondent,
     result,
+    companyBranding,
     blocks: normalizedBlocks,
     materials: rawMaterials,
     attachments,
@@ -839,8 +873,115 @@ export function generatePDFForm(pub: any): void {
   doc.save(`Formulario-${pub.publication_code}.pdf`);
 }
 
+
+function drawInitialsFallback(doc: jsPDF, companyName: string) {
+  const initials = getInitials(companyName);
+  doc.setFillColor(13, 133, 122); // teal
+  doc.roundedRect(14, 12, 10, 10, 2, 2, 'F');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.text(initials, 19 - doc.getTextWidth(initials) / 2, 18.5);
+}
+
+function drawOfficialPDFHeader(doc: jsPDF, reportData: any, logoImg: HTMLImageElement | null) {
+  let yText = 15;
+  const companyName = reportData.companyBranding.companyName;
+  const tradeName = reportData.companyBranding.tradeName || companyName;
+  
+  if (logoImg) {
+    try {
+      doc.addImage(logoImg, 'PNG', 14, 12, 35, 10, undefined, 'FAST');
+      yText = 27;
+    } catch (e) {
+      console.error('Error rendering company logo in PDF header:', e);
+      drawInitialsFallback(doc, companyName);
+      yText = 27;
+    }
+  } else {
+    drawInitialsFallback(doc, companyName);
+    yText = 27;
+  }
+
+  // Draw tradeName / companyName
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(30, 41, 59);
+  doc.text(tradeName, 14, yText);
+
+  // Draw shortDescription
+  if (reportData.companyBranding.shortDescription) {
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    const descLines = doc.splitTextToSize(reportData.companyBranding.shortDescription, 95);
+    doc.text(descLines, 14, yText + 3.5);
+  }
+
+  // LADO DIREITO: Relatório Oficial, Código, Versão, Protocolo, Data
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(11.5);
+  doc.setTextColor(13, 133, 122);
+  doc.text('Relatório Oficial de Validação', 196, 16, { align: 'right' });
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  
+  const pubCodeVersion = `${reportData.publication.code} — Versão ${String(reportData.publication.version).padStart(2, '0')}`;
+  doc.text(pubCodeVersion, 196, 21, { align: 'right' });
+  doc.text(`Protocolo: ${reportData.publication.protocol}`, 196, 25, { align: 'right' });
+  
+  const validatedAtStr = reportData.publication.validatedAt
+    ? new Date(reportData.publication.validatedAt).toLocaleString('pt-BR')
+    : 'N/A';
+  doc.text(`Validado em: ${validatedAtStr}`, 196, 29, { align: 'right' });
+
+  // Divider Line
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.line(14, 38, 196, 38);
+}
+
+function drawOfficialPDFHeaderCompact(doc: jsPDF, reportData: any, logoImg: HTMLImageElement | null) {
+  const companyName = reportData.companyBranding.companyName;
+  const tradeName = reportData.companyBranding.tradeName || companyName;
+
+  if (logoImg) {
+    try {
+      doc.addImage(logoImg, 'PNG', 14, 10, 15, 4.3, undefined, 'FAST');
+    } catch (e) {
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(30, 41, 59);
+      doc.text(tradeName.toUpperCase(), 14, 13.5);
+    }
+  } else {
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    doc.text(tradeName.toUpperCase(), 14, 13.5);
+  }
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  const textRight = `Relatório de Validação | ${reportData.publication.code} - Versão ${String(reportData.publication.version).padStart(2, '0')}`;
+  doc.text(textRight, 196, 13.5, { align: 'right' });
+
+  // Divider Line
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.line(14, 17, 196, 17);
+}
+
 // Helper to construct the official validation PDF document
-export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPDF {
+export function buildPDFDoc(
+  pub: any,
+  resp: any,
+  pdfHashOverride?: string,
+  logoImg: HTMLImageElement | null = null
+): jsPDF {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -848,15 +989,9 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   });
   
   const reportData = buildApprovalReportData(pub, resp);
-  let y = 52;
+  let y = 44;
   
-  drawPDFHeader(
-    doc,
-    'Relatório Oficial de Validação',
-    reportData.publication.code,
-    reportData.publication.version,
-    reportData.publication.company
-  );
+  drawOfficialPDFHeader(doc, reportData, logoImg);
   
   // Meta Details Box
   doc.setDrawColor(226, 232, 240);
@@ -938,14 +1073,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   reportData.blocks.forEach((block: any) => {
     if (y > 250) {
       doc.addPage();
-      drawPDFHeader(
-        doc,
-        'Relatório Oficial de Validação',
-        reportData.publication.code,
-        reportData.publication.version,
-        reportData.publication.company
-      );
-      y = 50;
+      drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+      y = 25;
     }
  
     const displayTitle = (block.title && block.title.trim()) || (BLOCK_METADATA[block.type as any] as any)?.title || 'Informativo';
@@ -991,14 +1120,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
           if (val) {
             if (y > 270) {
               doc.addPage();
-              drawPDFHeader(
-                doc,
-                'Relatório Oficial de Validação',
-                reportData.publication.code,
-                reportData.publication.version,
-                reportData.publication.company
-              );
-              y = 50;
+              drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+              y = 25;
             }
             doc.setFont('Helvetica', 'bold');
             doc.text(`${field.label}:`, 18, y);
@@ -1019,14 +1142,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
         materialsList.forEach((m: any) => {
           if (y > 270) {
             doc.addPage();
-            drawPDFHeader(
-              doc,
-              'Relatório Oficial de Validação',
-              reportData.publication.code,
-              reportData.publication.version,
-              reportData.publication.company
-            );
-            y = 50;
+            drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+            y = 25;
           }
           const info = `${m.name} [${m.category}] ${m.revision ? `(Rev ${m.revision})` : ''} - ${m.fileName}`;
           const splitInfo = doc.splitTextToSize(info, 175);
@@ -1054,14 +1171,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
         options.forEach((opt: any) => {
           if (y > 270) {
             doc.addPage();
-            drawPDFHeader(
-              doc,
-              'Relatório Oficial de Validação',
-              reportData.publication.code,
-              reportData.publication.version,
-              reportData.publication.company
-            );
-            y = 50;
+            drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+            y = 25;
           }
           
           let isSelected = false;
@@ -1079,14 +1190,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
         if (block.allowOther) {
           if (y > 270) {
             doc.addPage();
-            drawPDFHeader(
-              doc,
-              'Relatório Oficial de Validação',
-              reportData.publication.code,
-              reportData.publication.version,
-              reportData.publication.company
-            );
-            y = 50;
+            drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+            y = 25;
           }
           const otherSelected = !!block.value?.otherSelected;
           const otherText = block.value?.otherText || '';
@@ -1107,14 +1212,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
         files.forEach((f: any) => {
           if (y > 270) {
             doc.addPage();
-            drawPDFHeader(
-              doc,
-              'Relatório Oficial de Validação',
-              reportData.publication.code,
-              reportData.publication.version,
-              reportData.publication.company
-            );
-            y = 50;
+            drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+            y = 25;
           }
           doc.text(`Anexo: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`, 14, y);
           y += 5;
@@ -1178,14 +1277,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   // Section: RASTREABILIDADE DE ARQUIVOS (SHA-256)
   if (y > 220) {
     doc.addPage();
-    drawPDFHeader(
-      doc,
-      'Relatório Oficial de Validação',
-      reportData.publication.code,
-      reportData.publication.version,
-      reportData.publication.company
-    );
-    y = 50;
+    drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+    y = 25;
   }
   
   y += 4;
@@ -1220,14 +1313,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   materialsList.forEach((m: any) => {
     if (y > 270) {
       doc.addPage();
-      drawPDFHeader(
-        doc,
-        'Relatório Oficial de Validação',
-        reportData.publication.code,
-        reportData.publication.version,
-        reportData.publication.company
-      );
-      y = 50;
+      drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+      y = 25;
     }
     const nameSplit = doc.splitTextToSize(m.fileName || m.name, 90);
     doc.text(nameSplit, 16, y);
@@ -1246,14 +1333,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
       files.forEach((f: any) => {
         if (y > 270) {
           doc.addPage();
-          drawPDFHeader(
-            doc,
-            'Relatório Oficial de Validação',
-            reportData.publication.code,
-            reportData.publication.version,
-            reportData.publication.company
-          );
-          y = 50;
+          drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+          y = 25;
         }
         const nameSplit = doc.splitTextToSize(f.name, 90);
         doc.text(nameSplit, 16, y);
@@ -1275,14 +1356,8 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   // Section: ASSINATURA DIGITAL DO RELATÓRIO
   if (y > 240) {
     doc.addPage();
-    drawPDFHeader(
-      doc,
-      'Relatório Oficial de Validação',
-      reportData.publication.code,
-      reportData.publication.version,
-      reportData.publication.company
-    );
-    y = 50;
+    drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+    y = 25;
   }
  
   y += 6;
@@ -1312,11 +1387,17 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFont('Helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184); // slate-400
     
-    const textLeft = 'PERSPECPACK - Documento Oficial de Validação';
-    const textRight = `Página ${i} de ${pageCount}`;
+    // Line above footer
+    doc.setDrawColor(241, 245, 249);
+    doc.setLineWidth(0.3);
+    doc.line(14, 280, 196, 280);
+
+    const companyText = reportData.companyBranding.tradeName || reportData.companyBranding.companyName;
+    const textLeft = `${companyText} • ${reportData.publication.code} • Página ${i} de ${pageCount}`;
+    const textRight = 'Validação digital processada pelo PERSPECPACK';
     
     doc.text(textLeft, 14, 285);
     doc.text(textRight, 196 - doc.getTextWidth(textRight), 285);
@@ -1326,37 +1407,59 @@ export function buildPDFDoc(pub: any, resp: any, pdfHashOverride?: string): jsPD
 }
 
 // 5. Generate PDF Report (With Answers)
-export function generatePDFReport(pub: any, resp: any): void {
+export async function generatePDFReport(pub: any, resp: any): Promise<void> {
+  const reportData = buildApprovalReportData(pub, resp);
+  const logoUrl = reportData.companyBranding.companyLogoUrl;
+  let logoImg: HTMLImageElement | null = null;
+  if (logoUrl) {
+    try {
+      logoImg = await loadImage(logoUrl);
+    } catch (e) {
+      console.error('Failed to load logo image:', e);
+    }
+  }
+
   // First pass: build without final self-referential hash
-  const docFirst = buildPDFDoc(pub, resp);
-  const pdfBlob = docFirst.output('blob');
+  const docFirst = buildPDFDoc(pub, resp, undefined, logoImg);
   
   // Calculate SHA-256 hash of this PDF structure
   const arrayBuffer = docFirst.output('arraybuffer');
-  crypto.subtle.digest('SHA-256', arrayBuffer).then((hashBuffer) => {
+  try {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const pdfHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
     // Second pass: draw the hash on the final PDF
-    const docFinal = buildPDFDoc(pub, resp, pdfHash);
+    const docFinal = buildPDFDoc(pub, resp, pdfHash, logoImg);
     docFinal.save(`Relatorio-${pub.publication_code}.pdf`);
-  }).catch((err) => {
+  } catch (err) {
     console.error('Error generating PDF hash, saving unhashed version:', err);
     docFirst.save(`Relatorio-${pub.publication_code}.pdf`);
-  });
+  }
 }
 
 // Generate PDF Report Blob and Hash
 export async function generatePDFReportBlobAndHash(pub: any, resp: any): Promise<{ blob: Blob, hash: string }> {
+  const reportData = buildApprovalReportData(pub, resp);
+  const logoUrl = reportData.companyBranding.companyLogoUrl;
+  let logoImg: HTMLImageElement | null = null;
+  if (logoUrl) {
+    try {
+      logoImg = await loadImage(logoUrl);
+    } catch (e) {
+      console.error('Failed to load logo image:', e);
+    }
+  }
+
   // First pass
-  const docFirst = buildPDFDoc(pub, resp);
+  const docFirst = buildPDFDoc(pub, resp, undefined, logoImg);
   const arrayBuffer = docFirst.output('arraybuffer');
   const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const pdfHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
   // Second pass
-  const docFinal = buildPDFDoc(pub, resp, pdfHash);
+  const docFinal = buildPDFDoc(pub, resp, pdfHash, logoImg);
   const finalBlob = docFinal.output('blob');
   return { blob: finalBlob, hash: pdfHash };
 }
