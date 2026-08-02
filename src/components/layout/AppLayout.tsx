@@ -21,11 +21,74 @@ import {
   X,
   Library,
   ClipboardCheck,
-  Building2
+  Building2,
+  LucideIcon
 } from 'lucide-react';
 import { useApp } from '@/src/context/AppContext';
 import logoImage from '@/logo.png';
 import { cn } from '@/lib/utils';
+
+// ─── Navigation Architecture ─────────────────────────────────────────────────
+//
+// Each module is a self-contained nav domain.
+// Fields are intentionally broad so this structure can be gated by plan/role
+// in the future without any structural refactoring.
+//
+export interface NavItem {
+  name: string;
+  path: string;
+  icon: LucideIcon;
+}
+
+export interface NavModule {
+  id: string;             // unique key for localStorage persistence
+  name: string;           // display label for the accordion header
+  icon: LucideIcon;       // header icon
+  order: number;          // render order
+  items: NavItem[];       // child menu items
+  minPlan?: string;       // future: 'free' | 'premium' | 'enterprise'
+  visible?: boolean;      // future: per-org or per-role visibility
+}
+
+// Standalone items (not inside any module accordion)
+export interface StandaloneNavItem extends NavItem {
+  position: 'top' | 'bottom';
+}
+
+const STANDALONE_TOP: StandaloneNavItem[] = [
+  { name: 'Visão Geral', path: '/app/visao-geral', icon: LayoutDashboard, position: 'top' },
+];
+
+const STANDALONE_BOTTOM: StandaloneNavItem[] = [
+  { name: 'Configurações', path: '/app/configuracoes', icon: Settings, position: 'bottom' },
+  { name: 'Ajuda e Suporte', path: '/app/ajuda', icon: HelpCircle, position: 'bottom' },
+];
+
+// ─── Module Definitions ───────────────────────────────────────────────────────
+// Add a new module object here to register it in the sidebar — no other changes needed.
+const NAV_MODULES: NavModule[] = [
+  {
+    id: 'formularios',
+    name: 'Formulários',
+    icon: ClipboardCheck,
+    order: 1,
+    items: [
+      { name: 'Biblioteca de Modelos',   path: '/app/modelos',    icon: Library        },
+      { name: 'Aprovações',              path: '/app/aprovacoes', icon: ClipboardCheck  },
+      { name: 'Histórico de Validações', path: '/app/validacoes', icon: History        },
+    ],
+  },
+  {
+    id: 'padroes',
+    name: 'Padrões das Organizações',
+    icon: Building2,
+    order: 2,
+    items: [
+      { name: 'Padrões das Organizações', path: '/app/padroes', icon: Building2 },
+    ],
+  },
+];
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function AppLayout() {
   const navigate = useNavigate();
@@ -42,22 +105,52 @@ export function AppLayout() {
     return saved === 'true';
   });
 
+  // ── Module Expand/Collapse State ────────────────────────────────────────────
+  // Stored as a Set of expanded module IDs, persisted in localStorage.
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('sidebar-modules-expanded');
+      if (saved) return new Set<string>(JSON.parse(saved));
+    } catch {}
+    // Default: expand all modules on first load
+    return new Set<string>(NAV_MODULES.map(m => m.id));
+  });
+
+  // Auto-expand the module that owns the current route (without collapsing others)
+  useEffect(() => {
+    const activeModule = NAV_MODULES.find(mod =>
+      mod.items.some(item => location.pathname.startsWith(item.path))
+    );
+    if (activeModule && !expandedModules.has(activeModule.id)) {
+      setExpandedModules(prev => {
+        const next = new Set(prev);
+        next.add(activeModule.id);
+        return next;
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // Persist module expand state
+  useEffect(() => {
+    localStorage.setItem('sidebar-modules-expanded', JSON.stringify([...expandedModules]));
+  }, [expandedModules]);
+
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', String(isCollapsed));
   }, [isCollapsed]);
 
-  const menuItems = [
-    { name: 'Visão Geral', path: '/app/visao-geral', icon: LayoutDashboard },
-    { name: 'Biblioteca de Modelos', path: '/app/modelos', icon: Library },
-    { name: 'Aprovações', path: '/app/aprovacoes', icon: ClipboardCheck },
-    { name: 'Padrões das Organizações', path: '/app/padroes', icon: Building2 },
-    { name: 'Histórico de Validações', path: '/app/validacoes', icon: History },
-  ];
-
-  const secondaryItems = [
-    { name: 'Configurações', path: '/app/configuracoes', icon: Settings },
-    { name: 'Ajuda e Suporte', path: '/app/ajuda', icon: HelpCircle },
-  ];
+  const toggleModule = (moduleId: string) => {
+    setExpandedModules(prev => {
+      const next = new Set(prev);
+      if (next.has(moduleId)) {
+        next.delete(moduleId);
+      } else {
+        next.add(moduleId);
+      }
+      return next;
+    });
+  };
 
   const handleLogoClick = () => {
     setSearchQuery('');
@@ -106,6 +199,118 @@ export function AppLayout() {
   const userInitials = getInitials();
   const companyLogo = (profile?.companyLogoUrl || user?.companyLogoUrl)?.trim();
 
+  // ── Shared nav item renderer ────────────────────────────────────────────────
+  const renderNavItem = (item: NavItem, isNested = false) => {
+    const isActive = item.path === '/app/visao-geral'
+      ? location.pathname === '/app/visao-geral'
+      : location.pathname.startsWith(item.path);
+
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        onClick={() => setIsMobileOpen(false)}
+        className={cn(
+          "group flex items-center gap-3.5 py-3.5 mx-3 rounded-xl transition-all duration-200 font-semibold text-[13px] select-none relative",
+          isNested && !isCollapsed ? "px-3.5 pl-8" : "px-3.5",
+          isActive
+            ? "bg-[#0c3741] text-white border border-[#00F59B]/30 shadow-md"
+            : "text-slate-400 hover:bg-[#0c3741]/20 hover:text-slate-200"
+        )}
+      >
+        <item.icon className={cn(
+          "w-5 h-5 transition-colors shrink-0",
+          isActive ? "text-[#00F59B]" : "text-slate-400 group-hover:text-slate-200"
+        )} />
+        <span className={cn(
+          "transition-opacity duration-200 whitespace-nowrap",
+          isCollapsed ? "md:opacity-0 md:w-0 md:pointer-events-none" : "opacity-100"
+        )}>
+          {item.name}
+        </span>
+
+        {/* Active dot indicator */}
+        {isActive && !isCollapsed && (
+          <div className="ml-auto w-1.5 h-1.5 bg-[#00F59B] rounded-full animate-pulse" />
+        )}
+        {/* Tooltip when sidebar is collapsed */}
+        {isCollapsed && (
+          <div className="hidden group-hover:block absolute left-16 bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md whitespace-nowrap z-50 shadow-md border border-slate-800">
+            {item.name}
+          </div>
+        )}
+      </Link>
+    );
+  };
+
+  // ── Module accordion renderer ───────────────────────────────────────────────
+  const renderModule = (mod: NavModule) => {
+    const isExpanded = expandedModules.has(mod.id);
+    const hasActiveChild = mod.items.some(item =>
+      location.pathname.startsWith(item.path)
+    );
+
+    return (
+      <div key={mod.id} className="space-y-0.5">
+        {/* Module Header — accordion trigger */}
+        <button
+          type="button"
+          onClick={() => { if (!isCollapsed) toggleModule(mod.id); }}
+          title={isCollapsed ? mod.name : undefined}
+          className={cn(
+            "group relative flex items-center gap-3 py-2 mx-3 rounded-xl transition-all duration-200 select-none text-left",
+            "font-bold text-[10.5px] uppercase tracking-widest",
+            "w-[calc(100%-24px)]",
+            isCollapsed ? "px-3 justify-center" : "px-3.5 justify-between",
+            hasActiveChild
+              ? "text-[#00F59B]"
+              : "text-slate-500 hover:text-slate-300"
+          )}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <mod.icon className={cn(
+              "w-4 h-4 shrink-0 transition-colors",
+              hasActiveChild ? "text-[#00F59B]" : "text-slate-500 group-hover:text-slate-300"
+            )} />
+            {!isCollapsed && (
+              <span className="whitespace-nowrap truncate">{mod.name}</span>
+            )}
+          </div>
+          {!isCollapsed && (
+            <ChevronDown className={cn(
+              "w-3.5 h-3.5 shrink-0 transition-transform duration-200",
+              isExpanded ? "rotate-180" : "rotate-0",
+              hasActiveChild ? "text-[#00F59B]" : "text-slate-500 group-hover:text-slate-300"
+            )} />
+          )}
+          {/* Collapsed-mode tooltip */}
+          {isCollapsed && (
+            <div className="hidden group-hover:block absolute left-16 bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md whitespace-nowrap z-50 shadow-md border border-slate-800">
+              {mod.name}
+            </div>
+          )}
+        </button>
+
+        {/* Children — CSS-only height animation (no external deps needed) */}
+        <div className={cn(
+          "overflow-hidden transition-all duration-250 ease-in-out",
+          isExpanded && !isCollapsed ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+        )}>
+          <div className="space-y-0.5 pb-1">
+            {mod.items.map(item => renderNavItem(item, true))}
+          </div>
+        </div>
+
+        {/* When sidebar is collapsed show child icons directly (no labels needed) */}
+        {isCollapsed && (
+          <div className="space-y-0.5">
+            {mod.items.map(item => renderNavItem(item, false))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC]">
       {/* Simulation Top Bar */}
@@ -130,7 +335,6 @@ export function AppLayout() {
 
       {/* Fixed Premium Header */}
       <header className="bg-[#06242c] text-white border-b border-teal-950/80 h-[76px] flex items-center justify-between px-6 lg:px-10 shrink-0 shadow-md z-20 sticky top-0">
-        {/* Hamburger Menu Button for Mobile */}
         <button
           onClick={() => setIsMobileOpen(true)}
           className="md:hidden p-2 -ml-2 mr-1 text-slate-300 hover:text-white rounded-lg focus:outline-none cursor-pointer"
@@ -138,7 +342,6 @@ export function AppLayout() {
           <Menu className="w-6 h-6" />
         </button>
 
-        {/* Left Side: Logo & Subtitle */}
         <Link to="/" className="flex items-center gap-3 shrink-0" onClick={handleLogoClick}>
           <img src={logoImage} alt="Perspecpack Logo" className="h-10 w-auto object-contain" />
           <div className="flex flex-col text-left">
@@ -152,7 +355,6 @@ export function AppLayout() {
           </div>
         </Link>
 
-        {/* Center: Global Search Bar */}
         <div className="flex-1 max-w-xl mx-8 relative hidden md:block">
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
@@ -166,7 +368,6 @@ export function AppLayout() {
           </div>
         </div>
 
-        {/* Right Side: Profile dropdown */}
         <div className="flex items-center gap-4 shrink-0" ref={dropdownRef}>
           <div className="relative">
             <button 
@@ -190,7 +391,6 @@ export function AppLayout() {
               <ChevronDown className="w-4 h-4 text-slate-400" />
             </button>
 
-            {/* Dropdown Menu */}
             {userDropdownOpen && (
               <div className="absolute right-0 mt-2.5 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-2 text-slate-700 animate-in fade-in slide-in-from-top-1 duration-150">
                 <div className="px-4 py-2 border-b border-slate-100">
@@ -265,7 +465,6 @@ export function AppLayout() {
 
       {/* Sidebar + Main Content Layout Container */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Mobile Sidebar Overlay Backdrop */}
         {isMobileOpen && (
           <div 
             className="fixed inset-0 bg-[#020d11]/60 z-40 md:hidden backdrop-blur-xs transition-opacity"
@@ -282,7 +481,7 @@ export function AppLayout() {
           )}
           style={{ top: isMobileOpen ? '0' : 'auto' }}
         >
-          {/* Mobile Sidebar Close Header */}
+          {/* Mobile Close Header */}
           <div className="flex items-center justify-between p-4 border-b border-teal-950/80 md:hidden shrink-0">
             <div className="font-sans text-[16px] tracking-wider leading-none select-none">
               <span className="font-bold text-[#c0c0c0]">PERSPEC</span>
@@ -296,95 +495,34 @@ export function AppLayout() {
             </button>
           </div>
 
-          {/* Navigation Links Group */}
-          <div className="flex-1 py-4 overflow-y-auto space-y-1">
-            {menuItems.map((item) => {
-              const isActive = item.path === '/app/visao-geral' 
-                ? location.pathname === '/app/visao-geral'
-                : location.pathname.startsWith(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsMobileOpen(false)}
-                  className={cn(
-                    "group flex items-center gap-3.5 px-3.5 py-3.5 mx-3 rounded-xl transition-all duration-200 font-semibold text-[13px] select-none relative",
-                    isActive
-                      ? "bg-[#0c3741] text-white border border-[#00F59B]/30 shadow-md"
-                      : "text-slate-400 hover:bg-[#0c3741]/20 hover:text-slate-200"
-                  )}
-                >
-                  <item.icon className={cn(
-                    "w-5 h-5 transition-colors shrink-0",
-                    isActive ? "text-[#00F59B]" : "text-slate-400 group-hover:text-slate-200"
-                  )} />
-                  <span className={cn(
-                    "transition-opacity duration-200 whitespace-nowrap",
-                    isCollapsed ? "md:opacity-0 md:w-0 md:pointer-events-none" : "opacity-100"
-                  )}>
-                    {item.name}
-                  </span>
-                  
-                  {/* Active dot indicator */}
-                  {isActive && !isCollapsed && (
-                    <div className="ml-auto w-1.5 h-1.5 bg-[#00F59B] rounded-full animate-pulse" />
-                  )}
-                  {/* Tooltip on hover when collapsed */}
-                  {isCollapsed && (
-                    <div className="hidden group-hover:block absolute left-16 bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md whitespace-nowrap z-50 shadow-md border border-slate-800">
-                      {item.name}
-                    </div>
-                  )}
-                </Link>
-              );
-            })}
+          {/* Navigation */}
+          <nav className="flex-1 py-4 overflow-y-auto space-y-1">
 
-            {/* Separator / Divider */}
+            {/* Standalone top (Visão Geral) */}
+            {STANDALONE_TOP.map(item => renderNavItem(item))}
+
+            {/* Thin divider between top items and module accordions */}
+            {!isCollapsed && (
+              <div className="px-6 pt-3 pb-1">
+                <div className="border-t border-teal-950/60" />
+              </div>
+            )}
+
+            {/* Module accordions — sorted by order, filtered by visibility */}
+            {[...NAV_MODULES]
+              .filter(mod => mod.visible !== false)
+              .sort((a, b) => a.order - b.order)
+              .map(mod => renderModule(mod))
+            }
+
+            {/* Separator before secondary bottom items */}
             <div className="px-6 py-3">
               <div className="border-t border-teal-950/80" />
             </div>
 
-            {secondaryItems.map((item) => {
-              const isActive = item.path === '/app/visao-geral' 
-                ? location.pathname === '/app/visao-geral'
-                : location.pathname.startsWith(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsMobileOpen(false)}
-                  className={cn(
-                    "group flex items-center gap-3.5 px-3.5 py-3.5 mx-3 rounded-xl transition-all duration-200 font-semibold text-[13px] select-none relative",
-                    isActive
-                      ? "bg-[#0c3741] text-white border border-[#00F59B]/30 shadow-md"
-                      : "text-slate-400 hover:bg-[#0c3741]/20 hover:text-slate-200"
-                  )}
-                >
-                  <item.icon className={cn(
-                    "w-5 h-5 transition-colors shrink-0",
-                    isActive ? "text-[#00F59B]" : "text-slate-400 group-hover:text-slate-200"
-                  )} />
-                  <span className={cn(
-                    "transition-opacity duration-200 whitespace-nowrap",
-                    isCollapsed ? "md:opacity-0 md:w-0 md:pointer-events-none" : "opacity-100"
-                  )}>
-                    {item.name}
-                  </span>
-                  
-                  {/* Active dot indicator */}
-                  {isActive && !isCollapsed && (
-                    <div className="ml-auto w-1.5 h-1.5 bg-[#00F59B] rounded-full animate-pulse" />
-                  )}
-                  {/* Tooltip on hover when collapsed */}
-                  {isCollapsed && (
-                    <div className="hidden group-hover:block absolute left-16 bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded-md whitespace-nowrap z-50 shadow-md border border-slate-800">
-                      {item.name}
-                    </div>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
+            {/* Standalone bottom (Configurações, Ajuda) */}
+            {STANDALONE_BOTTOM.map(item => renderNavItem(item))}
+          </nav>
 
           {/* Sidebar Toggle Expand/Collapse Button (Desktop/Tablet) */}
           <div className="p-4 border-t border-teal-950/80 hidden md:block shrink-0">
