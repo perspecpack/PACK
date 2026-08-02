@@ -412,7 +412,13 @@ export default function AprovacoesList() {
       
       if (submitError) throw new Error(submitError.message);
       
-      // 3. Generate PDF Report Blob and Hash (Requirement 11)
+      // 3. Register PDF generating event and generate PDF report
+      await supabase.rpc('register_validation_event', {
+        p_publication_id: activePub.id,
+        p_event_type: 'pdf_generating',
+        p_event_description: 'Gerando PDF do relatório oficial de validação.'
+      });
+
       const mockPub = {
         id: activePub.id,
         publication_code: selectedRequestForManual.publication_code || '',
@@ -461,28 +467,81 @@ export default function AprovacoesList() {
           contentType: 'application/pdf',
           upsert: true
         });
-        
+         
       if (pdfUploadError) throw pdfUploadError;
       
-      // 5. Update pdf_hash in process_manual_validations
+      // 5. Update pdf_hash in process_manual_validations and process_validation_records
       const { error: hashUpdateError } = await supabase.rpc('update_manual_pdf_hash', {
         p_publication_id: activePub.id,
         p_pdf_hash: pdfHash
       });
       
       if (hashUpdateError) throw hashUpdateError;
+
+      await supabase.rpc('register_validation_event', {
+        p_publication_id: activePub.id,
+        p_event_type: 'pdf_uploaded',
+        p_event_description: 'PDF do relatório oficial armazenado com sucesso.'
+      });
+
+      // 6. Confirm integrity: check that the record in process_validation_records exists and has the correct pdf_hash
+      const { data: integrityCheck, error: integrityError } = await supabase
+        .from('process_validation_records')
+        .select('id, pdf_hash')
+        .eq('publication_id', activePub.id)
+        .single();
+
+      if (integrityError || !integrityCheck || !integrityCheck.pdf_hash) {
+        throw new Error('Falha ao confirmar a integridade do registro de validação permanente.');
+      }
       
-      // 6. Perform cleanup of temporary files (Requirement 10)
+      // 7. Perform cleanup of temporary files (materials)
+      let cleanupSuccess = true;
+      let failedFiles: string[] = [];
       const materialsPaths = (selectedRequestForManual.materials || []).map((m: any) => m.filePath).filter(Boolean);
       if (materialsPaths.length > 0) {
         try {
-          await supabase.storage.from('request-materials').remove(materialsPaths);
-        } catch (e) {
+          const { error: removeMaterialsErr } = await supabase.storage
+            .from('request-materials')
+            .remove(materialsPaths);
+          if (removeMaterialsErr) {
+            cleanupSuccess = false;
+            failedFiles.push(...materialsPaths);
+            console.error('Error removing request-materials:', removeMaterialsErr);
+          }
+        } catch (e: any) {
+          cleanupSuccess = false;
+          failedFiles.push(...materialsPaths);
           console.error('Erro na limpeza de request-materials:', e);
         }
       }
       
-      // 7. Success notifications and state updates
+      if (cleanupSuccess) {
+        await supabase.rpc('update_validation_record_cleanup', {
+          p_publication_id: activePub.id,
+          p_cleanup_status: 'Concluída',
+          p_cleanup_notes: 'Limpeza de todos os materiais temporários concluída com sucesso.'
+        });
+        await supabase.rpc('register_validation_event', {
+          p_publication_id: activePub.id,
+          p_event_type: 'cleanup_completed',
+          p_event_description: 'Limpeza de arquivos temporários concluída com sucesso.'
+        });
+      } else {
+        await supabase.rpc('update_validation_record_cleanup', {
+          p_publication_id: activePub.id,
+          p_cleanup_status: 'Falha na limpeza',
+          p_cleanup_notes: `Falha ao excluir os arquivos: ${failedFiles.join(', ')}`
+        });
+        await supabase.rpc('register_validation_event', {
+          p_publication_id: activePub.id,
+          p_event_type: 'cleanup_failed',
+          p_event_description: 'Falha ao excluir arquivos temporários.',
+          p_metadata: { failed_files: failedFiles }
+        });
+      }
+
+      // 8. Success notifications and state updates
       toast.success('Validação manual registrada com sucesso!');
       setIsManualModalOpen(false);
       fetchData();

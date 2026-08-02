@@ -140,7 +140,13 @@ interface ApprovalDocumentRendererProps {
     notes?: string;
     registeredByName?: string;
     protocol?: string;
+    cleanupStatus?: string;
+    cleanupNotes?: string;
   };
+  protocol?: string;
+  cleanupStatus?: string;
+  cleanupNotes?: string;
+  timelineEvents?: any[];
 }
 
 export default function ApprovalDocumentRenderer({
@@ -183,7 +189,11 @@ export default function ApprovalDocumentRenderer({
   onSaveDraft,
   onPublish,
   pendingFields = [],
-  manualValidation
+  manualValidation,
+  protocol,
+  cleanupStatus,
+  cleanupNotes,
+  timelineEvents = []
 }: ApprovalDocumentRendererProps) {
   
   const hasRequestInfoBlock = blocks.some(b => b.type === 'request_information');
@@ -597,6 +607,57 @@ export default function ApprovalDocumentRenderer({
         </div>
       )}
 
+      {/* ONLINE VALIDATION TOP METADATA BANNER */}
+      {mode === 'read-only-result' && !manualValidation?.isManual && (
+        <div className="bg-teal-50/30 border border-teal-200/80 rounded-2xl p-5 space-y-4 shadow-xs select-none">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-teal-100/60">
+            <div>
+              <h4 className="text-xs font-bold text-teal-900 flex items-center gap-1.5">
+                <ShieldCheck className="w-4.5 h-4.5 text-teal-650" />
+                Validação Concluída via Portal PERSPECPACK
+              </h4>
+              <p className="text-[10px] text-teal-700 mt-0.5 font-medium">
+                Este processo foi concluído e assinado digitalmente pelo cliente.
+              </p>
+            </div>
+            {protocol && (
+              <div className="text-[10px] font-mono text-teal-800 bg-teal-100/60 border border-teal-200/50 px-2 py-0.5 rounded font-bold">
+                Protocolo: {protocol}
+              </div>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold text-slate-700">
+            <div>
+              <span className="text-[10px] text-teal-600 block font-bold uppercase tracking-wider mb-0.5">Respondente (Cliente)</span>
+              <span>{respondentName}</span>
+              {respondentRole && <span className="text-[10px] text-slate-400 block font-medium mt-0.5">{respondentRole}</span>}
+              {respondentEmail && <span className="text-[10px] text-slate-400 block font-medium mt-0.5">{respondentEmail}</span>}
+            </div>
+            <div>
+              <span className="text-[10px] text-teal-600 block font-bold uppercase tracking-wider mb-0.5">Integridade do Registro</span>
+              <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Imutável (Verificado)</span>
+              </div>
+            </div>
+            <div>
+              <span className="text-[10px] text-teal-600 block font-bold uppercase tracking-wider mb-0.5">Arquivos de Análise</span>
+              <span className={`px-2 py-0.5 rounded border text-[10.5px] inline-block font-bold ${
+                cleanupStatus === 'Concluída' ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' :
+                cleanupStatus === 'Falha na limpeza' ? 'bg-red-50 text-red-800 border-red-250/60' :
+                'bg-amber-50 text-amber-800 border-amber-250/60'
+              }`}>
+                Descarte: {cleanupStatus || 'Pendente'}
+              </span>
+              {cleanupNotes && (
+                <p className="text-[9.5px] text-slate-455 leading-normal mt-1 italic font-medium">{cleanupNotes}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 5. BLOCO MATERIAIS PARA ANÁLISE */}
       {!hasAnalysisMaterialsBlock && (
         <div className="bg-slate-50/50 border border-slate-200/60 p-5 rounded-2xl space-y-4">
@@ -772,6 +833,30 @@ export default function ApprovalDocumentRenderer({
                   </p>
                 </div>
               )}
+
+              {/* Integrity and Cleanup Info */}
+              <div className="col-span-full border-t border-slate-200 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Integridade do Registro</span>
+                  <div className="flex items-center gap-1.5 text-emerald-800 font-semibold mt-1">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Imutável (Verificado)</span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Arquivos de Análise</span>
+                  <span className={`px-2 py-0.5 rounded border text-[10.5px] inline-block font-bold mt-1 ${
+                    manualValidation.cleanupStatus === 'Concluída' ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' :
+                    manualValidation.cleanupStatus === 'Falha na limpeza' ? 'bg-red-50 text-red-800 border-red-250/60' :
+                    'bg-amber-50 text-amber-800 border-amber-250/60'
+                  }`}>
+                    Descarte: {manualValidation.cleanupStatus || 'Pendente'}
+                  </span>
+                  {manualValidation.cleanupNotes && (
+                    <p className="text-[9.5px] text-slate-400 leading-normal mt-1 italic font-medium">{manualValidation.cleanupNotes}</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         ) : (
@@ -1041,6 +1126,74 @@ export default function ApprovalDocumentRenderer({
           </div>
         )}
       </div>
+
+      {/* 8. LINHA DO TEMPO DE EVENTOS DE AUDITORIA (Exibido apenas em modo visualização de resultado) */}
+      {mode === 'read-only-result' && timelineEvents.length > 0 && (
+        <div className="bg-slate-50/50 border border-slate-200/60 p-5 rounded-2xl space-y-4 select-none">
+          <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
+            <Workflow className="w-4 h-4 text-[#0d857a]" />
+            Trilha de Auditoria e Histórico do Processo
+          </h3>
+          
+          <div className="relative pl-6 border-l-2 border-slate-200 space-y-5.5 pt-1.5">
+            {timelineEvents.map((evt) => {
+              // Determine icon and color based on event_type
+              let dotColor = 'bg-slate-400';
+              
+              if (evt.event_type === 'request_created') {
+                dotColor = 'bg-blue-500';
+              } else if (evt.event_type === 'published') {
+                dotColor = 'bg-indigo-500';
+              } else if (evt.event_type === 'completed') {
+                dotColor = 'bg-emerald-500';
+              } else if (evt.event_type === 'pdf_generating' || evt.event_type === 'pdf_uploaded') {
+                dotColor = 'bg-teal-500';
+              } else if (evt.event_type === 'cleanup_completed') {
+                dotColor = 'bg-sky-500';
+              } else if (evt.event_type === 'cleanup_failed') {
+                dotColor = 'bg-rose-500';
+              }
+              
+              return (
+                <div key={evt.id} className="relative group">
+                  {/* Bullet */}
+                  <span className={`absolute -left-[31px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-white ${dotColor}`} />
+                  
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 justify-between flex-wrap">
+                      <span className="text-xs font-bold text-slate-800 leading-none">
+                        {evt.event_description}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {new Date(evt.created_at).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    
+                    {/* Event metadata & responsible */}
+                    <div className="flex items-center gap-3 text-[10px] text-slate-450 font-semibold flex-wrap">
+                      {evt.user_profiles?.full_name && (
+                        <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-slate-600">
+                          Executor: {evt.user_profiles.full_name}
+                        </span>
+                      )}
+                      {evt.metadata?.respondent_name && (
+                        <span>
+                          Responsável: {evt.metadata.respondent_name} ({evt.metadata.respondent_role})
+                        </span>
+                      )}
+                      {evt.metadata?.protocol && (
+                        <span className="font-mono bg-slate-100 px-1 py-0.2 rounded border border-slate-200/60 text-slate-600">
+                          Protocolo: {evt.metadata.protocol}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 9. RODAPÉ INSTITUCIONAL */}
       <div className="pt-6 border-t border-slate-200/80 flex flex-col md:flex-row items-center justify-between gap-4 text-[10.5px] text-slate-400 select-none">

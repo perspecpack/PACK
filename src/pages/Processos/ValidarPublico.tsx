@@ -85,6 +85,16 @@ export default function ValidarPublico() {
       }
       
       setPublication(data.publication);
+
+      try {
+        await supabase.rpc('register_validation_event', {
+          p_publication_id: data.publication.id,
+          p_event_type: 'accessed',
+          p_event_description: 'Link de validação acessado pelo cliente.'
+        });
+      } catch (e) {
+        console.error('Failed to log link access audit event:', e);
+      }
       
       if (data.publication.status === 'validated') {
         setLegacyResponse(data.response);
@@ -497,6 +507,12 @@ export default function ValidarPublico() {
       if (submitError) throw submitError;
 
       // Now generate the PDF report locally using the official validation response metadata
+      await supabase.rpc('register_validation_event', {
+        p_publication_id: publication.id,
+        p_event_type: 'pdf_generating',
+        p_event_description: 'Gerando PDF do relatório oficial de validação.'
+      });
+
       const tempResp = {
         protocol: submitData.protocol,
         respondent_name: respondentName.trim(),
@@ -531,6 +547,23 @@ export default function ValidarPublico() {
       });
 
       if (hashUpdateError) throw hashUpdateError;
+
+      await supabase.rpc('register_validation_event', {
+        p_publication_id: publication.id,
+        p_event_type: 'pdf_uploaded',
+        p_event_description: 'PDF do relatório oficial armazenado com sucesso.'
+      });
+
+      // Confirm integrity: check that the record in process_validation_records exists and has the correct pdf_hash
+      const { data: integrityCheck, error: integrityError } = await supabase
+        .from('process_validation_records')
+        .select('id, pdf_hash')
+        .eq('publication_id', publication.id)
+        .single();
+
+      if (integrityError || !integrityCheck || !integrityCheck.pdf_hash) {
+        throw new Error('Falha ao confirmar a integridade do registro de validação permanente.');
+      }
 
       // Create ZIP containing the PDF report, manifest and all analyzed files (materials and attachments)
       const zip = new JSZip();
@@ -602,12 +635,24 @@ export default function ValidarPublico() {
       setZipApprovalBlob(zipBlob);
 
       // Perform cleanup: Delete all temporary files from the server Storage!
+      let cleanupSuccess = true;
+      let failedFiles: string[] = [];
+
       // 1. Delete company materials from request-materials bucket
       const materialsPaths = materialsList.map((m: any) => m.filePath).filter(Boolean);
       if (materialsPaths.length > 0) {
         try {
-          await supabase.storage.from('request-materials').remove(materialsPaths);
-        } catch (e) {
+          const { error: removeMaterialsErr } = await supabase.storage
+            .from('request-materials')
+            .remove(materialsPaths);
+          if (removeMaterialsErr) {
+            cleanupSuccess = false;
+            failedFiles.push(...materialsPaths);
+            console.error('Error removing request-materials:', removeMaterialsErr);
+          }
+        } catch (e: any) {
+          cleanupSuccess = false;
+          failedFiles.push(...materialsPaths);
           console.error('Error during cleanup of request-materials:', e);
         }
       }
@@ -616,10 +661,44 @@ export default function ValidarPublico() {
       const attachmentPaths = attachmentList.map((a: any) => a.storage_path).filter(Boolean);
       if (attachmentPaths.length > 0) {
         try {
-          await supabase.storage.from('validation-attachments').remove(attachmentPaths);
-        } catch (e) {
+          const { error: removeAttachmentsErr } = await supabase.storage
+            .from('validation-attachments')
+            .remove(attachmentPaths);
+          if (removeAttachmentsErr) {
+            cleanupSuccess = false;
+            failedFiles.push(...attachmentPaths);
+            console.error('Error removing validation-attachments:', removeAttachmentsErr);
+          }
+        } catch (e: any) {
+          cleanupSuccess = false;
+          failedFiles.push(...attachmentPaths);
           console.error('Error during cleanup of validation-attachments:', e);
         }
+      }
+
+      if (cleanupSuccess) {
+        await supabase.rpc('update_validation_record_cleanup', {
+          p_publication_id: publication.id,
+          p_cleanup_status: 'Concluída',
+          p_cleanup_notes: 'Limpeza de todos os materiais e anexos temporários concluída com sucesso.'
+        });
+        await supabase.rpc('register_validation_event', {
+          p_publication_id: publication.id,
+          p_event_type: 'cleanup_completed',
+          p_event_description: 'Limpeza de arquivos temporários concluída com sucesso.'
+        });
+      } else {
+        await supabase.rpc('update_validation_record_cleanup', {
+          p_publication_id: publication.id,
+          p_cleanup_status: 'Falha na limpeza',
+          p_cleanup_notes: `Falha ao excluir os arquivos: ${failedFiles.join(', ')}`
+        });
+        await supabase.rpc('register_validation_event', {
+          p_publication_id: publication.id,
+          p_event_type: 'cleanup_failed',
+          p_event_description: 'Falha ao excluir arquivos temporários.',
+          p_metadata: { failed_files: failedFiles }
+        });
       }
 
       setSuccessData(submitData);

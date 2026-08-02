@@ -66,6 +66,33 @@ export default function Aprovacoes() {
   // Drawer / Details Modal
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (selectedPub) {
+      const fetchEvents = async () => {
+        if (!supabase) return;
+        try {
+          const { data, error } = await supabase
+            .from('process_validation_events')
+            .select('*, user_profiles(full_name)')
+            .eq('publication_id', selectedPub.id)
+            .order('created_at', { ascending: true });
+          if (!error && data) {
+            setTimelineEvents(data);
+          } else {
+            setTimelineEvents([]);
+          }
+        } catch (e) {
+          console.error('Error fetching timeline events:', e);
+          setTimelineEvents([]);
+        }
+      };
+      fetchEvents();
+    } else {
+      setTimelineEvents([]);
+    }
+  }, [selectedPub]);
 
   const fetchPublications = async () => {
     if (!supabase || !user) return;
@@ -84,49 +111,38 @@ export default function Aprovacoes() {
       const validatedPubIds = pubList.filter(p => p.status === 'validated').map(p => p.id);
       
       if (validatedPubIds.length > 0) {
-        // Online responses
-        const { data: respData, error: respError } = await supabase
-          .from('process_validation_responses')
-          .select('*')
-          .in('publication_id', validatedPubIds);
-          
-        if (respError) throw respError;
-        
-        // Manual validation responses
-        const { data: manualData, error: manualError } = await supabase
-          .from('process_manual_validations')
+        // Consolidated validation records
+        const { data: recordsData, error: recordsError } = await supabase
+          .from('process_validation_records')
           .select('*, user_profiles(full_name)')
           .in('publication_id', validatedPubIds);
           
-        if (manualError) throw manualError;
+        if (recordsError) throw recordsError;
         
-        // Map responses to their publications
+        // Map records to their publications
         pubList.forEach(pub => {
           if (pub.status === 'validated') {
-            const resp = respData?.find(r => r.publication_id === pub.id);
-            if (resp) {
-              pub.response = resp;
-            } else {
-              const man = manualData?.find(m => m.publication_id === pub.id);
-              if (man) {
-                pub.response = {
-                  is_manual: true,
-                  protocol: man.protocol,
-                  pdf_hash: man.pdf_hash,
-                  respondent_name: man.respondent_name,
-                  respondent_role: man.respondent_role,
-                  response_date: man.response_date,
-                  validation_method: man.validation_method,
-                  email_subject: man.email_subject,
-                  notes: man.notes,
-                  registered_by_name: man.user_profiles?.full_name || 'Usuário do sistema',
-                  created_at: man.created_at,
-                  primary_decision: {
-                    text: man.result,
-                    semanticType: man.result === 'Aprovado' ? 'positive' : (man.result === 'Aprovado com Ressalvas' ? 'attention' : 'negative')
-                  }
-                };
-              }
+            const rec = recordsData?.find(r => r.publication_id === pub.id);
+            if (rec) {
+              pub.response = {
+                is_manual: rec.origin === 'E-mail',
+                protocol: rec.protocol,
+                pdf_hash: rec.pdf_hash,
+                respondent_name: rec.respondent_name,
+                respondent_role: rec.respondent_role,
+                response_date: rec.response_date,
+                notes: rec.notes,
+                email_subject: rec.email_subject,
+                registered_by_name: rec.user_profiles?.full_name || 'Usuário do sistema',
+                created_at: rec.completed_at,
+                answers: rec.answers_snapshot,
+                cleanup_status: rec.cleanup_status,
+                cleanup_notes: rec.cleanup_notes,
+                primary_decision: {
+                  text: rec.result,
+                  semanticType: rec.result === 'Aprovado' ? 'positive' : (rec.result === 'Aprovado com Ressalvas' ? 'attention' : 'negative')
+                }
+              };
             }
           }
         });
@@ -709,9 +725,11 @@ export default function Aprovacoes() {
                     emailSubject: selectedPub.response.email_subject,
                     notes: selectedPub.response.notes,
                     registeredByName: selectedPub.response.registered_by_name,
-                    protocol: selectedPub.response.protocol
+                    protocol: selectedPub.response.protocol,
+                    cleanupStatus: selectedPub.response.cleanup_status,
+                    cleanupNotes: selectedPub.response.cleanup_notes
                   } : undefined;
-
+ 
                   return (
                     <ApprovalDocumentRenderer
                       mode={selectedPub.status === 'validated' ? 'read-only-result' : 'template-preview'}
@@ -724,6 +742,10 @@ export default function Aprovacoes() {
                       respondentRole={selectedPub.response?.respondent_role}
                       respondentEmail={selectedPub.response?.respondent_email}
                       manualValidation={manualValidation}
+                      timelineEvents={timelineEvents}
+                      protocol={selectedPub.response?.protocol}
+                      cleanupStatus={selectedPub.response?.cleanup_status}
+                      cleanupNotes={selectedPub.response?.cleanup_notes}
                     />
                   );
                 })()}
