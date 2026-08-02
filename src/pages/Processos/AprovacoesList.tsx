@@ -96,6 +96,7 @@ export default function AprovacoesList() {
       const { data: reqData, error: reqError } = await supabase
         .from('process_requests')
         .select('*, processes(name), process_publications(public_token, status, publication_code, version)')
+        .neq('status', 'validated')
         .order('updated_at', { ascending: false });
       
       if (reqError) throw reqError;
@@ -542,7 +543,13 @@ export default function AprovacoesList() {
       }
 
       // 8. Success notifications and state updates
-      toast.success('Validação manual registrada com sucesso!');
+      toast.success('Validação concluída com sucesso. O registro está disponível no Histórico de Validações.', {
+        action: {
+          label: 'Ver no Histórico',
+          onClick: () => navigate(`/app/validacoes?search=${activePub.publication_code || ''}`)
+        },
+        duration: 8000
+      });
       setIsManualModalOpen(false);
       fetchData();
     } catch (err: any) {
@@ -671,7 +678,6 @@ export default function AprovacoesList() {
             <option value="draft">Em preparação</option>
             <option value="ready">Pronto para publicar</option>
             <option value="published">Publicado</option>
-            <option value="validated">Validado</option>
             <option value="revoked">Revogado</option>
           </select>
         </div>
@@ -834,22 +840,6 @@ export default function AprovacoesList() {
                     >
                       <XCircle className="w-4 h-4" />
                     </button>
-                  )}
-
-                  {/* Visualizar respostas (Validado) */}
-                  {req.status === 'validated' && (
-                    <Button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/app/validacoes?search=${req.code || req.title}`);
-                      }}
-                      className="bg-emerald-55 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
-                      title="Abrir Resultado"
-                    >
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      Ver Respostas
-                    </Button>
                   )}
 
                   <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />

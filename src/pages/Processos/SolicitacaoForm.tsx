@@ -467,7 +467,13 @@ export default function SolicitacaoForm() {
       }
 
       // 8. Success notifications and state updates
-      toast.success('Validação manual registrada com sucesso!');
+      toast.success('Validação concluída com sucesso. O registro está disponível no Histórico de Validações.', {
+        action: {
+          label: 'Ver no Histórico',
+          onClick: () => navigate(`/app/validacoes?search=${activePub.publication_code || ''}`)
+        },
+        duration: 8000
+      });
       setIsManualModalOpen(false);
       loadData();
     } catch (err: any) {
