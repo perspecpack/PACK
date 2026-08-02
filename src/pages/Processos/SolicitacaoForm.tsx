@@ -18,7 +18,8 @@ import {
   Download,
   AlertCircle,
   Loader2,
-  Info
+  Info,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,8 +31,9 @@ import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
 import { migrateLegacyBlocks, Block, validateProcess } from '@/src/components/processos/BlockFactory';
 import ApprovalDocumentRenderer from '@/src/components/processos/ApprovalDocumentRenderer';
+import RegistrarValidacaoManualModal from '@/src/components/processos/RegistrarValidacaoManualModal';
 
-import { calculateSHA256, buildApprovalReportData } from '@/src/utils/exportUtils';
+import { calculateSHA256, buildApprovalReportData, generatePDFReportBlobAndHash } from '@/src/utils/exportUtils';
 
 interface Material {
   id: string;
@@ -53,6 +55,11 @@ export default function SolicitacaoForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [requestStatus, setRequestStatus] = useState<'draft' | 'ready' | 'published' | 'validated' | 'revoked'>('draft');
+
+  // Manual Validation States
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualModalSubmitting, setManualModalSubmitting] = useState(false);
+  const [manualValidation, setManualValidation] = useState<any>(null);
 
   // Request Form Fields
   const [reqId, setReqId] = useState(() => id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())));
@@ -141,96 +148,276 @@ export default function SolicitacaoForm() {
     }
   };
 
-  // Load template or request data
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        if (id) {
-          // Editing existing request
-          if (supabase) {
-            const { data, error } = await supabase
-              .from('process_requests')
-              .select('*, processes(name), process_publications(id, status, process_validation_responses(*))')
-              .eq('id', id)
-              .single();
- 
-            if (error) throw error;
-            if (data) {
-              setProcessId(data.process_id);
-              setTemplateName(data.processes?.name || 'Modelo não encontrado');
-              setTitle(data.title);
-              setClient(data.client || '');
-              setProject(data.project || '');
-              setCode(data.code || '');
-              setRevision(data.revision || '');
-              setResponsibleInternal(data.responsible_internal || '');
-              setDeadline(data.deadline ? data.deadline.substring(0, 16) : '');
-              setDescription(data.description || '');
-              setNotesForClient(data.notes_for_client || '');
-              setRequestStatus(data.status);
-              
-              const currentBlocks = migrateLegacyBlocks(data.blocks || []);
-              setBlocks(currentBlocks);
-              setMaterials(data.materials || []);
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      if (id) {
+        // Editing existing request
+        if (supabase) {
+          const { data, error } = await supabase
+            .from('process_requests')
+            .select('*, processes(name), process_publications(id, status, publication_code, version, process_validation_responses(*))')
+            .eq('id', id)
+            .single();
 
-              // Extract the validated response if exists
-              if (data.process_publications) {
-                const publicationsList = Array.isArray(data.process_publications)
-                  ? data.process_publications
-                  : [data.process_publications];
+          if (error) throw error;
+          if (data) {
+            setProcessId(data.process_id);
+            setTemplateName(data.processes?.name || 'Modelo não encontrado');
+            setTitle(data.title);
+            setClient(data.client || '');
+            setProject(data.project || '');
+            setCode(data.code || '');
+            setRevision(data.revision || '');
+            setResponsibleInternal(data.responsible_internal || '');
+            setDeadline(data.deadline ? data.deadline.substring(0, 16) : '');
+            setDescription(data.description || '');
+            setNotesForClient(data.notes_for_client || '');
+            setRequestStatus(data.status);
+            
+            const currentBlocks = migrateLegacyBlocks(data.blocks || []);
+            setBlocks(currentBlocks);
+            setMaterials(data.materials || []);
+
+            // Extract the validated response if exists
+            if (data.process_publications) {
+              const publicationsList = Array.isArray(data.process_publications)
+                ? data.process_publications
+                : [data.process_publications];
+              
+              const activePub = publicationsList.find((p: any) => p.status === 'validated') || publicationsList[0];
+              
+              if (activePub) {
+                const responsesList = Array.isArray(activePub.process_validation_responses)
+                  ? activePub.process_validation_responses
+                  : [activePub.process_validation_responses];
                 
-                const activePub = publicationsList.find((p: any) => p.status === 'validated') || publicationsList[0];
-                
-                if (activePub) {
-                  const responsesList = Array.isArray(activePub.process_validation_responses)
-                    ? activePub.process_validation_responses
-                    : [activePub.process_validation_responses];
+                const response = responsesList.find((r: any) => r !== null && r !== undefined);
                   
-                  const response = responsesList.find((r: any) => r !== null && r !== undefined);
+                if (response) {
+                  setRespondentName(response.respondent_name || '');
+                  setRespondentRole(response.respondent_role || '');
+                  setRespondentEmail(response.respondent_email || '');
+                  
+                  const reportData = buildApprovalReportData(activePub, response);
+                  const respAnswers = reportData.rendererAnswers;
+                  setAnswers(respAnswers);
+                  setManualValidation(null);
+                } else {
+                  // Try to fetch manual validation
+                  const { data: manData, error: manError } = await supabase
+                    .from('process_manual_validations')
+                    .select('*, user_profiles(full_name)')
+                    .eq('publication_id', activePub.id)
+                    .maybeSingle();
                     
-                  if (response) {
-                    setRespondentName(response.respondent_name || '');
-                    setRespondentRole(response.respondent_role || '');
-                    setRespondentEmail(response.respondent_email || '');
+                  if (!manError && manData) {
+                    const mappedManual = {
+                      isManual: true,
+                      result: manData.result,
+                      respondentName: manData.respondent_name,
+                      respondentRole: manData.respondent_role,
+                      responseDate: manData.response_date,
+                      validationMethod: manData.validation_method,
+                      emailSubject: manData.email_subject || '',
+                      notes: manData.notes || '',
+                      registeredByName: manData.user_profiles?.full_name || 'Usuário do sistema',
+                      protocol: manData.protocol
+                    };
+                    setRespondentName(manData.respondent_name || '');
+                    setRespondentRole(manData.respondent_role || '');
+                    setRespondentEmail('Não informado');
+                    setManualValidation(mappedManual);
                     
-                    const reportData = buildApprovalReportData(activePub, response);
-                    const respAnswers = reportData.rendererAnswers;
-                    setAnswers(respAnswers);
+                    const mockResp = {
+                      is_manual: true,
+                      protocol: manData.protocol,
+                      respondent_name: manData.respondent_name,
+                      respondent_role: manData.respondent_role,
+                      response_date: manData.response_date,
+                      validation_method: manData.validation_method,
+                      email_subject: manData.email_subject,
+                      notes: manData.notes,
+                      registered_by_name: manData.user_profiles?.full_name || 'Usuário do sistema',
+                      primary_decision: {
+                        text: manData.result,
+                        semanticType: manData.result === 'Aprovado' ? 'positive' : (manData.result === 'Aprovado com Ressalvas' ? 'attention' : 'negative')
+                      }
+                    };
+                    const reportData = buildApprovalReportData(activePub, mockResp);
+                    setAnswers(reportData.rendererAnswers);
                   }
                 }
               }
             }
           }
-        } else if (templateId) {
-          // Creating request from template
-          if (supabase) {
-            const { data, error } = await supabase
-              .from('processes')
-              .select('*')
-              .eq('id', templateId)
-              .single();
+        }
+      } else if (templateId) {
+        // Creating request from template
+        if (supabase) {
+          const { data, error } = await supabase
+            .from('processes')
+            .select('*')
+            .eq('id', templateId)
+            .single();
 
-            if (error) throw error;
-            if (data) {
-              setProcessId(data.id);
-              setTemplateName(data.name);
-              setTitle(`Solicitação: ${data.name}`);
-              setBlocks(migrateLegacyBlocks(data.blocks || []));
-            }
+          if (error) throw error;
+          if (data) {
+            setProcessId(data.id);
+            setTemplateName(data.name);
+            setTitle(`Solicitação: ${data.name}`);
+            setBlocks(migrateLegacyBlocks(data.blocks || []));
           }
         }
-      } catch (err) {
-        console.error(err);
-        toast.error('Erro ao carregar dados.');
-        navigate('/app/aprovacoes');
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao carregar dados.');
+      navigate('/app/aprovacoes');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadData();
   }, [id, templateId]);
+
+  const handleSaveManualValidation = async (fields: any) => {
+    if (!id || !supabase) return;
+    setManualModalSubmitting(true);
+    try {
+      // 1. Double check database conflicts first (requirement 7)
+      const { data: currentReq, error: fetchErr } = await supabase
+        .from('process_requests')
+        .select('status, process_publications(id, status, publication_code, version)')
+        .eq('id', id)
+        .single();
+        
+      if (fetchErr || !currentReq) {
+        throw new Error('Falha ao verificar situação atual da solicitação.');
+      }
+      
+      if (currentReq.status === 'validated') {
+        throw new Error('Esta solicitação já foi concluída automaticamente pelo portal.');
+      }
+      
+      const publications = currentReq.process_publications || [];
+      const activePub = Array.isArray(publications)
+        ? publications.find((p: any) => p.status === 'awaiting_validation')
+        : (publications as any)?.status === 'awaiting_validation' ? publications : null;
+        
+      if (!activePub) {
+        throw new Error('Não há nenhuma publicação ativa aguardando validação para esta solicitação.');
+      }
+
+      // Check manual table just in case
+      const { data: existManual, error: manErr } = await supabase
+        .from('process_manual_validations')
+        .select('id')
+        .eq('publication_id', activePub.id)
+        .maybeSingle();
+
+      if (existManual) {
+        throw new Error('Esta solicitação já possui um registro de validação manual.');
+      }
+      
+      // 2. Call register_manual_validation RPC
+      const { data: submitData, error: submitError } = await supabase.rpc('register_manual_validation', {
+        p_publication_id: activePub.id,
+        p_result: fields.result,
+        p_respondent_name: fields.respondentName,
+        p_respondent_role: fields.respondentRole,
+        p_response_date: fields.responseDate,
+        p_validation_method: fields.validationMethod,
+        p_email_subject: fields.emailSubject || null,
+        p_notes: fields.notes || null,
+        p_declared: fields.declared
+      });
+      
+      if (submitError) throw new Error(submitError.message);
+      
+      // 3. Generate PDF Report Blob and Hash (Requirement 11)
+      const mockPub = {
+        id: activePub.id,
+        publication_code: activePub.publication_code || '',
+        version: activePub.version || 1,
+        organization: client,
+        snapshot: {
+          name: title,
+          project: project,
+          client: client,
+          revision: revision,
+          description: description,
+          responsible_internal: responsibleInternal,
+          materials: materials,
+          blocks: blocks,
+          company_name: companyBranding.companyName,
+          trade_name: companyBranding.tradeName || companyBranding.companyName,
+          company_logo_url: companyBranding.companyLogoUrl || ''
+        }
+      };
+      
+      const tempResp = {
+        is_manual: true,
+        protocol: submitData.protocol,
+        respondent_name: fields.respondentName,
+        respondent_role: fields.respondentRole,
+        response_date: fields.responseDate,
+        validation_method: fields.validationMethod,
+        email_subject: fields.emailSubject,
+        notes: fields.notes,
+        registered_by_name: profile?.fullName || 'Usuário do sistema',
+        created_at: submitData.created_at,
+        primary_decision: {
+          text: fields.result,
+          semanticType: fields.result === 'Aprovado' ? 'positive' : (fields.result === 'Aprovado com Ressalvas' ? 'attention' : 'negative')
+        }
+      };
+      
+      const { blob: pdfBlob, hash: pdfHash } = await generatePDFReportBlobAndHash(mockPub, tempResp);
+      
+      // 4. Upload PDF to validation-attachments storage bucket under `${token}/report.pdf`
+      const pdfStoragePath = `${submitData.public_token}/report.pdf`;
+      const { error: pdfUploadError } = await supabase.storage
+        .from('validation-attachments')
+        .upload(pdfStoragePath, pdfBlob, {
+          cacheControl: '3600',
+          contentType: 'application/pdf',
+          upsert: true
+        });
+        
+      if (pdfUploadError) throw pdfUploadError;
+      
+      // 5. Update pdf_hash in process_manual_validations
+      const { error: hashUpdateError } = await supabase.rpc('update_manual_pdf_hash', {
+        p_publication_id: activePub.id,
+        p_pdf_hash: pdfHash
+      });
+      
+      if (hashUpdateError) throw hashUpdateError;
+      
+      // 6. Perform cleanup of temporary files (Requirement 10)
+      const materialsPaths = (materials || []).map((m: any) => m.filePath).filter(Boolean);
+      if (materialsPaths.length > 0) {
+        try {
+          await supabase.storage.from('request-materials').remove(materialsPaths);
+        } catch (e) {
+          console.error('Erro na limpeza de request-materials:', e);
+        }
+      }
+      
+      // 7. Success notifications and state updates
+      toast.success('Validação manual registrada com sucesso!');
+      setIsManualModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Erro ao registrar validação manual.');
+    } finally {
+      setManualModalSubmitting(false);
+    }
+  };
 
   // Handle prefilled value updates from company
   const handleBlockValueChange = (blockId: string, value: any) => {
@@ -574,6 +761,16 @@ export default function SolicitacaoForm() {
               </div>
             )}
 
+            {requestStatus === 'published' && (
+              <Button
+                onClick={() => setIsManualModalOpen(true)}
+                className="bg-slate-900 hover:bg-slate-800 text-white h-9 px-4 text-xs font-bold rounded-xl cursor-pointer border-0 flex items-center gap-1.5"
+              >
+                <Mail className="w-4 h-4" />
+                Registrar Validação Manual
+              </Button>
+            )}
+
             {!isReadOnly && (
               <>
                 <Button
@@ -652,8 +849,19 @@ export default function SolicitacaoForm() {
               toast.info('Esta é uma pré-visualização offline. Os dados não serão enviados ao servidor.');
             }
           }}
+          manualValidation={manualValidation}
         />
       </div>
+
+      {/* REGISTRAR VALIDAÇÃO MANUAL MODAL */}
+      <RegistrarValidacaoManualModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        onSave={handleSaveManualValidation}
+        submitting={manualModalSubmitting}
+        publicationTitle={title}
+        publicationCode={code}
+      />
     </div>
   );
 }

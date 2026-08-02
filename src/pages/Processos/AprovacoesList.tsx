@@ -32,7 +32,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
 import { validateProcess } from '@/src/components/processos/BlockFactory';
-import { generateEmailMessage, generateEmailHtml } from '@/src/utils/exportUtils';
+import { generateEmailMessage, generateEmailHtml, generatePDFReportBlobAndHash } from '@/src/utils/exportUtils';
+import RegistrarValidacaoManualModal from '@/src/components/processos/RegistrarValidacaoManualModal';
 
 interface Solicitacao {
   id: string;
@@ -69,10 +70,15 @@ interface TemplateModel {
 
 export default function AprovacoesList() {
   const navigate = useNavigate();
-  const { user } = useApp();
+  const { user, profile } = useApp();
   const [requests, setRequests] = useState<Solicitacao[]>([]);
   const [templates, setTemplates] = useState<TemplateModel[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Manual Validation Modal States
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualModalSubmitting, setManualModalSubmitting] = useState(false);
+  const [selectedRequestForManual, setSelectedRequestForManual] = useState<Solicitacao | null>(null);
   
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -352,6 +358,142 @@ export default function AprovacoesList() {
     }
   };
 
+  const handleSaveManualValidation = async (fields: any) => {
+    if (!selectedRequestForManual || !supabase) return;
+    setManualModalSubmitting(true);
+    try {
+      // 1. Double check database conflicts first (requirement 7)
+      const { data: currentReq, error: fetchErr } = await supabase
+        .from('process_requests')
+        .select('status, process_publications(id, status)')
+        .eq('id', selectedRequestForManual.id)
+        .single();
+        
+      if (fetchErr || !currentReq) {
+        throw new Error('Falha ao verificar situação atual da solicitação.');
+      }
+      
+      if (currentReq.status === 'validated') {
+        throw new Error('Esta solicitação já foi concluída automaticamente pelo portal.');
+      }
+      
+      const publications = currentReq.process_publications || [];
+      const activePub = Array.isArray(publications)
+        ? publications.find((p: any) => p.status === 'awaiting_validation')
+        : (publications as any)?.status === 'awaiting_validation' ? publications : null;
+        
+      if (!activePub) {
+        throw new Error('Não há nenhuma publicação ativa aguardando validação para esta solicitação.');
+      }
+
+      // Check manual table just in case
+      const { data: existManual, error: manErr } = await supabase
+        .from('process_manual_validations')
+        .select('id')
+        .eq('publication_id', activePub.id)
+        .maybeSingle();
+
+      if (existManual) {
+        throw new Error('Esta solicitação já possui um registro de validação manual.');
+      }
+      
+      // 2. Call register_manual_validation RPC
+      const { data: submitData, error: submitError } = await supabase.rpc('register_manual_validation', {
+        p_publication_id: activePub.id,
+        p_result: fields.result,
+        p_respondent_name: fields.respondentName,
+        p_respondent_role: fields.respondentRole,
+        p_response_date: fields.responseDate,
+        p_validation_method: fields.validationMethod,
+        p_email_subject: fields.emailSubject || null,
+        p_notes: fields.notes || null,
+        p_declared: fields.declared
+      });
+      
+      if (submitError) throw new Error(submitError.message);
+      
+      // 3. Generate PDF Report Blob and Hash (Requirement 11)
+      const mockPub = {
+        id: activePub.id,
+        publication_code: selectedRequestForManual.publication_code || '',
+        version: selectedRequestForManual.version || 1,
+        organization: selectedRequestForManual.client,
+        snapshot: {
+          name: selectedRequestForManual.title,
+          project: selectedRequestForManual.project,
+          client: selectedRequestForManual.client,
+          revision: selectedRequestForManual.revision,
+          description: selectedRequestForManual.description,
+          responsible_internal: selectedRequestForManual.responsible_internal,
+          materials: selectedRequestForManual.materials,
+          blocks: selectedRequestForManual.blocks,
+          company_name: profile?.companyName || 'Minha Empresa',
+          trade_name: profile?.tradeName || profile?.companyName || 'Minha Empresa',
+          company_logo_url: profile?.companyLogoUrl || ''
+        }
+      };
+      
+      const tempResp = {
+        is_manual: true,
+        protocol: submitData.protocol,
+        respondent_name: fields.respondentName,
+        respondent_role: fields.respondentRole,
+        response_date: fields.responseDate,
+        validation_method: fields.validationMethod,
+        email_subject: fields.emailSubject,
+        notes: fields.notes,
+        registered_by_name: profile?.fullName || 'Usuário do sistema',
+        created_at: submitData.created_at,
+        primary_decision: {
+          text: fields.result,
+          semanticType: fields.result === 'Aprovado' ? 'positive' : (fields.result === 'Aprovado com Ressalvas' ? 'attention' : 'negative')
+        }
+      };
+      
+      const { blob: pdfBlob, hash: pdfHash } = await generatePDFReportBlobAndHash(mockPub, tempResp);
+      
+      // 4. Upload PDF to validation-attachments storage bucket under `${token}/report.pdf`
+      const pdfStoragePath = `${submitData.public_token}/report.pdf`;
+      const { error: pdfUploadError } = await supabase.storage
+        .from('validation-attachments')
+        .upload(pdfStoragePath, pdfBlob, {
+          cacheControl: '3600',
+          contentType: 'application/pdf',
+          upsert: true
+        });
+        
+      if (pdfUploadError) throw pdfUploadError;
+      
+      // 5. Update pdf_hash in process_manual_validations
+      const { error: hashUpdateError } = await supabase.rpc('update_manual_pdf_hash', {
+        p_publication_id: activePub.id,
+        p_pdf_hash: pdfHash
+      });
+      
+      if (hashUpdateError) throw hashUpdateError;
+      
+      // 6. Perform cleanup of temporary files (Requirement 10)
+      const materialsPaths = (selectedRequestForManual.materials || []).map((m: any) => m.filePath).filter(Boolean);
+      if (materialsPaths.length > 0) {
+        try {
+          await supabase.storage.from('request-materials').remove(materialsPaths);
+        } catch (e) {
+          console.error('Erro na limpeza de request-materials:', e);
+        }
+      }
+      
+      // 7. Success notifications and state updates
+      toast.success('Validação manual registrada com sucesso!');
+      setIsManualModalOpen(false);
+      fetchData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Erro ao registrar validação manual.');
+    } finally {
+      setManualModalSubmitting(false);
+    }
+  };
+
   const getStatusBadge = (status: Solicitacao['status']) => {
     switch (status) {
       case 'draft':
@@ -564,9 +706,8 @@ export default function AprovacoesList() {
                   {/* Publicar button */}
                   {req.status === 'ready' && (
                     <Button
-                      type="button"
                       onClick={(e) => handlePublishRequest(req, e)}
-                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
+                      className="bg-indigo-55 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
                       title="Publicar e gerar link"
                     >
                       <Send className="w-3.5 h-3.5" />
@@ -579,8 +720,21 @@ export default function AprovacoesList() {
                     <>
                       <Button
                         type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedRequestForManual(req);
+                          setIsManualModalOpen(true);
+                        }}
+                        className="bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
+                        title="Registrar Validação Manual por E-mail"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        Registrar Validação Manual
+                      </Button>
+                      <Button
+                        type="button"
                         onClick={(e) => handleCopyLink(req.public_token!, e)}
-                        className="bg-emerald-55 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
+                        className="bg-emerald-55 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-250/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
                         title="Copiar Link de Validação"
                       >
                         <Copy className="w-3.5 h-3.5" />
@@ -774,6 +928,16 @@ export default function AprovacoesList() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* REGISTRAR VALIDAÇÃO MANUAL MODAL */}
+      <RegistrarValidacaoManualModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        onSave={handleSaveManualValidation}
+        submitting={manualModalSubmitting}
+        publicationTitle={selectedRequestForManual?.title || ''}
+        publicationCode={selectedRequestForManual?.publication_code}
+      />
     </div>
   );
 }

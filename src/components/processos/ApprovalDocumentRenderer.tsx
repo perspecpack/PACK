@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   FileDown,
   CheckCircle2,
-  FolderArchive
+  FolderArchive,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -128,6 +129,18 @@ interface ApprovalDocumentRendererProps {
   onSaveDraft?: () => void;
   onPublish?: () => void;
   pendingFields?: string[];
+  manualValidation?: {
+    isManual: boolean;
+    result: 'Aprovado' | 'Aprovado com Ressalvas' | 'Reprovado';
+    respondentName: string;
+    respondentRole: string;
+    responseDate: string;
+    validationMethod: string;
+    emailSubject?: string;
+    notes?: string;
+    registeredByName?: string;
+    protocol?: string;
+  };
 }
 
 export default function ApprovalDocumentRenderer({
@@ -169,7 +182,8 @@ export default function ApprovalDocumentRenderer({
   zipApprovalBlob = null,
   onSaveDraft,
   onPublish,
-  pendingFields = []
+  pendingFields = [],
+  manualValidation
 }: ApprovalDocumentRendererProps) {
   
   const hasRequestInfoBlock = blocks.some(b => b.type === 'request_information');
@@ -679,128 +693,207 @@ export default function ApprovalDocumentRenderer({
         </div>
       )}
 
-      {/* 6. LISTAGEM DE QUESTÕES / QUESTÕES DO CANVASES */}
+      {/* 6. LISTAGEM DE QUESTÕES / OU REGISTRO MANUAL DE VALIDAÇÃO */}
       <div className="space-y-6">
-        {blocks.map((block, index) => (
-          <BlockWrapper
-            key={block.id}
-            block={block}
-            mode={mode}
-            isActive={activeBlockId === block.id}
-            onSelect={onSelectBlock ? () => onSelectBlock(block.id) : undefined}
-            onDelete={onDeleteBlock ? () => onDeleteBlock(block.id) : undefined}
-            onMove={onMoveBlock ? (dir) => onMoveBlock(block.id, dir) : undefined}
-            onDuplicate={onDuplicateBlock ? () => onDuplicateBlock(block.id) : undefined}
-            onUpdate={onUpdateBlock ? (updatedBlock) => onUpdateBlock(block.id, updatedBlock) : undefined}
-            isFirst={index === 0}
-            isLast={index === blocks.length - 1}
-          >
-            {/* Block Inner Rendering */}
-            <BlockInnerRenderer
-              block={block}
-              mode={mode}
-              answer={answers.find(a => a.blockId === block.id)}
-              onAnswerChange={onAnswerChange ? (val) => onAnswerChange(block.id, val) : undefined}
-              error={validationErrors[block.id]}
-              documentData={documentData}
-              materials={materials}
-              isActive={activeBlockId === block.id}
-              onUpdateBlock={onUpdateBlock ? (updatedBlock) => onUpdateBlock(block.id, updatedBlock) : undefined}
-              onDocumentDataChange={onDocumentDataChange}
-              onAddMaterial={onAddMaterial}
-              onRemoveMaterial={onRemoveMaterial}
-            />
-          </BlockWrapper>
-        ))}
-      </div>
-
-      {/* 7. IDENTIFICAÇÃO DO RESPONSÁVEL (SEÇÃO OBRIGATÓRIA) */}
-      <div className="space-y-4 bg-slate-50/50 border border-slate-200/60 p-5 rounded-2xl">
-        <div className="border-b border-slate-100 pb-1.5 flex justify-between items-center">
-          <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-[#0d857a]" />
-            Identificação do Responsável
-          </h3>
-          {(mode === 'template-editor' || mode === 'template-preview') && (
-            <Badge className="bg-slate-200 text-slate-600 border-0 font-sans text-[8px] uppercase tracking-wider font-bold">
-              Seção obrigatória da plataforma
-            </Badge>
-          )}
-        </div>
-
-        {mode === 'public-validation' ? (
-          /* INTERACTIVE INPUTS FOR CLIENT */
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="resp-name" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Nome Completo <span className="text-red-500">*</span>
-              </Label>
-              <Input 
-                id="resp-name"
-                type="text"
-                value={respondentName}
-                onChange={(e) => onRespondentNameChange?.(e.target.value)}
-                autoComplete="name"
-                placeholder="Digite seu nome completo"
-                className="h-9.5 text-xs border-slate-200 focus-visible:border-[#0d857a] focus-visible:ring-[#0d857a]/20"
-              />
-              {validationErrors.respondentName && (
-                <span className="text-[10px] text-red-500 font-semibold block">{validationErrors.respondentName}</span>
-              )}
+        {manualValidation?.isManual && mode === 'read-only-result' ? (
+          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 space-y-6 shadow-xs select-none">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4.5 border-b border-slate-200">
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <Mail className="w-4.5 h-4.5 text-[#0d857a]" />
+                  Validação Registrada Manualmente
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Este processo foi concluído através de registro interno autorizado.
+                </p>
+              </div>
+              
+              {/* Badge for Result */}
+              {(() => {
+                const resultText = manualValidation.result;
+                const style = 
+                  resultText === 'Aprovado' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                  resultText === 'Aprovado com Ressalvas' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                  'bg-red-50 text-red-800 border-red-200';
+                return (
+                  <Badge className={`${style} font-bold px-3 py-1 text-xs border rounded-lg uppercase tracking-wide`}>
+                    {resultText}
+                  </Badge>
+                );
+              })()}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="resp-role" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Cargo ou Função <span className="text-red-500">*</span>
-              </Label>
-              <Input 
-                id="resp-role"
-                type="text"
-                value={respondentRole}
-                onChange={(e) => onRespondentRoleChange?.(e.target.value)}
-                placeholder="Ex: Engenheiro de Qualidade"
-                className="h-9.5 text-xs border-slate-200 focus-visible:border-[#0d857a] focus-visible:ring-[#0d857a]/20"
-              />
-              {validationErrors.respondentRole && (
-                <span className="text-[10px] text-red-500 font-semibold block">{validationErrors.respondentRole}</span>
+            {/* Audit details grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs text-slate-700">
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Meio de Validação</span>
+                <span className="font-semibold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 inline-block">
+                  {manualValidation.validationMethod}
+                </span>
+              </div>
+              
+              {manualValidation.protocol && (
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Protocolo</span>
+                  <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    {manualValidation.protocol}
+                  </span>
+                </div>
               )}
-            </div>
 
-            <div className="space-y-1.5 sm:col-span-full">
-              <Label htmlFor="resp-email" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                E-mail Profissional
-              </Label>
-              <Input 
-                id="resp-email"
-                type="email"
-                value={respondentEmail}
-                onChange={(e) => onRespondentEmailChange?.(e.target.value)}
-                autoComplete="email"
-                placeholder="nome@empresa.com"
-                className="h-9.5 text-xs border-slate-200 focus-visible:border-[#0d857a]"
-              />
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Respondido por (Cliente)</span>
+                <span className="font-semibold text-slate-800">{manualValidation.respondentName}</span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">{manualValidation.respondentRole}</span>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Registrado por (Usuário Interno)</span>
+                <span className="font-semibold text-slate-800">{manualValidation.registeredByName || 'Usuário do sistema'}</span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">
+                  em {new Date(manualValidation.responseDate).toLocaleDateString('pt-BR')}
+                </span>
+              </div>
+
+              {manualValidation.emailSubject && (
+                <div className="col-span-full">
+                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Assunto do E-mail</span>
+                  <p className="font-semibold text-slate-800 bg-slate-100/50 p-2.5 rounded-lg border border-slate-150">
+                    {manualValidation.emailSubject}
+                  </p>
+                </div>
+              )}
+
+              {manualValidation.notes && (
+                <div className="col-span-full">
+                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Observações / Trechos do E-mail</span>
+                  <p className="text-xs text-slate-600 leading-relaxed bg-white border border-slate-200 p-4 rounded-xl whitespace-pre-line italic">
+                    "{manualValidation.notes}"
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
-          /* PREVIEW / READ-ONLY DISPLAY */
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold text-slate-700">
-            <div>
-              <span className="text-[10px] text-slate-400 block font-medium">Nome completo:</span>
-              {mode === 'read-only-result' ? respondentName : <span className="text-slate-350 italic">Será preenchido pelo cliente</span>}
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block font-medium">Cargo ou Função:</span>
-              {mode === 'read-only-result' ? respondentRole : <span className="text-slate-350 italic">Será preenchido pelo cliente</span>}
-            </div>
-            {(mode === 'read-only-result' || respondentEmail) && (
-              <div className="col-span-full">
-                <span className="text-[10px] text-slate-400 block font-medium">E-mail profissional:</span>
-                {respondentEmail || <span className="text-slate-350 italic">Não informado</span>}
-              </div>
-            )}
+          <div className="space-y-6">
+            {blocks.map((block, index) => (
+              <BlockWrapper
+                key={block.id}
+                block={block}
+                mode={mode}
+                isActive={activeBlockId === block.id}
+                onSelect={onSelectBlock ? () => onSelectBlock(block.id) : undefined}
+                onDelete={onDeleteBlock ? () => onDeleteBlock(block.id) : undefined}
+                onMove={onMoveBlock ? (dir) => onMoveBlock(block.id, dir) : undefined}
+                onDuplicate={onDuplicateBlock ? () => onDuplicateBlock(block.id) : undefined}
+                onUpdate={onUpdateBlock ? (updatedBlock) => onUpdateBlock(block.id, updatedBlock) : undefined}
+                isFirst={index === 0}
+                isLast={index === blocks.length - 1}
+              >
+                {/* Block Inner Rendering */}
+                <BlockInnerRenderer
+                  block={block}
+                  mode={mode}
+                  answer={answers.find(a => a.blockId === block.id)}
+                  onAnswerChange={onAnswerChange ? (val) => onAnswerChange(block.id, val) : undefined}
+                  error={validationErrors[block.id]}
+                  documentData={documentData}
+                  materials={materials}
+                  isActive={activeBlockId === block.id}
+                  onUpdateBlock={onUpdateBlock ? (updatedBlock) => onUpdateBlock(block.id, updatedBlock) : undefined}
+                  onDocumentDataChange={onDocumentDataChange}
+                  onAddMaterial={onAddMaterial}
+                  onRemoveMaterial={onRemoveMaterial}
+                />
+              </BlockWrapper>
+            ))}
           </div>
         )}
       </div>
+
+      {/* 7. IDENTIFICAÇÃO DO RESPONSÁVEL (SEÇÃO OBRIGATÓRIA) */}
+      {!(manualValidation?.isManual && mode === 'read-only-result') && (
+        <div className="space-y-4 bg-slate-50/50 border border-slate-200/60 p-5 rounded-2xl">
+          <div className="border-b border-slate-100 pb-1.5 flex justify-between items-center">
+            <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-[#0d857a]" />
+              Identificação do Responsável
+            </h3>
+            {(mode === 'template-editor' || mode === 'template-preview') && (
+              <Badge className="bg-slate-200 text-slate-600 border-0 font-sans text-[8px] uppercase tracking-wider font-bold">
+                Seção obrigatória da plataforma
+              </Badge>
+            )}
+          </div>
+
+          {mode === 'public-validation' ? (
+            /* INTERACTIVE INPUTS FOR CLIENT */
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="resp-name" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Nome Completo <span className="text-red-500">*</span>
+                </Label>
+                <Input 
+                  id="resp-name"
+                  type="text"
+                  value={respondentName}
+                  onChange={(e) => onRespondentNameChange?.(e.target.value)}
+                  autoComplete="name"
+                  placeholder="Ex: João da Silva"
+                  className="h-9.5 text-xs border-slate-200 focus-visible:border-[#0d857a]"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="resp-role" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Cargo / Função na Empresa <span className="text-red-500">*</span>
+                </Label>
+                <Input 
+                  id="resp-role"
+                  type="text"
+                  value={respondentRole}
+                  onChange={(e) => onRespondentRoleChange?.(e.target.value)}
+                  placeholder="Ex: Supervisor de Compras"
+                  className="h-9.5 text-xs border-slate-200 focus-visible:border-[#0d857a]"
+                />
+              </div>
+
+              <div className="col-span-full space-y-1.5">
+                <Label htmlFor="resp-email" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  E-mail Profissional
+                </Label>
+                <Input 
+                  id="resp-email"
+                  type="email"
+                  value={respondentEmail}
+                  onChange={(e) => onRespondentEmailChange?.(e.target.value)}
+                  autoComplete="email"
+                  placeholder="nome@empresa.com"
+                  className="h-9.5 text-xs border-slate-200 focus-visible:border-[#0d857a]"
+                />
+              </div>
+            </div>
+          ) : (
+            /* PREVIEW / READ-ONLY DISPLAY */
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold text-slate-700">
+              <div>
+                <span className="text-[10px] text-slate-400 block font-medium">Nome completo:</span>
+                {mode === 'read-only-result' ? respondentName : <span className="text-slate-350 italic">Será preenchido pelo cliente</span>}
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-medium">Cargo ou Função:</span>
+                {mode === 'read-only-result' ? respondentRole : <span className="text-slate-350 italic">Será preenchido pelo cliente</span>}
+              </div>
+              {(mode === 'read-only-result' || respondentEmail) && (
+                <div className="col-span-full">
+                  <span className="text-[10px] text-slate-400 block font-medium">E-mail profissional:</span>
+                  {respondentEmail || <span className="text-slate-350 italic">Não informado</span>}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 8. CONFIRMAÇÃO E ETAPA FINAL */}
       <div className="pt-6 border-t border-slate-200">

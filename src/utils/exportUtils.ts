@@ -287,7 +287,7 @@ export function buildApprovalReportData(pub: any, resp: any) {
     projectCode: snapshot.code || 'N/A',
     revision: snapshot.revision || 'N/A',
     protocol: resp?.protocol || 'N/A',
-    validatedAt: resp?.submitted_at || resp?.validated_at || null,
+    validatedAt: resp?.response_date || resp?.submitted_at || resp?.validated_at || null,
     status: pub.status
   };
 
@@ -328,6 +328,10 @@ export function buildApprovalReportData(pub: any, resp: any) {
   if (!decisionText) {
     decisionText = pub.primary_result || '';
     decisionSemantic = pub.primary_result_type || 'neutral';
+  }
+
+  if (resp?.is_manual && !decisionComment) {
+    decisionComment = resp.notes || '';
   }
 
   const result = {
@@ -564,7 +568,12 @@ export function buildApprovalReportData(pub: any, resp: any) {
     blocks: normalizedBlocks,
     materials: rawMaterials,
     attachments,
-    rendererAnswers
+    rendererAnswers,
+    isManual: !!resp?.is_manual,
+    validationMethod: resp?.validation_method || 'E-mail',
+    emailSubject: resp?.email_subject || '',
+    notes: resp?.notes || '',
+    registeredByName: resp?.registered_by_name || ''
   };
 }
 
@@ -1028,251 +1037,330 @@ export function buildPDFDoc(
   
   y += 48;
  
-  // Respondent Info Header
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(13, 133, 122);
-  doc.text('RESPONSÁVEL PELA VALIDAÇÃO', 14, y);
-  
-  doc.setLineWidth(0.3);
-  doc.setDrawColor(13, 133, 122);
-  doc.line(14, y + 2, 196, y + 2);
-  
-  y += 8;
-  
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Nome:', 14, y);
-  doc.text('Cargo / Função:', 14, y + 6);
-  doc.text('E-mail:', 14, y + 12);
-  doc.text('Resultado Final:', 14, y + 18);
- 
-  doc.setFont('Helvetica', 'normal');
-  doc.setTextColor(30, 41, 59);
-  doc.text(reportData.respondent.name, 45, y);
-  doc.text(reportData.respondent.role, 45, y + 6);
-  doc.text(reportData.respondent.email, 45, y + 12);
-  
-  const decisionText = reportData.result.label;
-  const semantic = reportData.result.semanticType;
-  
-  doc.setFont('Helvetica', 'bold');
-  if (semantic === 'positive') doc.setTextColor(16, 185, 129);
-  else if (semantic === 'attention') doc.setTextColor(245, 158, 11);
-  else if (semantic === 'negative') doc.setTextColor(239, 68, 68);
-  else doc.setTextColor(100, 116, 139);
-  
-  doc.text(decisionText.toUpperCase(), 45, y + 18);
-  
-  y += 28;
- 
-  let questionNumber = 0;
-
-  // Blocks Loop
-  reportData.blocks.forEach((block: any) => {
-    if (y > 250) {
-      doc.addPage();
-      drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
-      y = 25;
-    }
- 
-    const displayTitle = (block.title && block.title.trim()) || (BLOCK_METADATA[block.type as any] as any)?.title || 'Informativo';
-    
-    let blockTitle = displayTitle;
-    const isAnswerable = !['heading_text', 'request_information', 'analysis_materials'].includes(block.type);
-    if (isAnswerable) {
-      questionNumber++;
-      blockTitle = `Questão ${questionNumber}: ${displayTitle}`;
-    }
-
+  if (reportData.isManual) {
+    // Drawing details for Manual Validation (E-mail)
     doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    doc.text(blockTitle, 14, y);
-    y += 5;
- 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(13, 133, 122);
+    doc.text('REGISTRO DE VALIDAÇÃO MANUAL', 14, y);
+    
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(13, 133, 122);
+    doc.line(14, y + 2, 196, y + 2);
+    
+    y += 8;
+    
+    doc.setFont('Helvetica', 'bold');
     doc.setFontSize(9.5);
-    doc.setTextColor(51, 65, 85);
- 
-    if (block.type === 'heading_text') {
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
-      const splitText = doc.splitTextToSize(block.description || '', 182);
-      doc.text(splitText, 14, y);
-      y += (splitText.length * 4) + 2;
-    } else if (block.type === 'request_information') {
-      const enabledFields = (block.fields || []).filter((f: any) => f.enabled && f.visibleToClient);
-      if (enabledFields.length > 0) {
-        enabledFields.forEach((field: any) => {
-          let val = '';
-          if (field.key === 'title') val = reportData.publication.processTitle;
-          else if (field.key === 'client') val = reportData.publication.client;
-          else if (field.key === 'project') val = reportData.publication.project;
-          else if (field.key === 'code') val = reportData.publication.projectCode;
-          else if (field.key === 'revision') val = reportData.publication.revision;
-          else if (field.key === 'responsible_internal') val = pub.snapshot?.responsible_internal || '';
-          else if (field.key === 'deadline') val = pub.snapshot?.deadline ? new Date(pub.snapshot.deadline).toLocaleString('pt-BR') : '';
-          else if (field.key === 'description') val = pub.snapshot?.description || '';
-          else if (field.key === 'notes_for_client') val = pub.snapshot?.notes_for_client || '';
-          
-          if (val) {
+    doc.setTextColor(100, 116, 139);
+    doc.text('Forma de Validação:', 14, y);
+    doc.text('Resultado Final:', 14, y + 6);
+    doc.text('Respondido por:', 14, y + 12);
+    doc.text('Cargo / Função:', 14, y + 18);
+    doc.text('Registrado por:', 14, y + 24);
+    if (reportData.emailSubject) {
+      doc.text('Assunto do E-mail:', 14, y + 30);
+    }
+   
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    
+    let methodDescription = 'Resposta recebida por e-mail corporativo.';
+    if (reportData.validationMethod !== 'E-mail') {
+      methodDescription = `Recebido via ${reportData.validationMethod}.`;
+    }
+    doc.text(methodDescription, 50, y);
+    
+    const decisionText = reportData.result.label;
+    const semantic = reportData.result.semanticType;
+    doc.setFont('Helvetica', 'bold');
+    if (semantic === 'positive') doc.setTextColor(16, 185, 129);
+    else if (semantic === 'attention') doc.setTextColor(245, 158, 11);
+    else if (semantic === 'negative') doc.setTextColor(239, 68, 68);
+    else doc.setTextColor(100, 116, 139);
+    doc.text(decisionText.toUpperCase(), 50, y + 6);
+    
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    doc.text(reportData.respondent.name, 50, y + 12);
+    doc.text(reportData.respondent.role, 50, y + 18);
+    doc.text(reportData.registeredByName || 'Usuário do sistema', 50, y + 24);
+    if (reportData.emailSubject) {
+      doc.text(reportData.emailSubject, 50, y + 30);
+    }
+    
+    y += reportData.emailSubject ? 40 : 34;
+    
+    // Notes / Observações
+    if (reportData.notes) {
+      if (y > 250) {
+        doc.addPage();
+        drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+        y = 25;
+      }
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(13, 133, 122);
+      doc.text('OBSERVAÇÕES', 14, y);
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(13, 133, 122);
+      doc.line(14, y + 2, 196, y + 2);
+      y += 8;
+      
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(9.5);
+      doc.setTextColor(51, 65, 85);
+      const notesLines = doc.splitTextToSize(reportData.notes, 182);
+      doc.text(notesLines, 14, y);
+      y += (notesLines.length * 4.5) + 10;
+    }
+  } else {
+    // Respondent Info Header
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(13, 133, 122);
+    doc.text('RESPONSÁVEL PELA VALIDAÇÃO', 14, y);
+    
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(13, 133, 122);
+    doc.line(14, y + 2, 196, y + 2);
+    
+    y += 8;
+    
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Nome:', 14, y);
+    doc.text('Cargo / Função:', 14, y + 6);
+    doc.text('E-mail:', 14, y + 12);
+    doc.text('Resultado Final:', 14, y + 18);
+   
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    doc.text(reportData.respondent.name, 45, y);
+    doc.text(reportData.respondent.role, 45, y + 6);
+    doc.text(reportData.respondent.email, 45, y + 12);
+    
+    const decisionText = reportData.result.label;
+    const semantic = reportData.result.semanticType;
+    
+    doc.setFont('Helvetica', 'bold');
+    if (semantic === 'positive') doc.setTextColor(16, 185, 129);
+    else if (semantic === 'attention') doc.setTextColor(245, 158, 11);
+    else if (semantic === 'negative') doc.setTextColor(239, 68, 68);
+    else doc.setTextColor(100, 116, 139);
+    
+    doc.text(decisionText.toUpperCase(), 45, y + 18);
+    
+    y += 28;
+   
+    let questionNumber = 0;
+  
+    // Blocks Loop
+    reportData.blocks.forEach((block: any) => {
+      if (y > 250) {
+        doc.addPage();
+        drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+        y = 25;
+      }
+   
+      const displayTitle = (block.title && block.title.trim()) || (BLOCK_METADATA[block.type as any] as any)?.title || 'Informativo';
+      
+      let blockTitle = displayTitle;
+      const isAnswerable = !['heading_text', 'request_information', 'analysis_materials'].includes(block.type);
+      if (isAnswerable) {
+        questionNumber++;
+        blockTitle = `Questão ${questionNumber}: ${displayTitle}`;
+      }
+  
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(30, 41, 59);
+      doc.text(blockTitle, 14, y);
+      y += 5;
+   
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(9.5);
+      doc.setTextColor(51, 65, 85);
+   
+      if (block.type === 'heading_text') {
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        const splitText = doc.splitTextToSize(block.description || '', 182);
+        doc.text(splitText, 14, y);
+        y += (splitText.length * 4) + 2;
+      } else if (block.type === 'request_information') {
+        const enabledFields = (block.fields || []).filter((f: any) => f.enabled && f.visibleToClient);
+        if (enabledFields.length > 0) {
+          enabledFields.forEach((field: any) => {
+            let val = '';
+            if (field.key === 'title') val = reportData.publication.processTitle;
+            else if (field.key === 'client') val = reportData.publication.client;
+            else if (field.key === 'project') val = reportData.publication.project;
+            else if (field.key === 'code') val = reportData.publication.projectCode;
+            else if (field.key === 'revision') val = reportData.publication.revision;
+            else if (field.key === 'responsible_internal') val = pub.snapshot?.responsible_internal || '';
+            else if (field.key === 'deadline') val = pub.snapshot?.deadline ? new Date(pub.snapshot.deadline).toLocaleString('pt-BR') : '';
+            else if (field.key === 'description') val = pub.snapshot?.description || '';
+            else if (field.key === 'notes_for_client') val = pub.snapshot?.notes_for_client || '';
+            
+            if (val) {
+              if (y > 270) {
+                doc.addPage();
+                drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+                y = 25;
+              }
+              doc.setFont('Helvetica', 'bold');
+              doc.text(`${field.label}:`, 18, y);
+              doc.setFont('Helvetica', 'normal');
+              const splitVal = doc.splitTextToSize(val, 140);
+              doc.text(splitVal, 52, y);
+              y += (splitVal.length * 4.5) + 2;
+            }
+          });
+          y += 2;
+        } else {
+          doc.text('Nenhuma informação visível ao cliente.', 14, y);
+          y += 6;
+        }
+      } else if (block.type === 'analysis_materials') {
+        const materialsList = reportData.materials;
+        if (materialsList.length > 0) {
+          materialsList.forEach((m: any) => {
             if (y > 270) {
               doc.addPage();
               drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
               y = 25;
             }
-            doc.setFont('Helvetica', 'bold');
-            doc.text(`${field.label}:`, 18, y);
-            doc.setFont('Helvetica', 'normal');
-            const splitVal = doc.splitTextToSize(val, 140);
-            doc.text(splitVal, 52, y);
-            y += (splitVal.length * 4.5) + 2;
-          }
-        });
-        y += 2;
-      } else {
-        doc.text('Nenhuma informação visível ao cliente.', 14, y);
-        y += 6;
-      }
-    } else if (block.type === 'analysis_materials') {
-      const materialsList = reportData.materials;
-      if (materialsList.length > 0) {
-        materialsList.forEach((m: any) => {
-          if (y > 270) {
-            doc.addPage();
-            drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
-            y = 25;
-          }
-          const info = `${m.name} [${m.category}] ${m.revision ? `(Rev ${m.revision})` : ''} - ${m.fileName}`;
-          const splitInfo = doc.splitTextToSize(info, 175);
-          doc.text(splitInfo, 18, y);
-          y += (splitInfo.length * 4.5) + 1;
-        });
-        y += 2;
-      } else {
-        doc.text('Nenhum material anexado.', 14, y);
-        y += 6;
-      }
-    } else if (block.type === 'short_answer' || block.type === 'long_answer' || block.type === 'dropdown' || block.type === 'date') {
-      let valToShow = block.answerText;
-      if (block.type === 'dropdown') {
-        valToShow = `Resposta selecionada:\n${block.answerText}`;
-      }
-      const splitVal = doc.splitTextToSize(valToShow, 182);
-      doc.text(splitVal, 14, y);
-      y += (splitVal.length * 4.5) + 4;
-    } else if (block.type === 'multiple_choice' || block.type === 'checkbox') {
-      const options = block.options || [];
-      const isCheckbox = block.type === 'checkbox';
-
-      if (options.length > 0) {
-        options.forEach((opt: any) => {
-          if (y > 270) {
-            doc.addPage();
-            drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
-            y = 25;
-          }
-          
-          let isSelected = false;
-          if (isCheckbox) {
-            isSelected = block.value?.list?.includes(opt.text) === true;
-          } else {
-            const radioVal = block.value;
-            isSelected = (typeof radioVal === 'string' && radioVal === opt.text) || (radioVal?.value === opt.text);
-          }
-
-          doc.text(`${isSelected ? '[X]' : '[ ]'} ${opt.text}`, 14, y);
-          y += 6;
-        });
-
-        if (block.allowOther) {
-          if (y > 270) {
-            doc.addPage();
-            drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
-            y = 25;
-          }
-          const otherSelected = !!block.value?.otherSelected;
-          const otherText = block.value?.otherText || '';
-          const otherTextSuffix = (otherSelected && otherText) ? `: ${otherText}` : '';
-          doc.text(`${otherSelected ? '[X]' : '[ ]'} Outro${otherTextSuffix}`, 14, y);
+            const info = `${m.name} [${m.category}] ${m.revision ? `(Rev ${m.revision})` : ''} - ${m.fileName}`;
+            const splitInfo = doc.splitTextToSize(info, 175);
+            doc.text(splitInfo, 18, y);
+            y += (splitInfo.length * 4.5) + 1;
+          });
+          y += 2;
+        } else {
+          doc.text('Nenhum material anexado.', 14, y);
           y += 6;
         }
-      } else {
-        // Fallback for missing options in older validations
-        const splitVal = doc.splitTextToSize(block.answerText, 182);
+      } else if (block.type === 'short_answer' || block.type === 'long_answer' || block.type === 'dropdown' || block.type === 'date') {
+        let valToShow = block.answerText;
+        if (block.type === 'dropdown') {
+          valToShow = `Resposta selecionada:\n${block.answerText}`;
+        }
+        const splitVal = doc.splitTextToSize(valToShow, 182);
         doc.text(splitVal, 14, y);
         y += (splitVal.length * 4.5) + 4;
+      } else if (block.type === 'multiple_choice' || block.type === 'checkbox') {
+        const options = block.options || [];
+        const isCheckbox = block.type === 'checkbox';
+  
+        if (options.length > 0) {
+          options.forEach((opt: any) => {
+            if (y > 270) {
+              doc.addPage();
+              drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+              y = 25;
+            }
+            
+            let isSelected = false;
+            if (isCheckbox) {
+              isSelected = block.value?.list?.includes(opt.text) === true;
+            } else {
+              const radioVal = block.value;
+              isSelected = (typeof radioVal === 'string' && radioVal === opt.text) || (radioVal?.value === opt.text);
+            }
+  
+            doc.text(`${isSelected ? '[X]' : '[ ]'} ${opt.text}`, 14, y);
+            y += 6;
+          });
+  
+          if (block.allowOther) {
+            if (y > 270) {
+              doc.addPage();
+              drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+              y = 25;
+            }
+            const otherSelected = !!block.value?.otherSelected;
+            const otherText = block.value?.otherText || '';
+            const otherTextSuffix = (otherSelected && otherText) ? `: ${otherText}` : '';
+            doc.text(`${otherSelected ? '[X]' : '[ ]'} Outro${otherTextSuffix}`, 14, y);
+            y += 6;
+          }
+        } else {
+          // Fallback for missing options in older validations
+          const splitVal = doc.splitTextToSize(block.answerText, 182);
+          doc.text(splitVal, 14, y);
+          y += (splitVal.length * 4.5) + 4;
+        }
+        y += 2;
+      } else if (block.type === 'file_upload') {
+        const files = block.files || [];
+        if (files.length > 0) {
+          files.forEach((f: any) => {
+            if (y > 270) {
+              doc.addPage();
+              drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
+              y = 25;
+            }
+            doc.text(`Anexo: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`, 14, y);
+            y += 5;
+          });
+          y += 2;
+        } else {
+          doc.text('Nenhum arquivo enviado', 14, y);
+          y += 6;
+        }
+      } else if (block.type === 'acknowledgement') {
+        const isConfirmed = !!block.confirmed;
+        doc.setFont('Helvetica', 'bold');
+        doc.setTextColor(isConfirmed ? 16 : 220, isConfirmed ? 185 : 38, isConfirmed ? 129 : 38);
+        doc.text(isConfirmed ? '[X] TERMO ACEITO E ASSINADO DIGITALMENTE' : '[ ] DECLARAÇÃO NÃO CONFIRMADA', 14, y);
+        doc.setTextColor(30, 41, 59); // Reset
+        y += 5;
+        
+        doc.setFont('Helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        const declLines = doc.splitTextToSize(block.declarationText || '', 182);
+        doc.text(declLines, 14, y);
+        y += (declLines.length * 4.5) + 4;
+  
+        if (isConfirmed) {
+          doc.setFont('Helvetica', 'oblique');
+          doc.setFontSize(8);
+          doc.setTextColor(100, 116, 139);
+          const signText = `Assinado por ${reportData.respondent.name} (${reportData.respondent.role}) em ${
+            reportData.publication.validatedAt ? new Date(reportData.publication.validatedAt).toLocaleString('pt-BR') : 'N/A'
+          } - Protocolo: ${reportData.publication.protocol}`;
+          doc.text(signText, 14, y);
+          y += 6;
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(9.5);
+        }
+      } else if (block.type === 'approval_decision') {
+        const decState = block.decision;
+        const decisionVal = decState?.text || 'Sem resposta';
+        const commentVal = decState?.comment || '';
+        
+        doc.setFont('Helvetica', 'bold');
+        if (decState?.semanticType === 'positive') doc.setTextColor(16, 185, 129);
+        else if (decState?.semanticType === 'attention') doc.setTextColor(245, 158, 11);
+        else if (decState?.semanticType === 'negative') doc.setTextColor(239, 68, 68);
+        else doc.setTextColor(100, 116, 139);
+  
+        doc.text(`Decisão Selecionada: ${decisionVal.toUpperCase()}`, 14, y);
+        doc.setTextColor(30, 41, 59); // Reset
+        y += 5;
+        
+        doc.setFont('Helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        const commentText = commentVal ? `Justificativa/Comentários: ${commentVal}` : 'Não foram registradas observações.';
+        const commentLines = doc.splitTextToSize(commentText, 182);
+        doc.text(commentLines, 14, y);
+        y += (commentLines.length * 4.5) + 4;
       }
       y += 2;
-    } else if (block.type === 'file_upload') {
-      const files = block.files || [];
-      if (files.length > 0) {
-        files.forEach((f: any) => {
-          if (y > 270) {
-            doc.addPage();
-            drawOfficialPDFHeaderCompact(doc, reportData, logoImg);
-            y = 25;
-          }
-          doc.text(`Anexo: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`, 14, y);
-          y += 5;
-        });
-        y += 2;
-      } else {
-        doc.text('Nenhum arquivo enviado', 14, y);
-        y += 6;
-      }
-    } else if (block.type === 'acknowledgement') {
-      const isConfirmed = !!block.confirmed;
-      doc.setFont('Helvetica', 'bold');
-      doc.setTextColor(isConfirmed ? 16 : 220, isConfirmed ? 185 : 38, isConfirmed ? 129 : 38);
-      doc.text(isConfirmed ? '[X] TERMO ACEITO E ASSINADO DIGITALMENTE' : '[ ] DECLARAÇÃO NÃO CONFIRMADA', 14, y);
-      doc.setTextColor(30, 41, 59); // Reset
-      y += 5;
-      
-      doc.setFont('Helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      const declLines = doc.splitTextToSize(block.declarationText || '', 182);
-      doc.text(declLines, 14, y);
-      y += (declLines.length * 4.5) + 4;
-
-      if (isConfirmed) {
-        doc.setFont('Helvetica', 'oblique');
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        const signText = `Assinado por ${reportData.respondent.name} (${reportData.respondent.role}) em ${
-          reportData.publication.validatedAt ? new Date(reportData.publication.validatedAt).toLocaleString('pt-BR') : 'N/A'
-        } - Protocolo: ${reportData.publication.protocol}`;
-        doc.text(signText, 14, y);
-        y += 6;
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(9.5);
-      }
-    } else if (block.type === 'approval_decision') {
-      const decState = block.decision;
-      const decisionVal = decState?.text || 'Sem resposta';
-      const commentVal = decState?.comment || '';
-      
-      doc.setFont('Helvetica', 'bold');
-      if (decState?.semanticType === 'positive') doc.setTextColor(16, 185, 129);
-      else if (decState?.semanticType === 'attention') doc.setTextColor(245, 158, 11);
-      else if (decState?.semanticType === 'negative') doc.setTextColor(239, 68, 68);
-      else doc.setTextColor(100, 116, 139);
-
-      doc.text(`Decisão Selecionada: ${decisionVal.toUpperCase()}`, 14, y);
-      doc.setTextColor(30, 41, 59); // Reset
-      y += 5;
-      
-      doc.setFont('Helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      const commentText = commentVal ? `Justificativa/Comentários: ${commentVal}` : 'Não foram registradas observações.';
-      const commentLines = doc.splitTextToSize(commentText, 182);
-      doc.text(commentLines, 14, y);
-      y += (commentLines.length * 4.5) + 4;
-    }
-    y += 2;
-  });
+    });
+  }
  
   // Section: RASTREABILIDADE DE ARQUIVOS (SHA-256)
   if (y > 220) {

@@ -84,6 +84,7 @@ export default function Aprovacoes() {
       const validatedPubIds = pubList.filter(p => p.status === 'validated').map(p => p.id);
       
       if (validatedPubIds.length > 0) {
+        // Online responses
         const { data: respData, error: respError } = await supabase
           .from('process_validation_responses')
           .select('*')
@@ -91,11 +92,42 @@ export default function Aprovacoes() {
           
         if (respError) throw respError;
         
+        // Manual validation responses
+        const { data: manualData, error: manualError } = await supabase
+          .from('process_manual_validations')
+          .select('*, user_profiles(full_name)')
+          .in('publication_id', validatedPubIds);
+          
+        if (manualError) throw manualError;
+        
         // Map responses to their publications
         pubList.forEach(pub => {
           if (pub.status === 'validated') {
             const resp = respData?.find(r => r.publication_id === pub.id);
-            pub.response = resp;
+            if (resp) {
+              pub.response = resp;
+            } else {
+              const man = manualData?.find(m => m.publication_id === pub.id);
+              if (man) {
+                pub.response = {
+                  is_manual: true,
+                  protocol: man.protocol,
+                  pdf_hash: man.pdf_hash,
+                  respondent_name: man.respondent_name,
+                  respondent_role: man.respondent_role,
+                  response_date: man.response_date,
+                  validation_method: man.validation_method,
+                  email_subject: man.email_subject,
+                  notes: man.notes,
+                  registered_by_name: man.user_profiles?.full_name || 'Usuário do sistema',
+                  created_at: man.created_at,
+                  primary_decision: {
+                    text: man.result,
+                    semanticType: man.result === 'Aprovado' ? 'positive' : (man.result === 'Aprovado com Ressalvas' ? 'attention' : 'negative')
+                  }
+                };
+              }
+            }
           }
         });
       }
@@ -483,7 +515,18 @@ export default function Aprovacoes() {
                     <td className="p-4">
                       {pub.status === 'validated' && pub.response ? (
                         <div>
-                          <div>{pub.response.respondent_name}</div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{pub.response.respondent_name}</span>
+                            {pub.response.is_manual ? (
+                              <Badge className="bg-amber-50 text-amber-800 border border-amber-200 text-[8px] px-1 py-0 rounded-sm">
+                                E-mail
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-teal-50 text-teal-850 border border-teal-200 text-[8px] px-1 py-0 rounded-sm">
+                                Portal
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-[9px] text-slate-400 font-medium pt-0.5">{pub.response.respondent_role}</div>
                         </div>
                       ) : (
@@ -506,7 +549,7 @@ export default function Aprovacoes() {
                     </td>
                     <td className="p-4 text-slate-450 font-medium">
                       {pub.status === 'validated' && pub.response ? (
-                        new Date(pub.response.submitted_at).toLocaleDateString('pt-BR')
+                        new Date(pub.response.submitted_at || pub.response.response_date || pub.response.created_at).toLocaleDateString('pt-BR')
                       ) : (
                         new Date(pub.published_at).toLocaleDateString('pt-BR')
                       )}
@@ -656,6 +699,19 @@ export default function Aprovacoes() {
                   const reportData = buildApprovalReportData(selectedPub, selectedPub.response);
                   const formattedAnswers = reportData.rendererAnswers;
 
+                  const manualValidation = selectedPub.response?.is_manual ? {
+                    isManual: true,
+                    result: selectedPub.response.primary_decision?.text,
+                    respondentName: selectedPub.response.respondent_name,
+                    respondentRole: selectedPub.response.respondent_role,
+                    responseDate: selectedPub.response.response_date,
+                    validationMethod: selectedPub.response.validation_method,
+                    emailSubject: selectedPub.response.email_subject,
+                    notes: selectedPub.response.notes,
+                    registeredByName: selectedPub.response.registered_by_name,
+                    protocol: selectedPub.response.protocol
+                  } : undefined;
+
                   return (
                     <ApprovalDocumentRenderer
                       mode={selectedPub.status === 'validated' ? 'read-only-result' : 'template-preview'}
@@ -667,6 +723,7 @@ export default function Aprovacoes() {
                       respondentName={selectedPub.response?.respondent_name}
                       respondentRole={selectedPub.response?.respondent_role}
                       respondentEmail={selectedPub.response?.respondent_email}
+                      manualValidation={manualValidation}
                     />
                   );
                 })()}
