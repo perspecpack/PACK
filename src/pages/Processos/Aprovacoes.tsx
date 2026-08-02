@@ -113,7 +113,7 @@ export default function Aprovacoes() {
       if (validatedPubIds.length > 0) {
         // Consolidated validation records
         const { data: recordsData, error: recordsError } = await supabase
-          .from('process_validation_records')
+          .from('validation_records')
           .select('*, user_profiles(full_name)')
           .in('publication_id', validatedPubIds);
           
@@ -125,22 +125,22 @@ export default function Aprovacoes() {
             const rec = recordsData?.find(r => r.publication_id === pub.id);
             if (rec) {
               pub.response = {
-                is_manual: rec.origin === 'E-mail',
+                is_manual: rec.response_origin === 'manual_email',
                 protocol: rec.protocol,
                 pdf_hash: rec.pdf_hash,
-                respondent_name: rec.respondent_name,
-                respondent_role: rec.respondent_role,
-                response_date: rec.response_date,
+                respondent_name: rec.responder_name,
+                respondent_role: rec.responder_role,
+                response_date: rec.responded_at,
                 notes: rec.notes,
                 email_subject: rec.email_subject,
-                registered_by_name: rec.user_profiles?.full_name || 'Usuário do sistema',
+                registered_by_name: rec.registered_by_name || rec.user_profiles?.full_name || 'Usuário do sistema',
                 created_at: rec.completed_at,
                 answers: rec.answers_snapshot,
                 cleanup_status: rec.cleanup_status,
                 cleanup_notes: rec.cleanup_notes,
                 primary_decision: {
-                  text: rec.result,
-                  semanticType: rec.result === 'Aprovado' ? 'positive' : (rec.result === 'Aprovado com Ressalvas' ? 'attention' : 'negative')
+                  text: rec.final_result,
+                  semanticType: rec.final_result === 'Aprovado' ? 'positive' : (rec.final_result === 'Aprovado com Ressalvas' ? 'attention' : 'negative')
                 }
               };
             }

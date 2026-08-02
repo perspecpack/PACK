@@ -409,9 +409,9 @@ export default function SolicitacaoForm() {
         p_event_description: 'PDF do relatório oficial armazenado com sucesso.'
       });
 
-      // 6. Confirm integrity: check that the record in process_validation_records exists and has the correct pdf_hash
+      // 6. Confirm integrity: check that the record in validation_records exists and has the correct pdf_hash
       const { data: integrityCheck, error: integrityError } = await supabase
-        .from('process_validation_records')
+        .from('validation_records')
         .select('id, pdf_hash')
         .eq('publication_id', activePub.id)
         .single();
@@ -444,7 +444,7 @@ export default function SolicitacaoForm() {
       if (cleanupSuccess) {
         await supabase.rpc('update_validation_record_cleanup', {
           p_publication_id: activePub.id,
-          p_cleanup_status: 'Concluída',
+          p_cleanup_status: 'completed',
           p_cleanup_notes: 'Limpeza de todos os materiais temporários concluída com sucesso.'
         });
         await supabase.rpc('register_validation_event', {
@@ -455,7 +455,7 @@ export default function SolicitacaoForm() {
       } else {
         await supabase.rpc('update_validation_record_cleanup', {
           p_publication_id: activePub.id,
-          p_cleanup_status: 'Falha na limpeza',
+          p_cleanup_status: 'failed',
           p_cleanup_notes: `Falha ao excluir os arquivos: ${failedFiles.join(', ')}`
         });
         await supabase.rpc('register_validation_event', {

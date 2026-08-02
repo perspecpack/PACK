@@ -643,13 +643,30 @@ export default function ApprovalDocumentRenderer({
             </div>
             <div>
               <span className="text-[10px] text-teal-600 block font-bold uppercase tracking-wider mb-0.5">Arquivos de Análise</span>
-              <span className={`px-2 py-0.5 rounded border text-[10.5px] inline-block font-bold ${
-                cleanupStatus === 'Concluída' ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' :
-                cleanupStatus === 'Falha na limpeza' ? 'bg-red-50 text-red-800 border-red-250/60' :
-                'bg-amber-50 text-amber-800 border-amber-250/60'
-              }`}>
-                Descarte: {cleanupStatus || 'Pendente'}
-              </span>
+              {(() => {
+                const isCompleted = cleanupStatus === 'Concluída' || cleanupStatus === 'completed';
+                const isFailed = cleanupStatus === 'Falha na limpeza' || cleanupStatus === 'failed';
+                const isProcessing = cleanupStatus === 'processing';
+                
+                let badgeClass = 'bg-amber-50 text-amber-800 border-amber-250/60';
+                let text = 'Pendente';
+                if (isCompleted) {
+                  badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-200/60';
+                  text = 'Descarte concluído';
+                } else if (isFailed) {
+                  badgeClass = 'bg-red-50 text-red-800 border-red-250/60';
+                  text = 'Falha no descarte';
+                } else if (isProcessing) {
+                  badgeClass = 'bg-blue-50 text-blue-800 border-blue-200/60 animate-pulse';
+                  text = 'Descarte em andamento';
+                }
+                
+                return (
+                  <span className={`px-2 py-0.5 rounded border text-[10.5px] inline-block font-bold ${badgeClass}`}>
+                    {text}
+                  </span>
+                );
+              })()}
               {cleanupNotes && (
                 <p className="text-[9.5px] text-slate-455 leading-normal mt-1 italic font-medium">{cleanupNotes}</p>
               )}
@@ -845,13 +862,30 @@ export default function ApprovalDocumentRenderer({
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Arquivos de Análise</span>
-                  <span className={`px-2 py-0.5 rounded border text-[10.5px] inline-block font-bold mt-1 ${
-                    manualValidation.cleanupStatus === 'Concluída' ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' :
-                    manualValidation.cleanupStatus === 'Falha na limpeza' ? 'bg-red-50 text-red-800 border-red-250/60' :
-                    'bg-amber-50 text-amber-800 border-amber-250/60'
-                  }`}>
-                    Descarte: {manualValidation.cleanupStatus || 'Pendente'}
-                  </span>
+                  {(() => {
+                    const isCompleted = manualValidation.cleanupStatus === 'Concluída' || manualValidation.cleanupStatus === 'completed';
+                    const isFailed = manualValidation.cleanupStatus === 'Falha na limpeza' || manualValidation.cleanupStatus === 'failed';
+                    const isProcessing = manualValidation.cleanupStatus === 'processing';
+                    
+                    let badgeClass = 'bg-amber-50 text-amber-800 border-amber-250/60 mt-1';
+                    let text = 'Pendente';
+                    if (isCompleted) {
+                      badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-200/60 mt-1';
+                      text = 'Descarte concluído';
+                    } else if (isFailed) {
+                      badgeClass = 'bg-red-50 text-red-800 border-red-250/60 mt-1';
+                      text = 'Falha no descarte';
+                    } else if (isProcessing) {
+                      badgeClass = 'bg-blue-50 text-blue-800 border-blue-200/60 animate-pulse mt-1';
+                      text = 'Descarte em andamento';
+                    }
+                    
+                    return (
+                      <span className={`px-2 py-0.5 rounded border text-[10.5px] inline-block font-bold ${badgeClass}`}>
+                        {text}
+                      </span>
+                    );
+                  })()}
                   {manualValidation.cleanupNotes && (
                     <p className="text-[9.5px] text-slate-400 leading-normal mt-1 italic font-medium">{manualValidation.cleanupNotes}</p>
                   )}
