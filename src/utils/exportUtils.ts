@@ -52,6 +52,17 @@ Atenciosamente,
 ${organization || 'PERSPECPACK'}`;
 }
 
+export function isClientVisibleBlock(block: any): boolean {
+  return block && block.type !== 'request_information' && block.type !== 'analysis_materials';
+}
+
+export function isClientNumberedQuestion(block: any): boolean {
+  if (!block) return false;
+  return isClientVisibleBlock(block) && 
+         block.type !== 'heading_text' && 
+         block.type !== 'acknowledgement';
+}
+
 export function generateEmailHtml(pub: any, branding: any, link: string): string {
   const companyName = branding.tradeName || branding.companyName || pub.snapshot?.company_name || 'PERSPECPACK';
   const logoUrl = branding.companyLogoUrl || pub.snapshot?.company_logo_url;
@@ -73,20 +84,34 @@ export function generateEmailHtml(pub: any, branding: any, link: string): string
 
   // Materials
   const materialsList = pub.snapshot?.materials || [];
-  let materialsHtml = '';
+  let materialsSectionHtml = '';
   if (materialsList.length > 0) {
-    materialsHtml = materialsList.map((m: any) => {
-      return `<li style="margin-bottom: 6px;"><strong>${m.name}</strong> [${m.category}] ${m.revision ? `(Rev ${m.revision})` : ''} - <em>${m.fileName}</em></li>`;
+    const materialsHtml = materialsList.map((m: any) => {
+      const descText = m.description ? ` - <em>${m.description}</em>` : '';
+      return `<li style="margin-bottom: 6px;"><strong>${m.name}</strong> [${m.category}] ${m.revision ? `(Rev ${m.revision})` : ''} - <em>${m.fileName}</em>${descText}</li>`;
     }).join('');
-  } else {
-    materialsHtml = '<li>Nenhum material de análise anexado.</li>';
+
+    materialsSectionHtml = `
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+        <h3 style="margin: 0 0 8px 0; font-size: 13px; color: #0d857a; font-weight: bold; text-transform: uppercase;">Materiais Disponibilizados para Análise</h3>
+        <ul style="padding-left: 20px; margin: 0 0 12px 0; font-size: 12px; color: #334155; line-height: 1.5;">
+          ${materialsHtml}
+        </ul>
+        <div style="font-size: 11px; color: #b45309; font-weight: bold; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 8px;">
+          ⚠️ ATENÇÃO: Os arquivos acima devem ser anexados manualmente a esta mensagem de e-mail ao enviar ao cliente.
+        </div>
+      </div>
+    `;
   }
 
   // Blocks form
   const blocks = pub.snapshot?.blocks || [];
   let blocksHtml = '';
+  let questionNumber = 1;
   
-  blocks.forEach((block: any, index: number) => {
+  const clientBlocks = blocks.filter(isClientVisibleBlock);
+  
+  clientBlocks.forEach((block: any) => {
     if (block.type === 'heading_text') {
       blocksHtml += `
         <div style="margin-top: 24px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; margin-bottom: 12px;">
@@ -144,10 +169,16 @@ export function generateEmailHtml(pub: any, branding: any, link: string): string
         `;
       }
       
+      let numberPrefix = '';
+      if (isClientNumberedQuestion(block)) {
+        numberPrefix = `Questão ${questionNumber}: `;
+        questionNumber++;
+      }
+      
       blocksHtml += `
         <div style="margin-top: 18px; margin-bottom: 18px; page-break-inside: avoid;">
           <label style="font-size: 12px; font-weight: bold; color: #334155; display: block;">
-            Questão ${index + 1}: ${displayTitle} ${block.required ? '<span style="color: #ef4444;">*</span>' : ''}
+            ${numberPrefix}${displayTitle} ${block.required ? '<span style="color: #ef4444;">*</span>' : ''}
           </label>
           ${block.description ? `<p style="margin: 2px 0 6px 0; font-size: 11px; color: #64748b; line-height: 1.4;">${block.description}</p>` : ''}
           ${blockContent}
@@ -202,15 +233,7 @@ export function generateEmailHtml(pub: any, branding: any, link: string): string
         ` : ''}
       </table>
       
-      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-        <h3 style="margin: 0 0 8px 0; font-size: 13px; color: #0d857a; font-weight: bold; text-transform: uppercase;">Materiais para Análise</h3>
-        <ul style="padding-left: 20px; margin: 0 0 12px 0; font-size: 12px; color: #334155; line-height: 1.5;">
-          ${materialsHtml}
-        </ul>
-        <div style="font-size: 11px; color: #b45309; font-weight: bold; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 8px;">
-          ⚠️ ATENÇÃO: Os arquivos acima devem ser anexados manualmente a esta mensagem de e-mail ao enviar ao cliente.
-        </div>
-      </div>
+      ${materialsSectionHtml}
       
       <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 18px; margin-bottom: 24px;">
         <h3 style="margin: 0 0 12px 0; font-size: 13px; color: #1e293b; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
