@@ -166,7 +166,7 @@ const ORG_TYPE_LABELS: Record<string, string> = {
 };
 
 
-export default function Downloads() {
+function Downloads() {
   const navigate = useNavigate();
   const { 
     organizations, 
@@ -185,6 +185,11 @@ export default function Downloads() {
     user,
     profile
   } = useApp();
+
+  // Selection states (declared early to prevent TDZ ReferenceErrors)
+  const [selectedOEM, setSelectedOEM] = useState<string>('');
+  const [selectedTechnicalArea, setSelectedTechnicalArea] = useState<string>('');
+  const [selectedModule, setSelectedModule] = useState<ModuleType>('components');
 
   // Local filters for content view
   const [filterCategoryId, setFilterCategoryId] = useState<string>('');
@@ -210,8 +215,6 @@ export default function Downloads() {
     e.preventDefault();
     setShowUpgradeModal(true);
   };
-  const [selectedOEM, setSelectedOEM] = useState<string>('');
-  const [selectedTechnicalArea, setSelectedTechnicalArea] = useState<string>('');
   const [selectedItemForModal, setSelectedItemForModal] = useState<{
     type: 'component' | 'document' | 'standard';
     data: any;
@@ -240,7 +243,6 @@ export default function Downloads() {
       setSelectedItemForModal(null);
     }
   }, [resetTrigger]);
-  const [selectedModule, setSelectedModule] = useState<ModuleType>('components');
   
   // Checklist Execution state
   const [activeChecklist, setActiveChecklist] = useState<ChecklistTemplate | null>(null);
@@ -3511,5 +3513,56 @@ export default function Downloads() {
       )}
 
     </div>
+  );
+}
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-[400px] flex flex-col items-center justify-center p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-4 max-w-lg mx-auto mt-12">
+          <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center border border-red-200 shadow-inner text-xl">
+            ⚠️
+          </div>
+          <div className="space-y-1 text-center">
+            <h3 className="text-base font-extrabold text-slate-800">Não foi possível carregar os padrões das organizações</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Ocorreu um erro interno de renderização. Suas credenciais e dados estão preservados.
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            className="bg-teal-650 hover:bg-teal-750 text-white font-bold h-9 text-xs px-4 rounded-xl shadow-md transition-colors"
+          >
+            Tentar Novamente
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function DownloadsWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <Downloads />
+    </ErrorBoundary>
   );
 }
