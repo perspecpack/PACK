@@ -23,28 +23,41 @@ export const supabase = (supabaseUrl && supabaseAnonKey)
 
 /**
  * Uploads a file to a specific Supabase storage bucket under a structured path.
- * Path structure: organization-slug/module-type/timestamp-file-name
+ * Path structure: organization-slug/module-type/revision/uuid.ext
  */
 export async function uploadFileToStorage(
   file: File,
   bucket: string,
   orgSlug: string,
-  moduleType: string
-): Promise<{ publicUrl: string; path: string }> {
+  moduleType: string,
+  revision?: string
+): Promise<{ publicUrl: string; path: string; originalName: string }> {
   if (!supabaseUrl || !supabaseAnonKey || !supabase) {
     throw new Error('As credenciais do Supabase não estão configuradas. Por favor, adicione-as nas configurações do projeto.');
   }
 
-  // Clean filename to prevent weird characters
-  const cleanFileName = file.name
-    .replace(/[^a-zA-Z0-9.-]/g, '_')
-    .replace(/_{2,}/g, '_');
+  // Safe UUID generator
+  const generateUUID = () => {
+    if (typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  };
+
+  const ext = file.name.split('.').pop() || '';
+  const cleanExt = ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const uuidName = `${generateUUID()}${cleanExt ? `.${cleanExt}` : ''}`;
   
-  // Format timestamp (YYYY-MM-DD-HHmmss)
-  const date = new Date();
-  const timestamp = date.toISOString().split('T')[0] + '-' + date.toTimeString().split(' ')[0].replace(/:/g, '');
-  
-  const path = `${orgSlug}/${moduleType}/${timestamp}-${cleanFileName}`;
+  const cleanRevision = revision 
+    ? revision.replace(/[^a-zA-Z0-9.-]/g, '_') 
+    : 'no_rev';
+
+  // Construct secure path: organization/module_type/revision/uuid.ext
+  const path = `${orgSlug}/${moduleType}/${cleanRevision}/${uuidName}`;
   
   const { data, error } = await supabase.storage
     .from(bucket)
@@ -63,7 +76,8 @@ export async function uploadFileToStorage(
     
   return {
     publicUrl,
-    path: data.path
+    path: data.path,
+    originalName: file.name
   };
 }
 

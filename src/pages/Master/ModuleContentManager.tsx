@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { FileUploadField } from '@/components/ui/FileUploadField';
+import { deleteFileFromStorage, supabase } from '@/lib/supabase';
 import { 
   ArrowLeft, 
   Plus, 
@@ -22,7 +23,12 @@ import {
   ShieldCheck,
   FolderKanban,
   FileDown,
-  Paperclip
+  Paperclip,
+  Calendar,
+  Tag,
+  Hash,
+  Copy,
+  ChevronDown
 } from 'lucide-react';
 import { ModuleType, DocumentType, StandardType, ChecklistSection, ChecklistCriterion, ChecklistHeaderField } from '@/src/types';
 
@@ -77,8 +83,12 @@ export default function ModuleContentManager() {
     standards, addStandard, updateStandard, deleteStandard,
     checklists, addChecklist, updateChecklist, deleteChecklist,
     referenceProjects, addReferenceProject, updateReferenceProject, deleteReferenceProject,
+    documentCategories,
+    documentTags,
+    refreshTags,
     logUpload,
-    logPageAccess
+    logPageAccess,
+    user
   } = useApp();
 
   const org = organizations.find(o => o.id === orgId);
@@ -95,12 +105,13 @@ export default function ModuleContentManager() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteStorageFile, setDeleteStorageFile] = useState(false);
 
   // Common Form States
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [revision, setRevision] = useState('');
-  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [status, setStatus] = useState<any>('active');
 
   // Component Specific States
   const [application, setApplication] = useState('');
@@ -142,6 +153,31 @@ export default function ModuleContentManager() {
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [attachmentName, setAttachmentName] = useState('');
   const [attachmentType, setAttachmentType] = useState('');
+
+  // Novas colunas de metadados avançados
+  const [documentCode, setDocumentCode] = useState('');
+  const [contentType, setContentType] = useState('Documento técnico');
+  const [categoryId, setCategoryId] = useState('');
+  const [tagsInput, setTagsInput] = useState('');
+  const [issuedAt, setIssuedAt] = useState('');
+  const [publishedAt, setPublishedAt] = useState('');
+  const [expiredAt, setExpiredAt] = useState('');
+  const [revisionNotes, setRevisionNotes] = useState('');
+  const [parentRevisionId, setParentRevisionId] = useState('');
+  
+  // Componente específicas
+  const [manufacturer, setManufacturer] = useState('');
+  const [manufacturerCode, setManufacturerCode] = useState('');
+  const [homologatingOrganizationsInput, setHomologatingOrganizationsInput] = useState('');
+  
+  // Arquivos complementares
+  const [compFilesList, setCompFilesList] = useState<any[]>([]);
+
+  // Metadados do arquivo principal
+  const [mainFileHash, setMainFileHash] = useState('');
+  const [mainFileSize, setMainFileSize] = useState(0);
+  const [mainMimeType, setMainMimeType] = useState('');
+  const [mainFilePath, setMainFilePath] = useState('');
 
   if (!org) {
     return (
@@ -209,6 +245,25 @@ export default function ModuleContentManager() {
     setAttachmentUrl('');
     setAttachmentName('');
     setAttachmentType('');
+
+    // reset metadados avançados
+    setDocumentCode('');
+    setContentType(moduleType === 'components' ? 'Componente homologado' : moduleType === 'standards' ? 'Norma' : 'Documento técnico');
+    setCategoryId('');
+    setTagsInput('');
+    setIssuedAt('');
+    setPublishedAt(new Date().toISOString().split('T')[0]);
+    setExpiredAt('');
+    setRevisionNotes('');
+    setParentRevisionId('');
+    setManufacturer('');
+    setManufacturerCode('');
+    setHomologatingOrganizationsInput('');
+    setCompFilesList([]);
+    setMainFileHash('');
+    setMainFileSize(0);
+    setMainMimeType('');
+    setMainFilePath('');
     
     // Pre-populate with default 10 sections
     if (moduleType === 'checklists') {
@@ -262,6 +317,25 @@ export default function ModuleContentManager() {
     setAttachmentUrl(rec.attachmentUrl || '');
     setAttachmentName(rec.attachmentName || '');
     setAttachmentType(rec.attachmentType || '');
+
+    // populate advanced metadata
+    setDocumentCode(rec.documentCode || '');
+    setContentType(rec.contentType || (moduleType === 'components' ? 'Componente homologado' : moduleType === 'standards' ? 'Norma' : 'Documento técnico'));
+    setCategoryId(rec.categoryId || '');
+    setTagsInput(rec.tags ? rec.tags.join(', ') : '');
+    setIssuedAt(rec.issuedAt ? new Date(rec.issuedAt).toISOString().split('T')[0] : '');
+    setPublishedAt(rec.publishedAt ? new Date(rec.publishedAt).toISOString().split('T')[0] : '');
+    setExpiredAt(rec.expiredAt ? new Date(rec.expiredAt).toISOString().split('T')[0] : '');
+    setRevisionNotes(rec.revisionNotes || '');
+    setParentRevisionId(rec.parentRevisionId || '');
+    setManufacturer(rec.manufacturer || '');
+    setManufacturerCode(rec.manufacturerCode || '');
+    setHomologatingOrganizationsInput(rec.homologatingOrganizations ? rec.homologatingOrganizations.join(', ') : '');
+    setCompFilesList(rec.complementaryFiles || []);
+    setMainFileHash(rec.fileHash || '');
+    setMainFileSize(rec.fileSize || 0);
+    setMainMimeType(rec.mimeType || '');
+    setMainFilePath(rec.fileUrl ? rec.fileUrl.split('/public/')[1] || '' : '');
     
     if (moduleType === 'checklists') {
       setHasHeader(rec.headerConfig?.enabled || false);
@@ -284,6 +358,36 @@ export default function ModuleContentManager() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Parse and upsert tags into database
+    const parsedTags = tagsInput.split(',').map(t => t.trim()).filter(t => t !== '');
+    if (parsedTags.length > 0 && supabase) {
+      supabase.from('document_tags').upsert(
+        parsedTags.map(name => ({ name })),
+        { onConflict: 'name' }
+      ).then(() => {
+        refreshTags();
+      });
+    }
+
+    const commonMetadata = {
+      fileHash: mainFileHash || undefined,
+      fileSize: mainFileSize || undefined,
+      mimeType: mainMimeType || undefined,
+      extension: fileName ? fileName.split('.').pop()?.toLowerCase() : undefined,
+      uploadedBy: user?.email || undefined,
+      uploadedAt: new Date().toISOString(),
+      categoryId: categoryId || undefined,
+      parentRevisionId: parentRevisionId || undefined,
+      tags: parsedTags,
+      complementaryFiles: compFilesList,
+      contentType,
+      documentCode: documentCode || undefined,
+      issuedAt: issuedAt ? new Date(issuedAt).toISOString() : undefined,
+      publishedAt: publishedAt ? new Date(publishedAt).toISOString() : undefined,
+      expiredAt: expiredAt ? new Date(expiredAt).toISOString() : undefined,
+      revisionNotes: revisionNotes || undefined,
+    };
+
     if (moduleType === 'components') {
       const componentData = {
         organizationId: orgId!,
@@ -297,7 +401,11 @@ export default function ModuleContentManager() {
         pdfFileUrl: pdfFileUrl || undefined,
         dwgFileUrl: dwgFileUrl || undefined,
         imageUrl: imageUrl || undefined,
-        threeDModelUrl: threeDModelUrl || undefined
+        threeDModelUrl: threeDModelUrl || undefined,
+        ...commonMetadata,
+        manufacturer: manufacturer || undefined,
+        manufacturerCode: manufacturerCode || undefined,
+        homologatingOrganizations: homologatingOrganizationsInput.split(',').map(t => t.trim()).filter(t => t !== ''),
       };
 
       if (editingId) {
@@ -316,7 +424,8 @@ export default function ModuleContentManager() {
         status,
         fileUrl: fileUrl || undefined,
         fileName: fileName || undefined,
-        fileType: fileTypeState || undefined
+        fileType: fileTypeState || undefined,
+        ...commonMetadata
       };
 
       if (editingId) {
@@ -336,7 +445,8 @@ export default function ModuleContentManager() {
         referenceDocument: referenceDocument || undefined,
         fileUrl: fileUrl || undefined,
         fileName: fileName || undefined,
-        fileType: fileTypeState || undefined
+        fileType: fileTypeState || undefined,
+        ...commonMetadata
       };
 
       if (editingId) {
@@ -385,8 +495,40 @@ export default function ModuleContentManager() {
     setIsModalOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingId) return;
+
+    if (deleteStorageFile) {
+      const rec = records.find(r => r.id === deletingId);
+      if (rec) {
+        const fileUrlsToDelete = [];
+        if (rec.fileUrl) fileUrlsToDelete.push({ bucket: moduleType === 'documentation' ? 'documents' : 'standards', url: rec.fileUrl });
+        if (rec.stepFileUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.stepFileUrl });
+        if (rec.pdfFileUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.pdfFileUrl });
+        if (rec.dwgFileUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.dwgFileUrl });
+        if (rec.imageUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.imageUrl });
+        if (rec.threeDModelUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.threeDModelUrl });
+
+        if (rec.complementaryFiles && Array.isArray(rec.complementaryFiles)) {
+          rec.complementaryFiles.forEach((f: any) => {
+            if (f.path) {
+              fileUrlsToDelete.push({ 
+                bucket: moduleType === 'documentation' ? 'documents' : moduleType === 'components' ? 'components' : 'standards', 
+                url: f.path 
+              });
+            }
+          });
+        }
+
+        for (const fileItem of fileUrlsToDelete) {
+          try {
+            await deleteFileFromStorage(fileItem.bucket, fileItem.url);
+          } catch (err) {
+            console.error('Failed to delete file from storage:', err);
+          }
+        }
+      }
+    }
 
     if (moduleType === 'components') deleteComponent(deletingId);
     else if (moduleType === 'documentation') deleteDocument(deletingId);
@@ -395,6 +537,7 @@ export default function ModuleContentManager() {
     else if (moduleType === 'reference_projects') deleteReferenceProject(deletingId);
 
     setDeletingId(null);
+    setDeleteStorageFile(false);
   };
 
   // Dynamic Checklist Criteria Handlers
@@ -424,7 +567,6 @@ export default function ModuleContentManager() {
         } else {
           updatedCriteria.push(newCriterion);
         }
-        // Sort criteria by sortOrder
         updatedCriteria.sort((a, b) => a.sortOrder - b.sortOrder);
         return { ...sec, criteria: updatedCriteria };
       }
@@ -446,7 +588,7 @@ export default function ModuleContentManager() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto font-sans">
+    <div className="space-y-6 max-w-[1200px] mx-auto font-sans text-left">
       {/* Back Link */}
       <Link 
         to={`/master/content/${orgId}`} 
@@ -482,7 +624,6 @@ export default function ModuleContentManager() {
         <Table>
           <TableHeader className="bg-slate-50 border-b border-slate-200">
             <TableRow>
-              {/* Header Columns based on Module Type */}
               {moduleType === 'components' && (
                 <>
                   <TableHead className="text-[12px] font-bold text-slate-600 uppercase w-[80px]">Imagem</TableHead>
@@ -539,7 +680,6 @@ export default function ModuleContentManager() {
               records.map((rec) => (
                 <TableRow key={rec.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                   
-                  {/* Row content mapping */}
                   {moduleType === 'components' && (
                     <>
                       <TableCell className="align-middle">
@@ -602,7 +742,7 @@ export default function ModuleContentManager() {
                         <div className="font-bold text-[13px] text-slate-900">{rec.title}</div>
                         <div className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase tracking-wide">{rec.standardType || 'Norma de Embalagem'}</div>
                       </TableCell>
-                      <TableCell className="align-middle text-[13px] text-slate-600 font-medium">
+                      <TableCell className="align-middle text-[13px] text-slate-650 font-medium">
                         {rec.referenceDocument || <span className="text-slate-400 italic">-</span>}
                       </TableCell>
                       <TableCell className="align-middle font-mono font-bold text-[12px] text-slate-700">
@@ -667,35 +807,49 @@ export default function ModuleContentManager() {
                     </>
                   )}
 
-                  {/* Common Status and Actions */}
                   <TableCell className="align-middle">
-                    <Badge className={rec.status === 'active' 
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold' 
-                      : 'bg-orange-50 text-orange-700 border border-orange-200 font-semibold'
+                    <Badge className={
+                      rec.status === 'active' || rec.status === 'vigente'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold' 
+                        : rec.status === 'draft' || rec.status === 'rascunho'
+                        ? 'bg-blue-50 text-blue-705 border border-blue-200 font-semibold'
+                        : rec.status === 'review' || rec.status === 'analise'
+                        ? 'bg-amber-50 text-amber-750 border border-amber-200 font-semibold'
+                        : rec.status === 'superseded' || rec.status === 'substituido'
+                        ? 'bg-purple-50 text-purple-700 border border-purple-200 font-semibold'
+                        : rec.status === 'archived' || rec.status === 'arquivado'
+                        ? 'bg-slate-100 text-slate-600 border border-slate-200 font-semibold'
+                        : 'bg-red-50 text-red-700 border border-red-200 font-semibold'
                     }>
-                      {rec.status === 'active' ? 'Ativo' : 'Inativo'}
+                      {rec.status === 'active' || rec.status === 'vigente' ? 'Vigente' :
+                       rec.status === 'draft' || rec.status === 'rascunho' ? 'Rascunho' :
+                       rec.status === 'review' || rec.status === 'analise' ? 'Em análise' :
+                       rec.status === 'superseded' || rec.status === 'substituido' ? 'Substituído' :
+                       rec.status === 'archived' || rec.status === 'arquivado' ? 'Arquivado' :
+                       rec.status === 'inactive' || rec.status === 'indisponivel' ? 'Indisponível' : rec.status}
                     </Badge>
                   </TableCell>
                   
                   <TableCell className="align-middle text-right pr-6 space-x-1.5">
                     <Button 
                       onClick={() => openEditModal(rec)}
-                      size="sm" 
                       variant="ghost" 
-                      className="h-8 w-8 p-0 text-slate-500 hover:text-teal-600 hover:bg-teal-50"
+                      size="sm" 
+                      className="h-8.5 w-8.5 p-0 text-slate-500 hover:text-teal-650 hover:bg-teal-50 rounded-lg"
+                      title="Editar registro"
                     >
                       <Edit2 className="w-4 h-4" />
                     </Button>
                     <Button 
                       onClick={() => setDeletingId(rec.id)}
-                      size="sm" 
                       variant="ghost" 
-                      className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                      size="sm" 
+                      className="h-8.5 w-8.5 p-0 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded-lg"
+                      title="Excluir registro"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>
-
                 </TableRow>
               ))
             )}
@@ -706,7 +860,7 @@ export default function ModuleContentManager() {
       {/* Add / Edit polymorphic Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`bg-white border border-slate-200 rounded-xl shadow-xl w-full ${moduleType === 'checklists' ? 'max-w-[1100px]' : 'max-w-[650px]'} overflow-hidden animate-in fade-in zoom-in-95 duration-150`}>
+          <div className={`bg-white border border-slate-200 rounded-xl shadow-xl w-full ${moduleType === 'checklists' ? 'max-w-[1100px]' : 'max-w-[700px]'} overflow-hidden animate-in fade-in zoom-in-95 duration-150`}>
             <header className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
               <h3 className="font-bold text-slate-900 text-[15px]">
                 {editingId ? 'Editar Registro' : `Novo Registro - ${getModuleTitle()}`}
@@ -743,134 +897,286 @@ export default function ModuleContentManager() {
                   </div>
                 </div>
 
-                {/* Revision and Status */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700">Revisão</Label>
-                  <Input 
-                    value={revision} 
-                    onChange={(e) => setRevision(e.target.value)}
-                    placeholder="Ex: A, 01, Rev. B"
-                    required 
-                    className="h-10 text-[14px] rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500" 
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700">Status</Label>
-                  <select 
-                    value={status} 
-                    onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-[14px] focus:ring-teal-500 focus:border-teal-500 text-slate-800"
-                  >
-                    <option value="active">Ativo</option>
-                    <option value="inactive">Inativo</option>
-                  </select>
-                </div>
-
-                {/* Module-Specific Fields with Supabase Storage File Uploads */}
-                {moduleType === 'components' && (
-                  <>
-                    <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs font-bold text-slate-700">Aplicação Recomendada</Label>
+                {/* Document Code and Revision */}
+                {moduleType !== 'checklists' && moduleType !== 'reference_projects' && (
+                  <div className="space-y-1.5 col-span-2 grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Código do Documento / Padrão</Label>
                       <Input 
-                        value={application} 
-                        onChange={(e) => setApplication(e.target.value)}
-                        placeholder="Ex: Estruturas de racks móveis, rebocadores" 
+                        value={documentCode} 
+                        onChange={(e) => setDocumentCode(e.target.value)}
+                        placeholder="Ex: HMC-STD-08, CE-VW-2026" 
                         className="h-10 text-[14px] rounded-lg border-slate-300"
                       />
                     </div>
-                    
-                    {/* Component Image Upload */}
-                    <div className="col-span-2">
-                      <FileUploadField
-                        label="Imagem do Componente (.png, .jpg, .webp)"
-                        acceptedTypes="image/png,image/jpeg,image/webp"
-                        bucket="components"
-                        currentFileUrl={imageUrl}
-                        orgSlug={org.slug}
-                        moduleType="components"
-                        onUploadComplete={(url) => {
-                          setImageUrl(url);
-                          logUpload(orgId!, 'Componente (Imagem)', url.split('/').pop() || 'imagem.png');
-                        }}
-                        onRemove={() => setImageUrl('')}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Revisão</Label>
+                      <Input 
+                        value={revision} 
+                        onChange={(e) => setRevision(e.target.value)}
+                        placeholder="Ex: A, 01, 2026.1"
+                        required 
+                        className="h-10 text-[14px] rounded-lg border-slate-300" 
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Checklist revision & status */}
+                {(moduleType === 'checklists' || moduleType === 'reference_projects') && (
+                  <div className="space-y-1.5 col-span-2 grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Revisão</Label>
+                      <Input 
+                        value={revision} 
+                        onChange={(e) => setRevision(e.target.value)}
+                        placeholder="Ex: A, 01, 2026.1"
+                        required 
+                        className="h-10 text-[14px] rounded-lg border-slate-300" 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Status</Label>
+                      <select 
+                        value={status} 
+                        onChange={(e) => setStatus(e.target.value as any)}
+                        className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-[14px] focus:ring-teal-500 focus:border-teal-500 text-slate-800"
+                      >
+                        <option value="active">Vigente (Ativo)</option>
+                        <option value="inactive">Indisponível (Inativo)</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Advanced Status selection for documents, standards, components */}
+                {moduleType !== 'checklists' && moduleType !== 'reference_projects' && (
+                  <div className="space-y-1.5 col-span-2 grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Status do Registro</Label>
+                      <select 
+                        value={status} 
+                        onChange={(e) => setStatus(e.target.value as any)}
+                        className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-[14px] focus:ring-teal-500 focus:border-teal-500 text-slate-800"
+                      >
+                        <option value="draft">Rascunho</option>
+                        <option value="review">Em análise</option>
+                        <option value="active">Vigente (Ativo)</option>
+                        <option value="superseded">Substituído</option>
+                        <option value="archived">Arquivado</option>
+                        <option value="inactive">Indisponível (Inativo)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Tipo de Conteúdo</Label>
+                      <Input 
+                        value={contentType} 
+                        onChange={(e) => setContentType(e.target.value)}
+                        placeholder="Ex: Desenho 3D, Norma técnica..." 
+                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Categories & Tags for document, standard, component */}
+                {moduleType !== 'checklists' && moduleType !== 'reference_projects' && (
+                  <>
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs font-bold text-slate-700">Categoria do Documento</Label>
+                      <select 
+                        value={categoryId} 
+                        onChange={(e) => setCategoryId(e.target.value)}
+                        className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-[14px]"
+                      >
+                        <option value="">Selecione uma categoria...</option>
+                        {documentCategories.map(cat => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.parentId ? '  ↳ ' : ''}{cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs font-bold text-slate-700">Tags / Palavras-chave (Separadas por vírgula)</Label>
+                      <Input 
+                        value={tagsInput} 
+                        onChange={(e) => setTagsInput(e.target.value)}
+                        placeholder="Ex: rodízio, AGV, Volkswagen, ergonomia" 
+                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                      />
+                      {documentTags.length > 0 && (
+                        <div className="text-[10px] text-slate-400 mt-1 flex flex-wrap gap-1.5 items-center">
+                          <span className="font-semibold text-slate-500">Sugeridas:</span>
+                          {documentTags.slice(0, 10).map(t => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                const currentTags = tagsInput.split(',').map(x => x.trim()).filter(Boolean);
+                                if (!currentTags.includes(t.name)) {
+                                  currentTags.push(t.name);
+                                  setTagsInput(currentTags.join(', '));
+                                }
+                              }}
+                              className="bg-slate-100 hover:bg-teal-50 hover:text-teal-700 px-1.5 py-0.5 rounded border border-slate-200 transition-colors font-medium text-slate-650"
+                            >
+                              {t.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Component specific fields */}
+                {moduleType === 'components' && (
+                  <>
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs font-bold text-slate-700">Aplicação / Uso Recomendado</Label>
+                      <Input 
+                        value={application} 
+                        onChange={(e) => setApplication(e.target.value)}
+                        placeholder="Ex: Rodízios giratórios para cargas pesadas até 500kg" 
+                        className="h-10 text-[14px] rounded-lg border-slate-300"
                       />
                     </div>
 
-                    {/* CAD File STEP Upload */}
+                    <div className="space-y-1.5 col-span-2 grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">Fabricante</Label>
+                        <Input 
+                          value={manufacturer} 
+                          onChange={(e) => setManufacturer(e.target.value)}
+                          placeholder="Ex: Blickle, Colson" 
+                          className="h-10 text-[14px] rounded-lg border-slate-300"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">Código do Fabricante</Label>
+                        <Input 
+                          value={manufacturerCode} 
+                          onChange={(e) => setManufacturerCode(e.target.value)}
+                          placeholder="Ex: LH-ALST 150K" 
+                          className="h-10 text-[14px] rounded-lg border-slate-300"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs font-bold text-slate-700">Organizações que Homologam (Separadas por vírgula)</Label>
+                      <Input 
+                        value={homologatingOrganizationsInput} 
+                        onChange={(e) => setHomologatingOrganizationsInput(e.target.value)}
+                        placeholder="Ex: Volkswagen, Hyundai, Audi" 
+                        className="h-10 text-[14px] rounded-lg border-slate-300"
+                      />
+                    </div>
+
+                    {/* Step File */}
                     <div className="col-span-2">
                       <FileUploadField
-                        label="Arquivo STEP (.step, .stp)"
+                        label="Modelo Tridimensional (.step, .stp)"
                         acceptedTypes=".step,.stp"
                         bucket="components"
                         currentFileUrl={stepFileUrl}
                         orgSlug={org.slug}
                         moduleType="components"
-                        onUploadComplete={(url) => {
+                        revision={revision}
+                        onUploadComplete={(url, name, ext, meta) => {
                           setStepFileUrl(url);
-                          logUpload(orgId!, 'Componente (STEP)', url.split('/').pop() || 'arquivo.step');
+                          setMainFileHash(meta?.hash || '');
+                          setMainFileSize(meta?.size || 0);
+                          setMainMimeType(meta?.mimeType || 'application/octet-stream');
+                          setMainFilePath(meta?.path || url);
+                          logUpload(orgId!, 'Componente (STEP)', name);
                         }}
                         onRemove={() => setStepFileUrl('')}
                       />
                     </div>
 
-                    {/* PDF File Upload */}
+                    {/* PDF File */}
                     <div className="col-span-2">
                       <FileUploadField
-                        label="Arquivo PDF (.pdf)"
+                        label="Desenho 2D ou Catálogo Técnico (.pdf)"
                         acceptedTypes="application/pdf"
                         bucket="components"
                         currentFileUrl={pdfFileUrl}
                         orgSlug={org.slug}
                         moduleType="components"
-                        onUploadComplete={(url) => {
+                        revision={revision}
+                        onUploadComplete={(url, name) => {
                           setPdfFileUrl(url);
-                          logUpload(orgId!, 'Componente (PDF)', url.split('/').pop() || 'arquivo.pdf');
+                          logUpload(orgId!, 'Componente (PDF)', name);
                         }}
                         onRemove={() => setPdfFileUrl('')}
                       />
                     </div>
 
-                    {/* DWG File Upload */}
+                    {/* DWG File */}
                     <div className="col-span-2">
                       <FileUploadField
-                        label="Arquivo DWG (.dwg)"
+                        label="Desenho Bidimensional (.dwg)"
                         acceptedTypes=".dwg"
                         bucket="components"
                         currentFileUrl={dwgFileUrl}
                         orgSlug={org.slug}
                         moduleType="components"
-                        onUploadComplete={(url) => {
+                        revision={revision}
+                        onUploadComplete={(url, name) => {
                           setDwgFileUrl(url);
-                          logUpload(orgId!, 'Componente (DWG)', url.split('/').pop() || 'arquivo.dwg');
+                          logUpload(orgId!, 'Componente (DWG)', name);
                         }}
                         onRemove={() => setDwgFileUrl('')}
                       />
                     </div>
 
-                    {/* 3D Model Upload for Visualization */}
+                    {/* 3D Viewer Model */}
                     <div className="col-span-2">
                       <FileUploadField
-                        label="Modelo 3D para Visualização (.glb, .gltf, .stl) - Visualização interativa (não disponível para download)"
-                        acceptedTypes=".glb,.gltf,.stl"
+                        label="Modelo 3D para Visualização (.gltf, .glb)"
+                        acceptedTypes=".gltf,.glb"
                         bucket="components"
                         currentFileUrl={threeDModelUrl}
                         orgSlug={org.slug}
                         moduleType="components"
-                        onUploadComplete={(url) => {
+                        revision={revision}
+                        onUploadComplete={(url, name) => {
                           setThreeDModelUrl(url);
-                          logUpload(orgId!, 'Componente (Modelo 3D)', url.split('/').pop() || 'modelo.glb');
+                          logUpload(orgId!, 'Componente (GLTF/GLB)', name);
                         }}
                         onRemove={() => setThreeDModelUrl('')}
+                      />
+                    </div>
+
+                    {/* Image Preview */}
+                    <div className="col-span-2">
+                      <FileUploadField
+                        label="Imagem de Pré-visualização (.png, .jpg, .webp)"
+                        acceptedTypes="image/png,image/jpeg,image/webp"
+                        bucket="components"
+                        currentFileUrl={imageUrl}
+                        orgSlug={org.slug}
+                        moduleType="components"
+                        revision={revision}
+                        onUploadComplete={(url, name) => {
+                          setImageUrl(url);
+                          logUpload(orgId!, 'Componente (Imagem)', name);
+                        }}
+                        onRemove={() => setImageUrl('')}
                       />
                     </div>
                   </>
                 )}
 
+                {/* Document specific fields */}
                 {moduleType === 'documentation' && (
                   <>
                     <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs font-bold text-slate-700">Tipo de Documento</Label>
+                      <Label className="text-xs font-bold text-slate-700">Tipo de Caderno de Encargos</Label>
                       <select 
                         value={documentType} 
                         onChange={(e) => setDocumentType(e.target.value as DocumentType)}
@@ -885,17 +1191,22 @@ export default function ModuleContentManager() {
                     {/* Document Upload */}
                     <div className="col-span-2">
                       <FileUploadField
-                        label="Arquivo Principal (.pdf, .docx, .xlsx, .zip)"
+                        label="Arquivo do Caderno (.pdf, .docx, .xlsx, .zip)"
                         acceptedTypes="application/pdf,.docx,.xlsx,application/zip,application/x-zip-compressed"
                         bucket="documents"
                         currentFileUrl={fileUrl}
                         orgSlug={org.slug}
                         moduleType="documentation"
-                        onUploadComplete={(url, name, ext) => {
+                        revision={revision}
+                        onUploadComplete={(url, name, ext, meta) => {
                           setFileUrl(url);
                           setFileName(name);
                           setFileTypeState(ext);
-                          logUpload(orgId!, 'Documentação Técnica', name);
+                          setMainFileHash(meta?.hash || '');
+                          setMainFileSize(meta?.size || 0);
+                          setMainMimeType(meta?.mimeType || 'application/octet-stream');
+                          setMainFilePath(meta?.path || url);
+                          logUpload(orgId!, 'Caderno de Encargos', name);
                         }}
                         onRemove={() => {
                           setFileUrl('');
@@ -907,6 +1218,7 @@ export default function ModuleContentManager() {
                   </>
                 )}
 
+                {/* Standard specific fields */}
                 {moduleType === 'standards' && (
                   <>
                     <div className="space-y-1.5 col-span-2">
@@ -941,10 +1253,15 @@ export default function ModuleContentManager() {
                         currentFileUrl={fileUrl}
                         orgSlug={org.slug}
                         moduleType="standards"
-                        onUploadComplete={(url, name, ext) => {
+                        revision={revision}
+                        onUploadComplete={(url, name, ext, meta) => {
                           setFileUrl(url);
                           setFileName(name);
                           setFileTypeState(ext);
+                          setMainFileHash(meta?.hash || '');
+                          setMainFileSize(meta?.size || 0);
+                          setMainMimeType(meta?.mimeType || 'application/octet-stream');
+                          setMainFilePath(meta?.path || url);
                           logUpload(orgId!, 'Normas e Padrões', name);
                         }}
                         onRemove={() => {
@@ -957,8 +1274,7 @@ export default function ModuleContentManager() {
                   </>
                 )}
 
-
-
+                {/* Reference Projects specific fields */}
                 {moduleType === 'reference_projects' && (
                   <>
                     <div className="space-y-1.5 col-span-2">
@@ -1013,20 +1329,134 @@ export default function ModuleContentManager() {
                   </>
                 )}
 
-                {/* Description (Common, except checklists) */}
-                {moduleType !== 'checklists' && (
-                  <div className="space-y-1.5 col-span-2">
-                    <Label className="text-xs font-bold text-slate-700">Descrição</Label>
-                    <Textarea 
-                      value={description} 
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Detalhes adicionais, notas, especificações de projeto..." 
-                      className="text-[14px] rounded-lg border-slate-300 min-h-[60px]" 
-                    />
-                  </div>
+                {/* Common fields (issuedAt, publishedAt, expiredAt, revisionNotes, parentRevisionId, complementaryFiles) */}
+                {moduleType !== 'checklists' && moduleType !== 'reference_projects' && (
+                  <>
+                    <div className="space-y-1.5 col-span-2 grid grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">Data de Emissão</Label>
+                        <Input 
+                          type="date"
+                          value={issuedAt} 
+                          onChange={(e) => setIssuedAt(e.target.value)}
+                          className="h-10 text-[14px] rounded-lg border-slate-300"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">Data de Publicação</Label>
+                        <Input 
+                          type="date"
+                          value={publishedAt} 
+                          onChange={(e) => setPublishedAt(e.target.value)}
+                          className="h-10 text-[14px] rounded-lg border-slate-300"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">Validade (Opcional)</Label>
+                        <Input 
+                          type="date"
+                          value={expiredAt} 
+                          onChange={(e) => setExpiredAt(e.target.value)}
+                          className="h-10 text-[14px] rounded-lg border-slate-300"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs font-bold text-slate-700">Vincular a Versão / Revisão Anterior</Label>
+                      <select 
+                        value={parentRevisionId} 
+                        onChange={(e) => setParentRevisionId(e.target.value)}
+                        className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-[14px]"
+                      >
+                        <option value="">Nenhuma (Esta é a primeira versão)</option>
+                        {getRecords()
+                          .filter(r => r.id !== editingId)
+                          .map(r => (
+                            <option key={r.id} value={r.id}>
+                              {r.name || r.title} (REV {r.revision})
+                            </option>
+                          ))
+                        }
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs font-bold text-slate-700">Descrição</Label>
+                      <Textarea 
+                        value={description} 
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Detalhes adicionais, notas, especificações..." 
+                        className="text-[14px] rounded-lg border-slate-300 min-h-[60px]" 
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs font-bold text-slate-700">Observações da Revisão</Label>
+                      <Textarea 
+                        value={revisionNotes} 
+                        onChange={(e) => setRevisionNotes(e.target.value)}
+                        placeholder="Descreva as alterações efetuadas nesta revisão..." 
+                        className="text-[14px] rounded-lg border-slate-300 min-h-[50px]" 
+                      />
+                    </div>
+
+                    {/* Arquivos Complementares */}
+                    <div className="col-span-2 border-t border-slate-200 pt-4 space-y-3">
+                      <Label className="text-xs font-bold text-slate-800 block">Arquivos Complementares (Anexos adicionais)</Label>
+                      
+                      {compFilesList.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 max-h-[150px] overflow-y-auto">
+                          {compFilesList.map((f, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-100 shadow-sm text-xs">
+                              <div className="flex items-center gap-2 overflow-hidden flex-1 pr-2">
+                                <span className="bg-teal-55 text-teal-700 px-1.5 py-0.5 rounded text-[10px] font-bold font-mono">
+                                  {f.extension || 'FILE'}
+                                </span>
+                                <span className="font-semibold text-slate-700 truncate text-left" title={f.name}>{f.name}</span>
+                                <span className="text-slate-400 text-[10px]">
+                                  ({f.size ? (f.size / 1024).toFixed(1) + ' KB' : 'N/A'})
+                                </span>
+                              </div>
+                              <Button
+                                type="button"
+                                onClick={() => setCompFilesList(prev => prev.filter((_, i) => i !== idx))}
+                                variant="ghost"
+                                className="h-6 px-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded"
+                              >
+                                Remover
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <FileUploadField
+                        label="Anexar arquivo complementar"
+                        acceptedTypes=".pdf,.step,.stp,.dwg,.xlsx,.docx,.png,.jpg,.jpeg,.zip"
+                        bucket={moduleType === 'documentation' ? 'documents' : moduleType === 'components' ? 'components' : 'standards'}
+                        currentFileUrl="" 
+                        orgSlug={org.slug}
+                        moduleType={moduleType}
+                        onUploadComplete={(url, name, ext, meta) => {
+                          const newAnexo = {
+                            name,
+                            extension: ext,
+                            size: meta?.size || 0,
+                            type: meta?.mimeType || 'application/octet-stream',
+                            path: meta?.path || url,
+                            hash: meta?.hash || '',
+                            uploadDate: new Date().toISOString()
+                          };
+                          setCompFilesList(prev => [...prev, newAnexo]);
+                        }}
+                        onRemove={() => {}}
+                      />
+                    </div>
+                  </>
                 )}
 
-                {/* Configuração do Cabeçalho do Projeto */}
+                {/* Configuração do Cabeçalho do Projeto (Checklists) */}
                 {moduleType === 'checklists' && (
                   <div className="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
                     <div className="flex items-center justify-between">
@@ -1135,7 +1565,7 @@ export default function ModuleContentManager() {
                           }}
                           className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold h-8.5 px-3 rounded-lg text-xs flex items-center gap-1.5 shadow-sm mt-1"
                         >
-                          <Plus className="w-4 h-4 text-slate-550" /> Adicionar Campo ao Cabeçalho
+                          <Plus className="w-4 h-4 text-slate-500" /> Adicionar Campo ao Cabeçalho
                         </Button>
                       </div>
                     )}
@@ -1163,13 +1593,13 @@ export default function ModuleContentManager() {
                                 }}
                                 className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all flex items-center justify-between ${
                                   isSelected 
-                                    ? 'bg-teal-50 text-teal-800 border-l-4 border-teal-600 font-semibold shadow-sm' 
-                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent'
+                                    ? 'bg-teal-55 text-teal-800 border-l-4 border-teal-600 font-semibold shadow-sm' 
+                                    : 'text-slate-650 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent'
                                 }`}
                               >
                                 <span className="truncate pr-2">{idx + 1}. {sec.title}</span>
                                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                  isSelected ? 'bg-teal-200 text-teal-900' : 'bg-slate-100 text-slate-500'
+                                  isSelected ? 'bg-teal-200 text-teal-900' : 'bg-slate-100 text-slate-550'
                                 }`}>
                                   {sec.criteria?.length || 0}
                                 </span>
@@ -1196,7 +1626,6 @@ export default function ModuleContentManager() {
                                   type="button"
                                   onClick={() => {
                                     setIsAddingCriterion(true);
-                                    // Pre-fill next code suggestion e.g. "2.2"
                                     const sectionNum = activeSectionIndex + 1;
                                     const nextItemNum = (sections[activeSectionIndex].criteria?.length || 0) + 1;
                                     setCritCode(`${sectionNum}.${nextItemNum}`);
@@ -1215,7 +1644,7 @@ export default function ModuleContentManager() {
 
                             {/* Criterion Form (Inline Add/Edit) */}
                             {(isAddingCriterion || editingCriterionIndex !== null) && (
-                              <div className="bg-slate-50 border border-teal-100 rounded-xl p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150">
+                              <div className="bg-slate-50 border border-teal-100 rounded-xl p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150 text-left">
                                 <h5 className="text-[12px] font-bold text-teal-900 flex items-center gap-1.5">
                                   <CheckSquare className="w-4 h-4" />
                                   {isAddingCriterion ? 'Novo Critério' : 'Editar Critério'}
@@ -1289,7 +1718,7 @@ export default function ModuleContentManager() {
                                       setIsAddingCriterion(false);
                                       setEditingCriterionIndex(null);
                                     }}
-                                    className="h-8 px-3 text-xs text-slate-600"
+                                    className="h-8 px-3 text-xs text-slate-605"
                                   >
                                     Cancelar
                                   </Button>
@@ -1344,7 +1773,7 @@ export default function ModuleContentManager() {
                                             {crit.required ? (
                                               <Badge className="bg-red-50 border border-red-200 text-red-700 font-bold text-[9px] px-1.5 py-0">Sim</Badge>
                                             ) : (
-                                              <Badge className="bg-slate-50 border border-slate-200 text-slate-500 text-[9px] px-1.5 py-0">Não</Badge>
+                                              <Badge className="bg-slate-50 border border-slate-200 text-slate-550 text-[9px] px-1.5 py-0">Não</Badge>
                                             )}
                                           </TableCell>
                                           <TableCell className="align-middle py-2 text-right pr-4 space-x-1">
@@ -1370,7 +1799,7 @@ export default function ModuleContentManager() {
                                               onClick={() => handleDeleteCriterion(cIdx)}
                                               size="sm"
                                               variant="ghost"
-                                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-650 hover:bg-red-50"
                                             >
                                               <Trash2 className="w-3.5 h-3.5" />
                                             </Button>
@@ -1394,16 +1823,16 @@ export default function ModuleContentManager() {
               {/* Form Footer */}
               <footer className="pt-4 border-t border-slate-100 flex justify-end gap-2.5">
                 <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="h-10 rounded-lg text-slate-600 border-slate-300 font-semibold"
+                   type="button" 
+                   variant="outline" 
+                   onClick={() => setIsModalOpen(false)}
+                   className="h-10 rounded-lg text-slate-600 border-slate-300 font-semibold"
                 >
                   Cancelar
                 </Button>
                 <Button 
-                  type="submit" 
-                  className="bg-teal-600 hover:bg-teal-700 text-white font-semibold h-10 px-4 rounded-lg shadow-sm"
+                   type="submit" 
+                   className="bg-teal-600 hover:bg-teal-700 text-white font-semibold h-10 px-4 rounded-lg shadow-sm"
                 >
                   Salvar
                 </Button>
@@ -1418,20 +1847,38 @@ export default function ModuleContentManager() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-[400px] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6 text-center space-y-4">
-              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto border border-red-200">
+              <div className="w-12 h-12 bg-red-50 text-red-655 rounded-full flex items-center justify-center mx-auto border border-red-200">
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-extrabold text-slate-900 text-[16px]">Excluir Registro?</h3>
-                <p className="text-[13px] text-slate-500 leading-relaxed">
+                <h3 className="font-extrabold text-slate-900 text-[16px] text-left">Excluir Registro?</h3>
+                <p className="text-[13px] text-slate-500 leading-relaxed text-left">
                   Tem certeza de que deseja excluir permanentemente este registro da organização? Esta ação é irreversível.
                 </p>
+                {/* Checkbox para exclusão física de arquivos */}
+                {moduleType !== 'checklists' && (
+                  <div className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-left mt-3">
+                    <input
+                      type="checkbox"
+                      id="chk-delete-storage"
+                      checked={deleteStorageFile}
+                      onChange={(e) => setDeleteStorageFile(e.target.checked)}
+                      className="rounded border-slate-350 text-red-600 w-4 h-4 mt-0.5 focus:ring-red-500 cursor-pointer"
+                    />
+                    <Label htmlFor="chk-delete-storage" className="text-[12px] font-bold text-slate-700 cursor-pointer select-none leading-tight">
+                      Excluir fisicamente todos os arquivos associados do Storage (Supabase)
+                    </Label>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2.5 pt-2">
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => setDeletingId(null)}
+                  onClick={() => {
+                    setDeletingId(null);
+                    setDeleteStorageFile(false);
+                  }}
                   className="flex-1 h-10 rounded-lg text-slate-600 border-slate-300 font-semibold"
                 >
                   Cancelar

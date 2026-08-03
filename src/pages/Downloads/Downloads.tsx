@@ -177,12 +177,25 @@ export default function Downloads() {
     standards, 
     checklists, 
     referenceProjects,
+    documentCategories,
+    documentTags,
     logDownload,
     logPageAccess,
     logUpload,
     user,
     profile
   } = useApp();
+
+  // Local filters for content view
+  const [filterCategoryId, setFilterCategoryId] = useState<string>('');
+  const [filterTag, setFilterTag] = useState<string>('');
+  const [localSearch, setLocalSearch] = useState<string>('');
+
+  useEffect(() => {
+    setFilterCategoryId('');
+    setFilterTag('');
+    setLocalSearch('');
+  }, [selectedModule, selectedTechnicalArea, selectedOEM]);
 
   const { searchQuery, setSearchQuery, resetTrigger } = useOutletContext<{ searchQuery: string; setSearchQuery: (q: string) => void; resetTrigger: number }>();
 
@@ -304,6 +317,54 @@ export default function Downloads() {
   const activeOems = organizations.filter(o => o.status === 'active');
   const selectedOEMObj = activeOems.find(o => o.id === selectedOEM);
   const selectedOEMName = selectedOEMObj?.name || '';
+
+  const getFilteredContentList = (modType: ModuleType) => {
+    const isMaster = user?.role === 'master';
+    const isVisible = (status?: string) => {
+      if (isMaster) return true;
+      return status === 'active' || status === 'vigente';
+    };
+
+    let list: any[] = [];
+    if (modType === 'components') {
+      list = components.filter(c => c.organizationId === selectedOEM && c.technicalAreaId === selectedTechnicalArea && isVisible(c.status));
+    } else if (modType === 'documentation') {
+      list = documents.filter(d => d.organizationId === selectedOEM && d.technicalAreaId === selectedTechnicalArea && isVisible(d.status));
+    } else if (modType === 'standards') {
+      list = standards.filter(s => s.organizationId === selectedOEM && s.technicalAreaId === selectedTechnicalArea && isVisible(s.status));
+    } else if (modType === 'checklists') {
+      list = checklists.filter(c => c.organizationId === selectedOEM && c.technicalAreaId === selectedTechnicalArea && isVisible(c.status));
+    } else if (modType === 'reference_projects') {
+      list = referenceProjects.filter(p => p.organizationId === selectedOEM && isVisible(p.status));
+    }
+
+    // Apply category filter
+    if (filterCategoryId) {
+      list = list.filter(item => item.categoryId === filterCategoryId);
+    }
+
+    // Apply tag filter
+    if (filterTag) {
+      list = list.filter(item => item.tags && item.tags.includes(filterTag));
+    }
+
+    // Apply text search filter (Título, Código do Documento, Descrição, Tags e Fabricante)
+    if (localSearch) {
+      const q = localSearch.toLowerCase().trim();
+      list = list.filter(item => {
+        const title = (item.name || item.title || '').toLowerCase();
+        const desc = (item.description || '').toLowerCase();
+        const app = (item.application || '').toLowerCase();
+        const code = (item.documentCode || '').toLowerCase();
+        const manuf = (item.manufacturer || '').toLowerCase();
+        const tagsMatch = item.tags && item.tags.some((t: string) => t.toLowerCase().includes(q));
+        
+        return title.includes(q) || desc.includes(q) || app.includes(q) || code.includes(q) || manuf.includes(q) || tagsMatch;
+      });
+    }
+
+    return list;
+  };
 
   // Get active modules for selected OEM and Technical Area (only components, documentation, standards, checklists)
   const allowedModules = ['components', 'documentation', 'standards', 'checklists'];
@@ -1176,24 +1237,47 @@ export default function Downloads() {
   const searchResults = (() => {
     if (!searchQuery) return null;
     const query = searchQuery.toLowerCase().trim();
+    const isMaster = user?.role === 'master';
     
+    const isVisible = (status?: string) => {
+      if (isMaster) return true;
+      return status === 'active' || status === 'vigente';
+    };
+
     const matchedComponents = components.filter(c => 
-      c.status === 'active' && 
-      (c.name.toLowerCase().includes(query) || (c.description && c.description.toLowerCase().includes(query)) || (c.application && c.application.toLowerCase().includes(query)))
+      isVisible(c.status) && 
+      (
+        c.name.toLowerCase().includes(query) || 
+        (c.description && c.description.toLowerCase().includes(query)) || 
+        (c.application && c.application.toLowerCase().includes(query)) ||
+        (c.documentCode && c.documentCode.toLowerCase().includes(query)) ||
+        (c.manufacturer && c.manufacturer.toLowerCase().includes(query)) ||
+        (c.tags && c.tags.some(t => t.toLowerCase().includes(query)))
+      )
     );
 
     const matchedDocuments = documents.filter(d => 
-      d.status === 'active' && 
-      (d.title.toLowerCase().includes(query) || (d.description && d.description.toLowerCase().includes(query)))
+      isVisible(d.status) && 
+      (
+        d.title.toLowerCase().includes(query) || 
+        (d.description && d.description.toLowerCase().includes(query)) ||
+        (d.documentCode && d.documentCode.toLowerCase().includes(query)) ||
+        (d.tags && d.tags.some(t => t.toLowerCase().includes(query)))
+      )
     );
 
     const matchedStandards = standards.filter(s => 
-      s.status === 'active' && 
-      (s.title.toLowerCase().includes(query) || (s.description && s.description.toLowerCase().includes(query)))
+      isVisible(s.status) && 
+      (
+        s.title.toLowerCase().includes(query) || 
+        (s.description && s.description.toLowerCase().includes(query)) ||
+        (s.documentCode && s.documentCode.toLowerCase().includes(query)) ||
+        (s.tags && s.tags.some(t => t.toLowerCase().includes(query)))
+      )
     );
 
     const matchedChecklists = checklists.filter(c => 
-      c.status === 'active' && 
+      isVisible(c.status) && 
       c.name.toLowerCase().includes(query)
     );
 
@@ -1824,15 +1908,78 @@ export default function Downloads() {
             )}
           </div>
 
+          {/* BARRA DE FILTROS AVANÇADA */}
+          {selectedModule !== 'checklists' && selectedModule !== 'reference_projects' && (
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-left">
+              {/* Pesquisa Local */}
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Pesquisa Local</Label>
+                <div className="relative">
+                  <Input
+                    value={localSearch}
+                    onChange={(e) => setLocalSearch(e.target.value)}
+                    placeholder="Título, código, fabricante..."
+                    className="h-9 text-xs pl-8 pr-3 rounded-xl bg-white border-slate-250"
+                  />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                </div>
+              </div>
+
+              {/* Categoria */}
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Categoria</Label>
+                <select
+                  value={filterCategoryId}
+                  onChange={(e) => setFilterCategoryId(e.target.value)}
+                  className="w-full h-9 px-3 bg-white border border-slate-250 rounded-xl text-xs text-slate-800 focus:ring-teal-500 focus:border-teal-500"
+                >
+                  <option value="">Todas as categorias</option>
+                  {documentCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.parentId ? '  ↳ ' : ''}{cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tags */}
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Tags / Palavras-chave</Label>
+                <select
+                  value={filterTag}
+                  onChange={(e) => setFilterTag(e.target.value)}
+                  className="w-full h-9 px-3 bg-white border border-slate-250 rounded-xl text-xs text-slate-800 focus:ring-teal-500 focus:border-teal-500"
+                >
+                  <option value="">Todas as tags</option>
+                  {documentTags.map(t => (
+                    <option key={t.id} value={t.name}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Limpar Filtros */}
+              <div className="flex items-end">
+                <Button
+                  onClick={() => {
+                    setLocalSearch('');
+                    setFilterCategoryId('');
+                    setFilterTag('');
+                  }}
+                  variant="outline"
+                  className="w-full h-9 border-slate-250 text-slate-650 hover:text-slate-900 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 hover:bg-slate-100"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Limpar Filtros
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* MODULE: COMPONENTES HOMOLOGADOS */}
           {selectedModule === 'components' && (
             <div className="w-full">
               {(() => {
-                const filteredList = components.filter(c => 
-                  c.organizationId === selectedOEM && 
-                  c.technicalAreaId === selectedTechnicalArea &&
-                  c.status === 'active'
-                );
+                const filteredList = getFilteredContentList('components');
 
                 if (filteredList.length === 0) {
                   return (
@@ -1956,11 +2103,7 @@ export default function Downloads() {
           {selectedModule === 'documentation' && (
             <div className="w-full">
               {(() => {
-                const filteredList = documents.filter(d => 
-                  d.organizationId === selectedOEM && 
-                  d.technicalAreaId === selectedTechnicalArea &&
-                  d.status === 'active'
-                );
+                const filteredList = getFilteredContentList('documentation');
 
                 if (filteredList.length === 0) {
                   return (
@@ -2078,11 +2221,7 @@ export default function Downloads() {
           {selectedModule === 'standards' && (
             <div className="w-full">
               {(() => {
-                const filteredList = standards.filter(s => 
-                  s.organizationId === selectedOEM && 
-                  s.technicalAreaId === selectedTechnicalArea &&
-                  s.status === 'active'
-                );
+                const filteredList = getFilteredContentList('standards');
 
                 if (filteredList.length === 0) {
                   return (
@@ -2211,11 +2350,7 @@ export default function Downloads() {
                   </TableHeader>
                   <TableBody>
                     {(() => {
-                      const filteredList = checklists.filter(c => 
-                        c.organizationId === selectedOEM && 
-                        c.technicalAreaId === selectedTechnicalArea &&
-                        c.status === 'active'
-                      );
+                      const filteredList = getFilteredContentList('checklists');
 
                       if (filteredList.length === 0) {
                         return (
@@ -2779,7 +2914,7 @@ export default function Downloads() {
       {/* ITEM DETAILS MODAL */}
       {selectedItemForModal && (
         <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 text-left"
           onClick={() => setSelectedItemForModal(null)}
         >
           <div 
@@ -2853,7 +2988,7 @@ export default function Downloads() {
                   <div className="w-24 h-24 rounded-3xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner">
                     <FileText className="w-12 h-12 text-teal-600 animate-pulse" />
                   </div>
-                  <span className="text-xs font-bold text-slate-550 uppercase tracking-widest bg-teal-50 border border-teal-100 px-3 py-1 rounded-full">
+                  <span className="text-xs font-bold text-slate-555 uppercase tracking-widest bg-teal-50 border border-teal-100 px-3 py-1 rounded-full">
                     {selectedItemForModal.data.documentType}
                   </span>
                 </div>
@@ -2862,7 +2997,7 @@ export default function Downloads() {
                   <div className="w-24 h-24 rounded-3xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner">
                     <ShieldCheck className="w-12 h-12 text-purple-600 animate-pulse" />
                   </div>
-                  <span className="text-xs font-bold text-slate-550 uppercase tracking-widest bg-purple-50 border border-purple-100 px-3 py-1 rounded-full">
+                  <span className="text-xs font-bold text-slate-555 uppercase tracking-widest bg-purple-50 border border-purple-100 px-3 py-1 rounded-full">
                     {selectedItemForModal.data.standardType || 'Norma'}
                   </span>
                 </div>
@@ -2872,11 +3007,31 @@ export default function Downloads() {
             {/* Right Side: Technical Specs & Download */}
             <div className="w-full md:w-1/2 p-8 flex flex-col justify-between overflow-y-auto max-h-[50vh] md:max-h-[90vh]">
               <div className="space-y-6">
-                {/* Rev */}
+                {/* Rev & Status Badge */}
                 <div className="flex items-center gap-2">
-                  <span className="bg-slate-100 border border-slate-200 text-slate-600 font-mono text-[10px] font-extrabold px-2.5 py-1 rounded-full">
+                  <span className="bg-slate-100 border border-slate-200 text-slate-655 font-mono text-[10px] font-extrabold px-2.5 py-1 rounded-full">
                     REV {selectedItemForModal.data.revision}
                   </span>
+                  <Badge className={
+                    selectedItemForModal.data.status === 'active' || selectedItemForModal.data.status === 'vigente'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-250 font-semibold' 
+                      : selectedItemForModal.data.status === 'draft' || selectedItemForModal.data.status === 'rascunho'
+                      ? 'bg-blue-50 text-blue-700 border-blue-200 font-semibold'
+                      : selectedItemForModal.data.status === 'review' || selectedItemForModal.data.status === 'analise'
+                      ? 'bg-amber-50 text-amber-700 border-amber-250 font-semibold'
+                      : selectedItemForModal.data.status === 'superseded' || selectedItemForModal.data.status === 'substituido'
+                      ? 'bg-purple-50 text-purple-700 border-purple-200 font-semibold'
+                      : selectedItemForModal.data.status === 'archived' || selectedItemForModal.data.status === 'arquivado'
+                      ? 'bg-slate-100 text-slate-600 border-slate-200 font-semibold'
+                      : 'bg-red-50 text-red-700 border-red-200 font-semibold'
+                  }>
+                    {selectedItemForModal.data.status === 'active' || selectedItemForModal.data.status === 'vigente' ? 'Vigente' :
+                     selectedItemForModal.data.status === 'draft' || selectedItemForModal.data.status === 'rascunho' ? 'Rascunho' :
+                     selectedItemForModal.data.status === 'review' || selectedItemForModal.data.status === 'analise' ? 'Em análise' :
+                     selectedItemForModal.data.status === 'superseded' || selectedItemForModal.data.status === 'substituido' ? 'Substituído' :
+                     selectedItemForModal.data.status === 'archived' || selectedItemForModal.data.status === 'arquivado' ? 'Arquivado' :
+                     selectedItemForModal.data.status === 'inactive' || selectedItemForModal.data.status === 'indisponivel' ? 'Indisponível' : selectedItemForModal.data.status}
+                  </Badge>
                 </div>
 
                 {/* Title */}
@@ -2890,44 +3045,104 @@ export default function Downloads() {
                 </div>
 
                 {/* Technical Information Table */}
-                <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 space-y-3.5 text-xs">
+                <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 space-y-3 text-xs">
+                  {selectedItemForModal.data.documentCode && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Código do Padrão</span>
+                      <span className="text-slate-800 font-mono font-bold">{selectedItemForModal.data.documentCode}</span>
+                    </div>
+                  )}
+
+                  {selectedItemForModal.data.categoryId && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Categoria</span>
+                      <span className="text-slate-800 font-bold">
+                        {documentCategories.find(c => c.id === selectedItemForModal.data.categoryId)?.name || 'Outros'}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedItemForModal.data.contentType && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Tipo de Conteúdo</span>
+                      <span className="text-slate-800 font-semibold">{selectedItemForModal.data.contentType}</span>
+                    </div>
+                  )}
+
                   {selectedItemForModal.type === 'component' && (
                     <>
-                      {selectedItemForModal.data.application && (
-                        <div className="flex flex-col gap-1">
-                          <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider">Aplicação</span>
-                          <span className="text-slate-800 font-semibold">{selectedItemForModal.data.application}</span>
+                      {selectedItemForModal.data.manufacturer && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Fabricante</span>
+                          <span className="text-slate-800 font-bold">{selectedItemForModal.data.manufacturer}</span>
                         </div>
                       )}
-                      <div className="flex flex-col gap-1">
-                        <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider">Organização</span>
-                        <span className="text-slate-800 font-semibold">{selectedOEMName}</span>
+                      {selectedItemForModal.data.manufacturerCode && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Código do Fabricante</span>
+                          <span className="text-slate-800 font-mono font-semibold">{selectedItemForModal.data.manufacturerCode}</span>
+                        </div>
+                      )}
+                      {selectedItemForModal.data.homologatingOrganizations && selectedItemForModal.data.homologatingOrganizations.length > 0 && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Homologado para</span>
+                          <span className="text-slate-800 font-semibold">{selectedItemForModal.data.homologatingOrganizations.join(', ')}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {selectedItemForModal.type === 'standard' && selectedItemForModal.data.referenceDocument && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Documento de Referência</span>
+                      <span className="text-slate-800 font-semibold">{selectedItemForModal.data.referenceDocument}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {selectedItemForModal.data.issuedAt && (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Data de Emissão</span>
+                        <span className="text-slate-850 font-medium">
+                          {new Date(selectedItemForModal.data.issuedAt).toLocaleDateString()}
+                        </span>
                       </div>
-                    </>
+                    )}
+                    {selectedItemForModal.data.publishedAt && (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Publicado em</span>
+                        <span className="text-slate-850 font-medium">
+                          {new Date(selectedItemForModal.data.publishedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedItemForModal.data.expiredAt && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Vigência até</span>
+                      <span className="text-slate-850 font-medium">
+                        {new Date(selectedItemForModal.data.expiredAt).toLocaleDateString()}
+                      </span>
+                    </div>
                   )}
 
-                  {selectedItemForModal.type === 'document' && (
-                    <>
-                      {selectedItemForModal.data.fileName && (
-                        <div className="flex flex-col gap-1">
-                          <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider">Nome do Arquivo</span>
-                          <span className="text-slate-800 font-mono font-semibold truncate" title={selectedItemForModal.data.fileName}>
-                            {selectedItemForModal.data.fileName}
-                          </span>
-                        </div>
-                      )}
-                    </>
+                  {selectedItemForModal.data.fileSize && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-extrabold text-slate-400 uppercase text-[9px] tracking-wider">Tamanho do Arquivo</span>
+                      <span className="text-slate-800 font-semibold">
+                        {(selectedItemForModal.data.fileSize / 1024).toFixed(1)} KB
+                      </span>
+                    </div>
                   )}
 
-                  {selectedItemForModal.type === 'standard' && (
-                    <>
-                      {selectedItemForModal.data.referenceDocument && (
-                        <div className="flex flex-col gap-1">
-                          <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider">Referência Técnica</span>
-                          <span className="text-slate-800 font-mono font-bold">{selectedItemForModal.data.referenceDocument}</span>
-                        </div>
-                      )}
-                    </>
+                  {selectedItemForModal.data.fileHash && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider">Hash SHA-256</span>
+                      <span className="text-slate-700 font-mono text-[10px] break-all leading-tight">
+                        {selectedItemForModal.data.fileHash}
+                      </span>
+                    </div>
                   )}
                 </div>
 
@@ -2935,15 +3150,39 @@ export default function Downloads() {
                 {((selectedItemForModal.data.description && selectedItemForModal.data.description !== '-') || (selectedItemForModal.data.application && selectedItemForModal.type !== 'component')) && (
                   <div className="space-y-1.5">
                     <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider block">Descrição Detalhada</span>
-                    <p className="text-[13px] text-slate-600 leading-relaxed font-medium">
+                    <p className="text-[13px] text-slate-650 leading-relaxed font-medium">
                       {selectedItemForModal.data.description || selectedItemForModal.data.application}
+                    </p>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {selectedItemForModal.data.tags && selectedItemForModal.data.tags.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider block">Tags</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedItemForModal.data.tags.map((t: string) => (
+                        <span key={t} className="bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md text-[10.5px] font-bold">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Revision Notes */}
+                {selectedItemForModal.data.revisionNotes && (
+                  <div className="space-y-1">
+                    <span className="font-extrabold text-slate-450 uppercase text-[9px] tracking-wider block">Notas da Revisão</span>
+                    <p className="text-[12px] text-slate-600 bg-slate-50 border border-slate-150 p-2.5 rounded-xl font-medium italic">
+                      "{selectedItemForModal.data.revisionNotes}"
                     </p>
                   </div>
                 )}
               </div>
 
               {/* Downloads Actions */}
-              <div className="mt-8 pt-6 border-t border-slate-150 space-y-3">
+              <div className="mt-8 pt-6 border-t border-slate-150 space-y-3 text-left">
                 <span className="font-extrabold text-slate-700 uppercase text-[10px] tracking-wider block">
                   Arquivos para Download
                 </span>
@@ -3057,6 +3296,163 @@ export default function Downloads() {
                     )}
                   </div>
                 )}
+
+                {/* Arquivos Complementares */}
+                {selectedItemForModal.data.complementaryFiles && selectedItemForModal.data.complementaryFiles.length > 0 && (
+                  <div className="pt-4 border-t border-slate-150 space-y-2 text-left">
+                    <span className="font-extrabold text-slate-650 uppercase text-[10px] tracking-wider block">
+                      Arquivos Complementares
+                    </span>
+                    <div className="grid grid-cols-1 gap-2">
+                      {selectedItemForModal.data.complementaryFiles.map((fileObj: any, index: number) => {
+                        const fileDownloadUrl = fileObj.path?.startsWith('http') ? fileObj.path : `https://nukrqjsnspeweowogasp.supabase.co/storage/v1/object/public/${selectedItemForModal.type === 'document' ? 'documents' : selectedItemForModal.type === 'component' ? 'components' : 'standards'}/${fileObj.path}`;
+                        return (
+                          <a
+                            key={index}
+                            href={fileDownloadUrl}
+                            onClick={() => {
+                              logDownload(
+                                selectedItemForModal.data.organizationId, 
+                                `Arquivo complementar (${selectedItemForModal.type})`, 
+                                selectedItemForModal.data.id, 
+                                fileObj.name
+                              );
+                            }}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between bg-white border border-slate-200 hover:border-teal-400 p-2.5 rounded-xl transition-all shadow-sm group"
+                          >
+                            <div className="flex items-center gap-2 overflow-hidden flex-1 pr-2">
+                              <span className="bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded text-[10px] font-bold font-mono uppercase">
+                                {fileObj.extension || 'FILE'}
+                              </span>
+                              <span className="font-bold text-slate-750 text-xs truncate group-hover:text-teal-655 transition-colors">
+                                {fileObj.name}
+                              </span>
+                              <span className="text-slate-400 text-[10px]">
+                                ({fileObj.size ? (fileObj.size / 1024).toFixed(1) + ' KB' : 'N/A'})
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-teal-655 font-extrabold flex items-center gap-1 shrink-0">
+                              <Download className="w-3 h-3" />
+                              Baixar
+                            </span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Histórico de Versões / Timeline */}
+                {(() => {
+                  const currentItem = selectedItemForModal.data;
+                  const docCode = currentItem.documentCode;
+                  
+                  let siblings: any[] = [];
+                  if (selectedItemForModal.type === 'component') {
+                    siblings = components.filter(c => c.organizationId === currentItem.organizationId && c.technicalAreaId === currentItem.technicalAreaId);
+                  } else if (selectedItemForModal.type === 'document') {
+                    siblings = documents.filter(d => d.organizationId === currentItem.organizationId && d.technicalAreaId === currentItem.technicalAreaId);
+                  } else {
+                    siblings = standards.filter(s => s.organizationId === currentItem.organizationId && s.technicalAreaId === currentItem.technicalAreaId);
+                  }
+
+                  let matches: any[] = [];
+                  if (docCode) {
+                    matches = siblings.filter(s => s.documentCode === docCode);
+                  } else {
+                    const chainIds = new Set<string>([currentItem.id]);
+                    let currentParentId = currentItem.parentRevisionId;
+                    while (currentParentId) {
+                      chainIds.add(currentParentId);
+                      const parent = siblings.find(s => s.id === currentParentId);
+                      currentParentId = parent ? parent.parentRevisionId : null;
+                    }
+                    let foundNewChild = true;
+                    while (foundNewChild) {
+                      foundNewChild = false;
+                      siblings.forEach(s => {
+                        if (s.parentRevisionId && chainIds.has(s.parentRevisionId) && !chainIds.has(s.id)) {
+                          chainIds.add(s.id);
+                          foundNewChild = true;
+                        }
+                      });
+                    }
+                    matches = siblings.filter(s => chainIds.has(s.id));
+                  }
+
+                  const linkedRevisions = matches.sort((a, b) => {
+                    const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+                    const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+                    return dateB - dateA;
+                  });
+
+                  if (linkedRevisions.length <= 1) return null;
+
+                  return (
+                    <div className="pt-4 border-t border-slate-150 space-y-2.5 text-left">
+                      <span className="font-extrabold text-slate-650 uppercase text-[10px] tracking-wider block">
+                        Linha do Tempo / Histórico de Versões
+                      </span>
+                      <div className="relative pl-4 border-l border-slate-200 ml-2 space-y-3.5">
+                        {linkedRevisions.map((revItem) => {
+                          const isCurrent = revItem.id === selectedItemForModal.data.id;
+                          const fileDownloadUrl = revItem.fileUrl || revItem.stepFileUrl || revItem.pdfFileUrl || revItem.dwgFileUrl;
+                          return (
+                            <div key={revItem.id} className="relative flex justify-between items-start gap-2">
+                              <div className={cn(
+                                "absolute -left-[21.5px] top-1.5 w-3 h-3 rounded-full border-2 bg-white transition-all",
+                                isCurrent ? "border-teal-500 bg-teal-500 scale-110" : "border-slate-300"
+                              )} />
+                              
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={cn(
+                                    "font-mono font-bold text-xs",
+                                    isCurrent ? "text-teal-700 font-black" : "text-slate-700"
+                                  )}>
+                                    Revisão {revItem.revision}
+                                  </span>
+                                  {isCurrent && (
+                                    <Badge className="bg-teal-50 border border-teal-200 text-teal-700 font-bold text-[8.5px] py-0 px-1">Atual</Badge>
+                                  )}
+                                  <span className="text-[10px] text-slate-400 font-semibold">
+                                    {revItem.publishedAt ? new Date(revItem.publishedAt).toLocaleDateString() : 'N/A'}
+                                  </span>
+                                </div>
+                                {revItem.revisionNotes && (
+                                  <p className="text-[11px] text-slate-505 leading-normal font-medium">{revItem.revisionNotes}</p>
+                                )}
+                              </div>
+
+                              {fileDownloadUrl && (
+                                <a
+                                  href={fileDownloadUrl}
+                                  onClick={() => {
+                                    logDownload(
+                                      revItem.organizationId, 
+                                      `Revisão histórica (${selectedItemForModal.type})`, 
+                                      revItem.id, 
+                                      revItem.fileName || revItem.name
+                                    );
+                                  }}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[10px] text-teal-650 hover:text-teal-700 font-extrabold flex items-center gap-0.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md self-start shrink-0 transition-colors"
+                                >
+                                  <Download className="w-2.5 h-2.5" />
+                                  Baixar
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
               </div>
             </div>
           </div>

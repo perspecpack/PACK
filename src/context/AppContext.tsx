@@ -20,7 +20,9 @@ import {
   UploadLog,
   PageAccessLog,
   SupportRequest,
-  TechnicalArea
+  TechnicalArea,
+  DocumentCategory,
+  DocumentTag
 } from '../types';
 
 export type {
@@ -43,7 +45,9 @@ export type {
   UploadLog,
   PageAccessLog,
   SupportRequest,
-  TechnicalArea
+  TechnicalArea,
+  DocumentCategory,
+  DocumentTag
 };
 
 export type OEM = Organization;
@@ -83,6 +87,10 @@ interface AppContextType {
   standards: StandardEntry[];
   checklists: ChecklistTemplate[];
   referenceProjects: ReferenceProjectEntry[];
+  documentCategories: DocumentCategory[];
+  documentTags: DocumentTag[];
+  refreshCategories: () => Promise<void>;
+  refreshTags: () => Promise<void>;
   
   downloadsLog: DownloadLog[];
   uploadsLog: UploadLog[];
@@ -590,14 +598,35 @@ const mapCompFromDb = (db: any): ComponentEntry => ({
   description: db.description || undefined,
   application: db.application || undefined,
   revision: db.revision,
-  status: db.status as 'active' | 'inactive',
+  status: db.status,
   stepFileUrl: db.step_file_url || undefined,
   pdfFileUrl: db.pdf_file_url || undefined,
   dwgFileUrl: db.dwg_file_url || undefined,
   imageUrl: db.image_url || undefined,
   threeDModelUrl: db.three_d_model_url || undefined,
   createdAt: db.created_at,
-  updatedAt: db.updated_at
+  updatedAt: db.updated_at,
+  
+  // Novas colunas
+  fileHash: db.file_hash || undefined,
+  fileSize: db.file_size ? Number(db.file_size) : undefined,
+  mimeType: db.mime_type || undefined,
+  extension: db.extension || undefined,
+  uploadedBy: db.uploaded_by || undefined,
+  uploadedAt: db.uploaded_at || undefined,
+  categoryId: db.category_id || undefined,
+  parentRevisionId: db.parent_revision_id || undefined,
+  tags: db.tags || [],
+  complementaryFiles: db.complementary_files || [],
+  contentType: db.content_type || undefined,
+  documentCode: db.document_code || undefined,
+  issuedAt: db.issued_at || undefined,
+  publishedAt: db.published_at || undefined,
+  expiredAt: db.expired_at || undefined,
+  revisionNotes: db.revision_notes || undefined,
+  manufacturer: db.manufacturer || undefined,
+  manufacturerCode: db.manufacturer_code || undefined,
+  homologatingOrganizations: db.homologating_organizations || []
 });
 
 const mapCompToDb = (ts: Partial<ComponentEntry>) => {
@@ -614,6 +643,27 @@ const mapCompToDb = (ts: Partial<ComponentEntry>) => {
   if (ts.dwgFileUrl !== undefined) db.dwg_file_url = ts.dwgFileUrl;
   if (ts.imageUrl !== undefined) db.image_url = ts.imageUrl;
   if (ts.threeDModelUrl !== undefined) db.three_d_model_url = ts.threeDModelUrl;
+  
+  // Novas colunas
+  if (ts.fileHash !== undefined) db.file_hash = ts.fileHash;
+  if (ts.fileSize !== undefined) db.file_size = ts.fileSize;
+  if (ts.mimeType !== undefined) db.mime_type = ts.mimeType;
+  if (ts.extension !== undefined) db.extension = ts.extension;
+  if (ts.uploadedBy !== undefined) db.uploaded_by = ts.uploadedBy;
+  if (ts.uploadedAt !== undefined) db.uploaded_at = ts.uploadedAt;
+  if (ts.categoryId !== undefined) db.category_id = ts.categoryId;
+  if (ts.parentRevisionId !== undefined) db.parent_revision_id = ts.parentRevisionId;
+  if (ts.tags !== undefined) db.tags = ts.tags;
+  if (ts.complementaryFiles !== undefined) db.complementary_files = ts.complementaryFiles;
+  if (ts.contentType !== undefined) db.content_type = ts.contentType;
+  if (ts.documentCode !== undefined) db.document_code = ts.documentCode;
+  if (ts.issuedAt !== undefined) db.issued_at = ts.issuedAt;
+  if (ts.publishedAt !== undefined) db.published_at = ts.publishedAt;
+  if (ts.expiredAt !== undefined) db.expired_at = ts.expiredAt;
+  if (ts.revisionNotes !== undefined) db.revision_notes = ts.revisionNotes;
+  if (ts.manufacturer !== undefined) db.manufacturer = ts.manufacturer;
+  if (ts.manufacturerCode !== undefined) db.manufacturer_code = ts.manufacturerCode;
+  if (ts.homologatingOrganizations !== undefined) db.homologating_organizations = ts.homologatingOrganizations;
   return db;
 };
 
@@ -625,12 +675,30 @@ const mapDocFromDb = (db: any): DocumentEntry => ({
   description: db.description || undefined,
   documentType: db.document_type as any,
   revision: db.revision,
-  status: db.status as 'active' | 'inactive',
+  status: db.status,
   fileUrl: db.file_url || undefined,
   fileName: db.file_name || undefined,
   fileType: db.file_type || undefined,
   createdAt: db.created_at,
-  updatedAt: db.updated_at
+  updatedAt: db.updated_at,
+  
+  // Novas colunas
+  fileHash: db.file_hash || undefined,
+  fileSize: db.file_size ? Number(db.file_size) : undefined,
+  mimeType: db.mime_type || undefined,
+  extension: db.extension || undefined,
+  uploadedBy: db.uploaded_by || undefined,
+  uploadedAt: db.uploaded_at || undefined,
+  categoryId: db.category_id || undefined,
+  parentRevisionId: db.parent_revision_id || undefined,
+  tags: db.tags || [],
+  complementaryFiles: db.complementary_files || [],
+  contentType: db.content_type || undefined,
+  documentCode: db.document_code || undefined,
+  issuedAt: db.issued_at || undefined,
+  publishedAt: db.published_at || undefined,
+  expiredAt: db.expired_at || undefined,
+  revisionNotes: db.revision_notes || undefined
 });
 
 const mapDocToDb = (ts: Partial<DocumentEntry>) => {
@@ -645,6 +713,24 @@ const mapDocToDb = (ts: Partial<DocumentEntry>) => {
   if (ts.fileUrl !== undefined) db.file_url = ts.fileUrl;
   if (ts.fileName !== undefined) db.file_name = ts.fileName;
   if (ts.fileType !== undefined) db.file_type = ts.fileType;
+  
+  // Novas colunas
+  if (ts.fileHash !== undefined) db.file_hash = ts.fileHash;
+  if (ts.fileSize !== undefined) db.file_size = ts.fileSize;
+  if (ts.mimeType !== undefined) db.mime_type = ts.mimeType;
+  if (ts.extension !== undefined) db.extension = ts.extension;
+  if (ts.uploadedBy !== undefined) db.uploaded_by = ts.uploadedBy;
+  if (ts.uploadedAt !== undefined) db.uploaded_at = ts.uploadedAt;
+  if (ts.categoryId !== undefined) db.category_id = ts.categoryId;
+  if (ts.parentRevisionId !== undefined) db.parent_revision_id = ts.parentRevisionId;
+  if (ts.tags !== undefined) db.tags = ts.tags;
+  if (ts.complementaryFiles !== undefined) db.complementary_files = ts.complementaryFiles;
+  if (ts.contentType !== undefined) db.content_type = ts.contentType;
+  if (ts.documentCode !== undefined) db.document_code = ts.documentCode;
+  if (ts.issuedAt !== undefined) db.issued_at = ts.issuedAt;
+  if (ts.publishedAt !== undefined) db.published_at = ts.publishedAt;
+  if (ts.expiredAt !== undefined) db.expired_at = ts.expiredAt;
+  if (ts.revisionNotes !== undefined) db.revision_notes = ts.revisionNotes;
   return db;
 };
 
@@ -656,13 +742,31 @@ const mapStdFromDb = (db: any): StandardEntry => ({
   description: db.description || undefined,
   standardType: db.standard_type as any || 'Norma de Embalagem',
   revision: db.revision,
-  status: db.status as 'active' | 'inactive',
+  status: db.status,
   referenceDocument: db.reference_document || undefined,
   fileUrl: db.file_url || undefined,
   fileName: db.file_name || undefined,
   fileType: db.file_type || undefined,
   createdAt: db.created_at,
-  updatedAt: db.updated_at
+  updatedAt: db.updated_at,
+  
+  // Novas colunas
+  fileHash: db.file_hash || undefined,
+  fileSize: db.file_size ? Number(db.file_size) : undefined,
+  mimeType: db.mime_type || undefined,
+  extension: db.extension || undefined,
+  uploadedBy: db.uploaded_by || undefined,
+  uploadedAt: db.uploaded_at || undefined,
+  categoryId: db.category_id || undefined,
+  parentRevisionId: db.parent_revision_id || undefined,
+  tags: db.tags || [],
+  complementaryFiles: db.complementary_files || [],
+  contentType: db.content_type || undefined,
+  documentCode: db.document_code || undefined,
+  issuedAt: db.issued_at || undefined,
+  publishedAt: db.published_at || undefined,
+  expiredAt: db.expired_at || undefined,
+  revisionNotes: db.revision_notes || undefined
 });
 
 const mapStdToDb = (ts: Partial<StandardEntry>) => {
@@ -678,6 +782,24 @@ const mapStdToDb = (ts: Partial<StandardEntry>) => {
   if (ts.fileUrl !== undefined) db.file_url = ts.fileUrl;
   if (ts.fileName !== undefined) db.file_name = ts.fileName;
   if (ts.fileType !== undefined) db.file_type = ts.fileType;
+  
+  // Novas colunas
+  if (ts.fileHash !== undefined) db.file_hash = ts.fileHash;
+  if (ts.fileSize !== undefined) db.file_size = ts.fileSize;
+  if (ts.mimeType !== undefined) db.mime_type = ts.mimeType;
+  if (ts.extension !== undefined) db.extension = ts.extension;
+  if (ts.uploadedBy !== undefined) db.uploaded_by = ts.uploadedBy;
+  if (ts.uploadedAt !== undefined) db.uploaded_at = ts.uploadedAt;
+  if (ts.categoryId !== undefined) db.category_id = ts.categoryId;
+  if (ts.parentRevisionId !== undefined) db.parent_revision_id = ts.parentRevisionId;
+  if (ts.tags !== undefined) db.tags = ts.tags;
+  if (ts.complementaryFiles !== undefined) db.complementary_files = ts.complementaryFiles;
+  if (ts.contentType !== undefined) db.content_type = ts.contentType;
+  if (ts.documentCode !== undefined) db.document_code = ts.documentCode;
+  if (ts.issuedAt !== undefined) db.issued_at = ts.issuedAt;
+  if (ts.publishedAt !== undefined) db.published_at = ts.publishedAt;
+  if (ts.expiredAt !== undefined) db.expired_at = ts.expiredAt;
+  if (ts.revisionNotes !== undefined) db.revision_notes = ts.revisionNotes;
   return db;
 };
 
@@ -821,6 +943,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const saved = localStorage.getItem('pp_reference_projects_v2');
     return saved ? JSON.parse(saved) : INITIAL_REFERENCE_PROJECTS;
   });
+
+  const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>([]);
+  const [documentTags, setDocumentTags] = useState<DocumentTag[]>([]);
 
   const [files, setFiles] = useState<FileEntry[]>(() => {
     const saved = localStorage.getItem('pp_files_v2');
@@ -1026,6 +1151,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const refreshCategories = useCallback(async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('document_categories')
+        .select('*')
+        .order('sort_order', { ascending: true });
+      if (error) throw error;
+      setDocumentCategories((data || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        parentId: c.parent_id || undefined,
+        sortOrder: c.sort_order,
+        status: c.status as any,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at
+      })));
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  }, []);
+
+  const refreshTags = useCallback(async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('document_tags')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      setDocumentTags((data || []).map(t => ({
+        id: t.id,
+        name: t.name,
+        createdAt: t.created_at
+      })));
+    } catch (err) {
+      console.error('Error fetching tags:', err);
+    }
+  }, []);
+
   // Fetch initial data from Supabase DB on load
   useEffect(() => {
     const fetchFromSupabase = async () => {
@@ -1173,6 +1339,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!srErr && srData) {
           setSupportRequests(srData.map(mapSupportRequestFromDb));
         }
+
+        // Fetch Categories & Tags
+        await refreshCategories();
+        await refreshTags();
 
         console.log('[Supabase Sync] Fetched successfully from Supabase!');
       } catch (err: any) {
@@ -2020,23 +2190,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setComponents(prev => [newComp, ...prev]);
 
     if (supabase) {
+      const dbFields = mapCompToDb(newComp);
+      dbFields.id = newCompId;
+      dbFields.created_at = newComp.createdAt;
+      dbFields.updated_at = newComp.updatedAt;
       supabase
         .from('components')
-        .insert({
-          id: newCompId,
-          organization_id: comp.organizationId,
-          technical_area_id: comp.technicalAreaId || null,
-          name: comp.name,
-          description: comp.description || null,
-          application: comp.application || null,
-          revision: comp.revision,
-          status: comp.status,
-          step_file_url: comp.stepFileUrl || null,
-          pdf_file_url: comp.pdfFileUrl || null,
-          dwg_file_url: comp.dwgFileUrl || null,
-          image_url: comp.imageUrl || null,
-          three_d_model_url: comp.threeDModelUrl || null
-        })
+        .insert(dbFields)
         .then(({ error }) => {
           if (error) console.error('Error adding component to Supabase:', error);
         });
@@ -2084,21 +2244,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDocuments(prev => [newDoc, ...prev]);
 
     if (supabase) {
+      const dbFields = mapDocToDb(newDoc);
+      dbFields.id = newDocId;
+      dbFields.created_at = newDoc.createdAt;
+      dbFields.updated_at = newDoc.updatedAt;
       supabase
         .from('documents')
-        .insert({
-          id: newDocId,
-          organization_id: doc.organizationId,
-          technical_area_id: doc.technicalAreaId || null,
-          title: doc.title,
-          description: doc.description || null,
-          document_type: doc.documentType,
-          revision: doc.revision,
-          status: doc.status,
-          file_url: doc.fileUrl || null,
-          file_name: doc.fileName || null,
-          file_type: doc.fileType || null
-        })
+        .insert(dbFields)
         .then(({ error }) => {
           if (error) console.error('Error adding document to Supabase:', error);
         });
@@ -2146,21 +2298,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStandards(prev => [newStd, ...prev]);
 
     if (supabase) {
+      const dbFields = mapStdToDb(newStd);
+      dbFields.id = newStdId;
+      dbFields.created_at = newStd.createdAt;
+      dbFields.updated_at = newStd.updatedAt;
       supabase
         .from('standards')
-        .insert({
-          id: newStdId,
-          organization_id: std.organizationId,
-          technical_area_id: std.technicalAreaId || null,
-          title: std.title,
-          description: std.description || null,
-          revision: std.revision,
-          status: std.status,
-          reference_document: std.referenceDocument || null,
-          file_url: std.fileUrl || null,
-          file_name: std.fileName || null,
-          file_type: std.fileType || null
-        })
+        .insert(dbFields)
         .then(({ error }) => {
           if (error) console.error('Error adding standard to Supabase:', error);
         });
@@ -2634,6 +2778,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         standards,
         checklists,
         referenceProjects,
+        documentCategories,
+        documentTags,
+        refreshCategories,
+        refreshTags,
         
         downloadsLog,
         uploadsLog,

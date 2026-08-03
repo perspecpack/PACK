@@ -58,7 +58,7 @@ export interface ComponentEntry {
   description?: string;
   application?: string;
   revision: string;
-  status: 'active' | 'inactive';
+  status: string;
   stepFileUrl?: string;
   pdfFileUrl?: string;
   dwgFileUrl?: string;
@@ -66,6 +66,28 @@ export interface ComponentEntry {
   threeDModelUrl?: string;
   createdAt: string;
   updatedAt: string;
+  
+  // Novas colunas da evolução de padrões
+  fileHash?: string;
+  fileSize?: number;
+  mimeType?: string;
+  extension?: string;
+  uploadedBy?: string;
+  uploadedAt?: string;
+  categoryId?: string;
+  parentRevisionId?: string;
+  tags?: string[];
+  complementaryFiles?: { name: string; extension: string; size: number; type: string; path: string; hash: string; uploadDate: string }[];
+  contentType?: string;
+  documentCode?: string;
+  issuedAt?: string;
+  publishedAt?: string;
+  expiredAt?: string;
+  revisionNotes?: string;
+  manufacturer?: string;
+  manufacturerCode?: string;
+  homologatingOrganizations?: string[];
+
   // Legacy aliases
   oemId?: string;
   techCategory?: string;
@@ -90,12 +112,30 @@ export interface DocumentEntry {
   description?: string;
   documentType: DocumentType;
   revision: string;
-  status: 'active' | 'inactive';
+  status: string;
   fileUrl?: string;
   fileName?: string;
   fileType?: string;
   createdAt: string;
   updatedAt: string;
+
+  // Novas colunas da evolução de padrões
+  fileHash?: string;
+  fileSize?: number;
+  mimeType?: string;
+  extension?: string;
+  uploadedBy?: string;
+  uploadedAt?: string;
+  categoryId?: string;
+  parentRevisionId?: string;
+  tags?: string[];
+  complementaryFiles?: { name: string; extension: string; size: number; type: string; path: string; hash: string; uploadDate: string }[];
+  contentType?: string;
+  documentCode?: string;
+  issuedAt?: string;
+  publishedAt?: string;
+  expiredAt?: string;
+  revisionNotes?: string;
 }
 
 export type StandardType =
@@ -116,13 +156,31 @@ export interface StandardEntry {
   description?: string;
   standardType?: StandardType;
   revision: string;
-  status: 'active' | 'inactive';
+  status: string;
   referenceDocument?: string;
   fileUrl?: string;
   fileName?: string;
   fileType?: string;
   createdAt: string;
   updatedAt: string;
+
+  // Novas colunas da evolução de padrões
+  fileHash?: string;
+  fileSize?: number;
+  mimeType?: string;
+  extension?: string;
+  uploadedBy?: string;
+  uploadedAt?: string;
+  categoryId?: string;
+  parentRevisionId?: string;
+  tags?: string[];
+  complementaryFiles?: { name: string; extension: string; size: number; type: string; path: string; hash: string; uploadDate: string }[];
+  contentType?: string;
+  documentCode?: string;
+  issuedAt?: string;
+  publishedAt?: string;
+  expiredAt?: string;
+  revisionNotes?: string;
 }
 
 export interface ChecklistCriterion {
@@ -293,6 +351,23 @@ export interface PasswordResetRequest {
   full_name?: string;
   company_name?: string;
   phone?: string;
+}
+
+export interface DocumentCategory {
+  id: string;
+  name: string;
+  slug: string;
+  parentId?: string;
+  sortOrder: number;
+  status: 'active' | 'inactive';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DocumentTag {
+  id: string;
+  name: string;
+  createdAt: string;
 }
 
 
