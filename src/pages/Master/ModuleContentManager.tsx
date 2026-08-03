@@ -502,15 +502,16 @@ export default function ModuleContentManager() {
       const rec = records.find(r => r.id === deletingId);
       if (rec) {
         const fileUrlsToDelete = [];
-        if (rec.fileUrl) fileUrlsToDelete.push({ bucket: moduleType === 'documentation' ? 'documents' : 'standards', url: rec.fileUrl });
-        if (rec.stepFileUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.stepFileUrl });
-        if (rec.pdfFileUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.pdfFileUrl });
-        if (rec.dwgFileUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.dwgFileUrl });
-        if (rec.imageUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.imageUrl });
-        if (rec.threeDModelUrl) fileUrlsToDelete.push({ bucket: 'components', url: rec.threeDModelUrl });
+        const r = rec as any;
+        if (r.fileUrl) fileUrlsToDelete.push({ bucket: moduleType === 'documentation' ? 'documents' : 'standards', url: r.fileUrl });
+        if (r.stepFileUrl) fileUrlsToDelete.push({ bucket: 'components', url: r.stepFileUrl });
+        if (r.pdfFileUrl) fileUrlsToDelete.push({ bucket: 'components', url: r.pdfFileUrl });
+        if (r.dwgFileUrl) fileUrlsToDelete.push({ bucket: 'components', url: r.dwgFileUrl });
+        if (r.imageUrl) fileUrlsToDelete.push({ bucket: 'components', url: r.imageUrl });
+        if (r.threeDModelUrl) fileUrlsToDelete.push({ bucket: 'components', url: r.threeDModelUrl });
 
-        if (rec.complementaryFiles && Array.isArray(rec.complementaryFiles)) {
-          rec.complementaryFiles.forEach((f: any) => {
+        if (r.complementaryFiles && Array.isArray(r.complementaryFiles)) {
+          r.complementaryFiles.forEach((f: any) => {
             if (f.path) {
               fileUrlsToDelete.push({ 
                 bucket: moduleType === 'documentation' ? 'documents' : moduleType === 'components' ? 'components' : 'standards', 
@@ -1374,7 +1375,7 @@ export default function ModuleContentManager() {
                           .filter(r => r.id !== editingId)
                           .map(r => (
                             <option key={r.id} value={r.id}>
-                              {r.name || r.title} (REV {r.revision})
+                              {(r as any).name || (r as any).title} (REV {(r as any).revision || '-'})
                             </option>
                           ))
                         }

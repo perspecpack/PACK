@@ -59,7 +59,8 @@ export default function Settings() {
     };
 
     // Components
-    components.forEach(c => {
+    components.forEach(comp => {
+      const c = comp as any;
       if (c.fileSize) {
         compStats.size += c.fileSize;
         compStats.count += 1;
@@ -156,7 +157,8 @@ export default function Settings() {
   const largestFiles = React.useMemo(() => {
     const filesList: Array<{ name: string; size: number; module: string; details: string }> = [];
 
-    components.forEach(c => {
+    components.forEach(comp => {
+      const c = comp as any;
       if (c.fileSize) {
         filesList.push({ name: c.fileName || c.name, size: c.fileSize, module: 'Componentes Homologados', details: `Componente: ${c.name}` });
       }

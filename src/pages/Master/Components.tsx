@@ -68,7 +68,7 @@ export default function Components() {
     setDescription(comp.description || '');
     setApplication(comp.application || '');
     setRevision(comp.revision);
-    setStatus(comp.status);
+    setStatus((comp.status === 'active' || comp.status === 'inactive') ? comp.status : 'active');
     setImageUrl(comp.imageUrl || '');
     setStepUrl(comp.stepUrl || '');
     setPdfUrl(comp.pdfUrl || '');
