@@ -32,7 +32,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
 import { validateProcess } from '@/src/components/processos/BlockFactory';
-import { generateEmailMessage, generateEmailHtml, generatePDFReportBlobAndHash } from '@/src/utils/exportUtils';
+import { generateEmailMessage, generateEmailHtml, generatePDFReportBlobAndHash, copyApprovalEmailToClipboard } from '@/src/utils/exportUtils';
 import RegistrarValidacaoManualModal from '@/src/components/processos/RegistrarValidacaoManualModal';
 
 interface Solicitacao {
@@ -53,6 +53,7 @@ interface Solicitacao {
   public_token?: string;
   publication_code?: string;
   version?: number;
+  publication_id?: string;
   description?: string;
   notes_for_client?: string;
 }
@@ -95,7 +96,7 @@ export default function AprovacoesList() {
       // 1. Fetch Requests
       const { data: reqData, error: reqError } = await supabase
         .from('process_requests')
-        .select('*, processes(name), process_publications(public_token, status, publication_code, version)')
+        .select('*, processes(name), process_publications(id, public_token, status, publication_code, version)')
         .neq('status', 'validated')
         .order('updated_at', { ascending: false });
       
@@ -124,6 +125,7 @@ export default function AprovacoesList() {
           public_token: activePub?.public_token,
           publication_code: activePub?.publication_code,
           version: activePub?.version,
+          publication_id: activePub?.id,
           description: r.description || '',
           notes_for_client: r.notes_for_client || ''
         };
@@ -240,64 +242,11 @@ export default function AprovacoesList() {
 
   const handleCopyEmailHtml = async (req: Solicitacao, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!req.public_token) return;
-    
-    const url = `${window.location.origin}/validar/${req.public_token}`;
-    
-    const localBranding = {
-      companyName: req.blocks.find(b => b.type === 'request_information')?.company_name || 'PERSPECPACK',
-      tradeName: req.blocks.find(b => b.type === 'request_information')?.company_name || 'PERSPECPACK',
-      companyLogoUrl: '',
-      companyWebsite: '',
-      corporateEmail: '',
-      phone: '',
-      shortDescription: '',
-      footerText: ''
-    };
-
-    const mockPub = {
-      publication_code: req.publication_code || '',
-      version: req.version || 1,
-      public_token: req.public_token,
-      organization: localBranding.companyName,
-      snapshot: {
-        name: req.title,
-        project: req.project,
-        client: req.client,
-        revision: req.revision,
-        description: req.description,
-        responsible_internal: req.responsible_internal,
-        materials: req.materials,
-        blocks: req.blocks,
-        company_name: localBranding.companyName,
-        trade_name: localBranding.tradeName,
-        company_logo_url: localBranding.companyLogoUrl
-      }
-    };
-
-    const emailHtml = generateEmailHtml(mockPub, localBranding, url);
-    const emailText = generateEmailMessage(
-      req.title,
-      localBranding.tradeName,
-      req.publication_code || '',
-      req.version || 1,
-      url
-    );
-
-    try {
-      const htmlBlob = new Blob([emailHtml], { type: 'text/html' });
-      const textBlob = new Blob([emailText], { type: 'text/plain' });
-      const clipboardItem = new ClipboardItem({
-        'text/html': htmlBlob,
-        'text/plain': textBlob
-      });
-      await navigator.clipboard.write([clipboardItem]);
-      toast.success('Formulário em HTML copiado para o e-mail (Outlook/Gmail)!');
-    } catch (err) {
-      console.error(err);
-      navigator.clipboard.writeText(emailText);
-      toast.warning('Copiado apenas como texto. Use um navegador atualizado para copiar com formatação.');
+    if (!req.publication_id) {
+      toast.error('Publicação correspondente não encontrada.');
+      return;
     }
+    await copyApprovalEmailToClipboard(req.publication_id);
   };
 
   const handleDuplicateRequest = async (req: Solicitacao, e: React.MouseEvent) => {

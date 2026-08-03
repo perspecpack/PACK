@@ -30,7 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
-import { generateEmailMessage, exportTXTFile, generateTXTComprovante, generatePDFReport, generateEmailHtml, buildApprovalReportData } from '@/src/utils/exportUtils';
+import { generateEmailMessage, exportTXTFile, generateTXTComprovante, generatePDFReport, generateEmailHtml, buildApprovalReportData, copyApprovalEmailToClipboard } from '@/src/utils/exportUtils';
 import ApprovalDocumentRenderer from '@/src/components/processos/ApprovalDocumentRenderer';
 
 interface Publication {
@@ -202,41 +202,7 @@ export default function Aprovacoes() {
   };
 
   const handleCopyEmailHtml = async (pub: Publication) => {
-    const url = `${window.location.origin}/validar/${pub.public_token}`;
-    const companyBranding = {
-      companyName: pub.snapshot?.company_name || pub.organization || 'PERSPECPACK',
-      tradeName: pub.snapshot?.trade_name || pub.snapshot?.company_name || pub.organization || 'PERSPECPACK',
-      companyLogoUrl: pub.snapshot?.company_logo_url || '',
-      companyWebsite: pub.snapshot?.company_website || '',
-      corporateEmail: pub.snapshot?.corporate_email || '',
-      phone: pub.snapshot?.phone || '',
-      shortDescription: pub.snapshot?.short_description || '',
-      footerText: pub.snapshot?.footer_text || ''
-    };
-
-    const emailHtml = generateEmailHtml(pub, companyBranding, url);
-    const emailText = generateEmailMessage(
-      pub.snapshot?.name || 'Processo de Aprovação',
-      pub.organization || '',
-      pub.publication_code,
-      pub.version,
-      url
-    );
-
-    try {
-      const htmlBlob = new Blob([emailHtml], { type: 'text/html' });
-      const textBlob = new Blob([emailText], { type: 'text/plain' });
-      const clipboardItem = new ClipboardItem({
-        'text/html': htmlBlob,
-        'text/plain': textBlob
-      });
-      await navigator.clipboard.write([clipboardItem]);
-      toast.success('Formulário em HTML copiado para o e-mail (Outlook/Gmail)!');
-    } catch (err) {
-      console.error(err);
-      navigator.clipboard.writeText(emailText);
-      toast.warning('Copiado apenas como texto. Use um navegador atualizado para copiar com formatação.');
-    }
+    await copyApprovalEmailToClipboard(pub.id);
   };
 
   const handleRevoke = async (pubId: string) => {

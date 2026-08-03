@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf';
 import JSZip from 'jszip';
 import { BLOCK_METADATA } from '@/src/components/processos/BlockFactory';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 // Client-side SHA-256 calculator
 export async function calculateSHA256(file: File | Blob): Promise<string> {
@@ -1550,4 +1552,65 @@ export async function generatePDFReportBlobAndHash(pub: any, resp: any): Promise
   const docFinal = buildPDFDoc(pub, resp, pdfHash, logoImg);
   const finalBlob = docFinal.output('blob');
   return { blob: finalBlob, hash: pdfHash };
+}
+
+// Centralized function to copy the approval validation email (HTML + Plain text) to clipboard
+export async function copyApprovalEmailToClipboard(pubId: string): Promise<void> {
+  const toastId = toast.loading('Gerando formulário de e-mail...');
+  try {
+    // 1. Fetch publication from Supabase
+    const { data: pub, error } = await supabase
+      .from('process_publications')
+      .select('*')
+      .eq('id', pubId)
+      .single();
+
+    if (error) throw error;
+    if (!pub) throw new Error('Publicação não encontrada.');
+
+    // 2. Build origin URL
+    const url = `${window.location.origin}/validar/${pub.public_token}`;
+
+    // 3. Build branding from publication snapshot
+    const companyBranding = {
+      companyName: pub.snapshot?.company_name || pub.organization || 'PERSPECPACK',
+      tradeName: pub.snapshot?.trade_name || pub.snapshot?.company_name || pub.organization || 'PERSPECPACK',
+      companyLogoUrl: pub.snapshot?.company_logo_url || '',
+      companyWebsite: pub.snapshot?.company_website || '',
+      corporateEmail: pub.snapshot?.corporate_email || '',
+      phone: pub.snapshot?.phone || '',
+      shortDescription: pub.snapshot?.short_description || '',
+      footerText: pub.snapshot?.footer_text || ''
+    };
+
+    // 4. Generate contents
+    const emailHtml = generateEmailHtml(pub, companyBranding, url);
+    const emailText = generateEmailMessage(
+      pub.snapshot?.name || pub.snapshot?.title || 'Processo de Aprovação',
+      pub.organization || '',
+      pub.publication_code,
+      pub.version,
+      url
+    );
+
+    // 5. Copy to clipboard
+    try {
+      const htmlBlob = new Blob([emailHtml], { type: 'text/html' });
+      const textBlob = new Blob([emailText], { type: 'text/plain' });
+      const clipboardItem = new ClipboardItem({
+        'text/html': htmlBlob,
+        'text/plain': textBlob
+      });
+
+      await navigator.clipboard.write([clipboardItem]);
+      toast.success('Formulário copiado para o e-mail.', { id: toastId });
+    } catch (clipErr) {
+      console.error('Falha ao usar ClipboardItem, usando fallback de texto plano:', clipErr);
+      await navigator.clipboard.writeText(emailText);
+      toast.warning('Copiado apenas como texto. Use um navegador atualizado para copiar com formatação.', { id: toastId });
+    }
+  } catch (err) {
+    console.error('Erro ao buscar ou gerar formulário para e-mail:', err);
+    toast.error('Erro ao gerar ou copiar o formulário de e-mail.', { id: toastId });
+  }
 }
