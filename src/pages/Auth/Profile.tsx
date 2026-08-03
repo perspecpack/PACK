@@ -73,6 +73,7 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Password Change States
   const [changePassword, setChangePassword] = useState(false);
@@ -165,47 +166,76 @@ export default function Profile() {
 
   const handleSave = async () => {
     setValidationError(null);
+    const newErrors: Record<string, string> = {};
 
     // Validations (only if profile is expected, master user can bypass or edit directly)
-    if (!fullName.trim()) { setValidationError('Nome completo é obrigatório.'); return; }
-    if (!roleTitle.trim()) { setValidationError('Cargo / Função é obrigatória.'); return; }
-    if (!phone.trim()) { setValidationError('Telefone de contato é obrigatório.'); return; }
-    if (!whatsapp.trim()) { setValidationError('WhatsApp de contato é obrigatório.'); return; }
-    if (!corporateEmail.trim()) { setValidationError('E-mail corporativo é obrigatório.'); return; }
-    if (!companyName.trim()) { setValidationError('Nome da empresa é obrigatório.'); return; }
-    if (!cnpj.trim() || cnpj.length < 18) { setValidationError('CNPJ válido é obrigatório.'); return; }
-    if (!companyWebsite.trim()) { setValidationError('Site oficial da empresa é obrigatório.'); return; }
-    if (!city.trim()) { setValidationError('Cidade é obrigatória.'); return; }
-    if (!state.trim()) { setValidationError('Estado é obrigatório.'); return; }
-    if (!country.trim()) { setValidationError('País é obrigatório.'); return; }
-    if (!companyLogoUrl) { setValidationError('O logotipo da empresa é obrigatório.'); return; }
-    if (!companyType) { setValidationError('Selecione o tipo de empresa.'); return; }
-    if (companyType === 'Outros' && !companyTypeOther.trim()) {
-      setValidationError('Descreva o tipo da empresa.');
-      return;
+    if (!fullName.trim()) {
+      newErrors.fullName = 'Nome completo é obrigatório.';
+    }
+    if (!roleTitle.trim()) {
+      newErrors.roleTitle = 'Cargo / Função é obrigatório.';
+    }
+    if (!corporateEmail.trim()) {
+      newErrors.corporateEmail = 'E-mail corporativo é obrigatório.';
+    }
+    if (!companyName.trim()) {
+      newErrors.companyName = 'Nome da empresa é obrigatório.';
+    }
+    if (!cnpj.trim()) {
+      newErrors.cnpj = 'CNPJ da empresa é obrigatório.';
+    } else if (cnpj.trim().length < 18) {
+      newErrors.cnpj = 'CNPJ válido é obrigatório.';
+    }
+    if (!city.trim()) {
+      newErrors.city = 'Cidade é obrigatória.';
+    }
+    if (!state.trim()) {
+      newErrors.state = 'Estado é obrigatório.';
+    }
+    if (!country.trim()) {
+      newErrors.country = 'País é obrigatório.';
+    }
+    if (!companyLogoUrl) {
+      newErrors.companyLogoUrl = 'O logotipo da empresa é obrigatório.';
+    }
+    if (!companyType) {
+      newErrors.companyType = 'Selecione o tipo de empresa.';
+    } else if (companyType === 'Outros' && !companyTypeOther.trim()) {
+      newErrors.companyTypeOther = 'Descreva o tipo da empresa.';
     }
     if (selectedInterests.length === 0) {
-      setValidationError('Selecione pelo menos um interesse principal na plataforma.');
-      return;
-    }
-    if (selectedInterests.includes('Outro') && !mainInterestOther.trim()) {
-      setValidationError('Descreva seu outro interesse.');
-      return;
+      newErrors.selectedInterests = 'Selecione pelo menos um interesse principal na plataforma.';
+    } else if (selectedInterests.includes('Outro') && !mainInterestOther.trim()) {
+      newErrors.mainInterestOther = 'Descreva seu outro interesse.';
     }
 
     if (changePassword) {
       if (!newPassword.trim()) {
-        setValidationError('Por favor, informe a nova senha.');
-        return;
-      }
-      if (newPassword.length < 6) {
-        setValidationError('A nova senha deve ter no mínimo 6 caracteres.');
-        return;
+        newErrors.newPassword = 'Por favor, informe a nova senha.';
+      } else if (newPassword.length < 6) {
+        newErrors.newPassword = 'A nova senha deve ter no mínimo 6 caracteres.';
       }
       if (newPassword !== confirmPassword) {
-        setValidationError('As senhas digitadas não coincidem.');
-        return;
+        newErrors.confirmPassword = 'As senhas digitadas não coincidem.';
       }
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      setValidationError('Por favor, corrija os erros no formulário antes de salvar.');
+      
+      const firstErrorKey = Object.keys(newErrors)[0];
+      let elementId = firstErrorKey;
+      if (firstErrorKey === 'companyLogoUrl') elementId = 'logo-section';
+      if (firstErrorKey === 'selectedInterests') elementId = 'interests-section';
+      
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.focus();
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
     }
 
     setIsSaving(true);
@@ -294,6 +324,11 @@ export default function Profile() {
         {/* Profile Form Card */}
         <div className="lg:col-span-8 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col space-y-6 p-6">
           
+          {/* Legend */}
+          <div className="text-[11px] text-slate-500 font-medium">
+            <span className="text-red-500 font-bold ml-0.5">*</span> Campos obrigatórios
+          </div>
+
           {/* Section 1: Personal Details */}
           <div className="space-y-4">
             <h3 className="font-extrabold text-[14px] text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
@@ -303,24 +338,44 @@ export default function Profile() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="fullName" className="text-[12px] font-bold text-slate-700">Nome Completo</Label>
+                <Label htmlFor="fullName" className="text-[12px] font-bold text-slate-700">
+                  Nome Completo <span className="text-red-500 font-bold ml-0.5">*</span>
+                </Label>
                 <Input 
                   id="fullName" 
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Seu nome"
-                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  className={cn(
+                    "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                    errors.fullName && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  )}
                 />
+                {errors.fullName && (
+                  <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                    {errors.fullName}
+                  </span>
+                )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="roleTitle" className="text-[12px] font-bold text-slate-700">Cargo / Função</Label>
+                <Label htmlFor="roleTitle" className="text-[12px] font-bold text-slate-700">
+                  Cargo / Função <span className="text-red-500 font-bold ml-0.5">*</span>
+                </Label>
                 <Input 
                   id="roleTitle" 
                   value={roleTitle}
                   onChange={(e) => setRoleTitle(e.target.value)}
                   placeholder="Ex: Projetista de Racks, Comprador"
-                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  className={cn(
+                    "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                    errors.roleTitle && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  )}
                 />
+                {errors.roleTitle && (
+                  <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                    {errors.roleTitle}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -346,14 +401,24 @@ export default function Profile() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="corporateEmail" className="text-[12px] font-bold text-slate-700">E-mail Corporativo</Label>
+                <Label htmlFor="corporateEmail" className="text-[12px] font-bold text-slate-700">
+                  E-mail Corporativo <span className="text-red-500 font-bold ml-0.5">*</span>
+                </Label>
                 <Input 
                   id="corporateEmail" 
                   value={corporateEmail}
                   onChange={(e) => setCorporateEmail(e.target.value)}
                   placeholder="nome@empresa.com"
-                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  className={cn(
+                    "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                    errors.corporateEmail && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  )}
                 />
+                {errors.corporateEmail && (
+                  <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                    {errors.corporateEmail}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -367,24 +432,44 @@ export default function Profile() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="companyName" className="text-[12px] font-bold text-slate-700">Nome da Empresa</Label>
+                <Label htmlFor="companyName" className="text-[12px] font-bold text-slate-700">
+                  Nome da Empresa <span className="text-red-500 font-bold ml-0.5">*</span>
+                </Label>
                 <Input 
                   id="companyName" 
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="Nome da sua organização"
-                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  className={cn(
+                    "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                    errors.companyName && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  )}
                 />
+                {errors.companyName && (
+                  <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                    {errors.companyName}
+                  </span>
+                )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="cnpj" className="text-[12px] font-bold text-slate-700">CNPJ da Empresa</Label>
+                <Label htmlFor="cnpj" className="text-[12px] font-bold text-slate-700">
+                  CNPJ da Empresa <span className="text-red-500 font-bold ml-0.5">*</span>
+                </Label>
                 <Input 
                   id="cnpj" 
                   value={cnpj}
                   onChange={handleCnpjChange}
                   placeholder="00.000.000/0000-00"
-                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  className={cn(
+                    "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                    errors.cnpj && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  )}
                 />
+                {errors.cnpj && (
+                  <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                    {errors.cnpj}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -400,36 +485,66 @@ export default function Profile() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="city" className="text-[12px] font-bold text-slate-700">Cidade</Label>
+                <Label htmlFor="city" className="text-[12px] font-bold text-slate-700">
+                  Cidade <span className="text-red-500 font-bold ml-0.5">*</span>
+                </Label>
                 <Input 
                   id="city" 
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Ex: São Paulo"
-                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  className={cn(
+                    "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                    errors.city && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  )}
                 />
+                {errors.city && (
+                  <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                    {errors.city}
+                  </span>
+                )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="state" className="text-[12px] font-bold text-slate-700">Estado</Label>
+                <Label htmlFor="state" className="text-[12px] font-bold text-slate-700">
+                  Estado <span className="text-red-500 font-bold ml-0.5">*</span>
+                </Label>
                 <Input 
                   id="state" 
                   value={state}
                   onChange={(e) => setState(e.target.value)}
                   placeholder="Ex: SP"
-                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  className={cn(
+                    "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                    errors.state && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  )}
                 />
+                {errors.state && (
+                  <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                    {errors.state}
+                  </span>
+                )}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="country" className="text-[12px] font-bold text-slate-700">País</Label>
+              <Label htmlFor="country" className="text-[12px] font-bold text-slate-700">
+                País <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <Input 
                 id="country" 
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 placeholder="Ex: Brasil"
-                className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                className={cn(
+                  "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                  errors.country && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                )}
               />
+              {errors.country && (
+                <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                  {errors.country}
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -444,9 +559,9 @@ export default function Profile() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="companyWebsite" className="text-[12px] font-bold text-slate-700">Site Oficial</Label>
+                <Label htmlFor="companyWebsite-2" className="text-[12px] font-bold text-slate-700">Site Oficial</Label>
                 <Input 
-                  id="companyWebsite" 
+                  id="companyWebsite-2" 
                   value={companyWebsite}
                   onChange={(e) => setCompanyWebsite(e.target.value)}
                   placeholder="www.empresa.com"
@@ -478,8 +593,10 @@ export default function Profile() {
             </div>
 
             {/* LOGO UPLOAD */}
-            <div className="space-y-1.5 pt-2">
-              <Label className="text-[12px] font-bold text-slate-700">Logotipo da Empresa</Label>
+            <div id="logo-section" tabIndex={-1} className="space-y-1.5 pt-2 outline-none">
+              <Label className="text-[12px] font-bold text-slate-700">
+                Logotipo da Empresa <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <div className="flex items-center gap-6">
                 {companyLogoUrl ? (
                   <div className="relative border border-slate-200 rounded-xl p-2 bg-white flex items-center justify-center h-20 w-36 shadow-sm shrink-0 select-none">
@@ -493,7 +610,10 @@ export default function Profile() {
                     </button>
                   </div>
                 ) : (
-                  <div className="w-36 h-20 border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-slate-50 text-slate-400 shrink-0 select-none">
+                  <div className={cn(
+                    "w-36 h-20 border rounded-xl flex flex-col items-center justify-center bg-slate-50 text-slate-400 shrink-0 select-none",
+                    errors.companyLogoUrl ? "border-red-500 border-2" : "border-dashed border-slate-300"
+                  )}>
                     <Building2 className="w-6 h-6" />
                     <span className="text-[9px] font-bold mt-1 uppercase">Sem Logo</span>
                   </div>
@@ -502,6 +622,7 @@ export default function Profile() {
                 <div className="flex-1">
                   <label className={cn(
                     "flex items-center justify-center gap-2 border border-dashed rounded-xl p-4 text-xs font-semibold cursor-pointer transition-all min-h-[46px]",
+                    errors.companyLogoUrl && "border-red-500 bg-red-50/20 text-red-700",
                     isUploading
                       ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed"
                       : "border-slate-300 hover:border-teal-400 hover:bg-slate-50/50 text-slate-600"
@@ -533,6 +654,11 @@ export default function Profile() {
                   </p>
                 </div>
               </div>
+              {errors.companyLogoUrl && (
+                <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                  {errors.companyLogoUrl}
+                </span>
+              )}
             </div>
           </div>
 
@@ -544,46 +670,69 @@ export default function Profile() {
             </h3>
 
             <div className="space-y-3">
-              <Label htmlFor="companyType" className="text-[12px] font-bold text-slate-700">Selecione o tipo de organização</Label>
+              <Label htmlFor="companyType" className="text-[12px] font-bold text-slate-700">
+                Selecione o tipo de organização <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <select 
                 id="companyType"
                 value={companyType}
                 onChange={(e) => setCompanyType(e.target.value)}
-                className="w-full h-11 border border-slate-300 rounded-lg px-3 bg-white text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 shadow-sm"
+                className={cn(
+                  "w-full h-11 border border-slate-300 rounded-lg px-3 bg-white text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 shadow-sm",
+                  errors.companyType && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                )}
               >
                 <option value="">Selecione uma opção...</option>
                 {COMPANY_TYPES.map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
+              {errors.companyType && (
+                <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                  {errors.companyType}
+                </span>
+              )}
             </div>
 
             {companyType === 'Outros' && (
               <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
                 <Label htmlFor="companyTypeOther" className="text-[12px] font-bold text-slate-700">
-                  Descreva o tipo da empresa
+                  Descreva o tipo da empresa <span className="text-red-500 font-bold ml-0.5">*</span>
                 </Label>
                 <Input 
                   id="companyTypeOther" 
                   value={companyTypeOther}
                   onChange={(e) => setCompanyTypeOther(e.target.value)}
                   placeholder="Atividade principal da empresa"
-                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  className={cn(
+                    "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                    errors.companyTypeOther && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  )}
                 />
+                {errors.companyTypeOther && (
+                  <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                    {errors.companyTypeOther}
+                  </span>
+                )}
               </div>
             )}
           </div>
 
           {/* Section 4: Main Interests */}
-          <div className="space-y-4 pt-2">
+          <div id="interests-section" tabIndex={-1} className="space-y-4 pt-2 outline-none">
             <h3 className="font-extrabold text-[14px] text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
               <Info className="w-4 h-4 text-teal-600" />
               <span>4. Interesse principal na plataforma</span>
             </h3>
 
             <div className="space-y-3">
-              <Label className="text-[12px] font-bold text-slate-700 block">Objetivos principais na plataforma</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Label className="text-[12px] font-bold text-slate-700 block">
+                Objetivos principais na plataforma <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
+              <div className={cn(
+                "grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-2 rounded-xl border border-transparent",
+                errors.selectedInterests && "border-red-500 bg-rose-50/20"
+              )}>
                 {INTERESTS.map(item => {
                   const isSelected = selectedInterests.includes(item.label);
                   return (
@@ -611,20 +760,33 @@ export default function Profile() {
                   );
                 })}
               </div>
+              {errors.selectedInterests && (
+                <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                  {errors.selectedInterests}
+                </span>
+              )}
             </div>
 
             {selectedInterests.includes('Outro') && (
               <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
                 <Label htmlFor="mainInterestOther" className="text-[12px] font-bold text-slate-700">
-                  Descreva o seu interesse
+                  Descreva o seu interesse <span className="text-red-500 font-bold ml-0.5">*</span>
                 </Label>
                 <Input 
                   id="mainInterestOther" 
                   value={mainInterestOther}
                   onChange={(e) => setMainInterestOther(e.target.value)}
                   placeholder="Ex: Consultar projetos específicos"
-                  className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                  className={cn(
+                    "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                    errors.mainInterestOther && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  )}
                 />
+                {errors.mainInterestOther && (
+                  <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                    {errors.mainInterestOther}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -648,7 +810,7 @@ export default function Profile() {
                     setConfirmPassword('');
                   }
                 }}
-                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                className="w-4 h-4 rounded-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
               />
               <Label htmlFor="changePasswordCheck" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
                 Desejo alterar minha senha de acesso
@@ -658,26 +820,46 @@ export default function Profile() {
             {changePassword && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="space-y-1.5">
-                  <Label htmlFor="newPassword" className="text-[12px] font-bold text-slate-700">Nova Senha</Label>
+                  <Label htmlFor="newPassword" className="text-[12px] font-bold text-slate-700">
+                    Nova Senha <span className="text-red-500 font-bold ml-0.5">*</span>
+                  </Label>
                   <Input 
                     id="newPassword" 
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
-                    className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                    className={cn(
+                      "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                      errors.newPassword && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                    )}
                   />
+                  {errors.newPassword && (
+                    <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                      {errors.newPassword}
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="confirmPassword" className="text-[12px] font-bold text-slate-700">Confirmar Nova Senha</Label>
+                  <Label htmlFor="confirmPassword" className="text-[12px] font-bold text-slate-700">
+                    Confirmar Nova Senha <span className="text-red-500 font-bold ml-0.5">*</span>
+                  </Label>
                   <Input 
                     id="confirmPassword" 
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repita a nova senha"
-                    className="h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500"
+                    className={cn(
+                      "h-11 text-xs rounded-lg border-slate-300 focus:ring-teal-500 focus:border-teal-500",
+                      errors.confirmPassword && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                    )}
                   />
+                  {errors.confirmPassword && (
+                    <span className="text-[10px] text-red-500 font-semibold mt-1 block">
+                      {errors.confirmPassword}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
