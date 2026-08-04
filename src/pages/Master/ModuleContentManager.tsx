@@ -31,6 +31,8 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { ModuleType, DocumentType, StandardType, ChecklistSection, ChecklistCriterion, ChecklistHeaderField } from '@/src/types';
+import { generateAndUploadKnowledge } from '@/src/utils/knowledgeGenerator';
+import { generateAndUploadThumbnail } from '@/src/utils/pdfThumbnail';
 
 const DEFAULT_SECTIONS = [
   { title: 'Identificação do Projeto', sortOrder: 1 },
@@ -88,7 +90,9 @@ export default function ModuleContentManager() {
     refreshTags,
     logUpload,
     logPageAccess,
-    user
+    user,
+    addKnowledgeUnit,
+    updateKnowledgeUnit
   } = useApp();
 
   const org = organizations.find(o => o.id === orgId);
@@ -355,8 +359,9 @@ export default function ModuleContentManager() {
   };
 
   // Handle Form Submit
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
 
     // Parse and upsert tags into database
     const parsedTags = tagsInput.split(',').map(t => t.trim()).filter(t => t !== '');
@@ -432,6 +437,61 @@ export default function ModuleContentManager() {
         updateDocument(editingId, docData);
       } else {
         addDocument(docData);
+
+        // KNOWLEDGE BASE — dupla gravação para novos documentos com PDF
+        if (fileUrl && org) {
+          const unitId = crypto.randomUUID();
+          const orgSlug = org.slug;
+          const storageFolder = `${orgSlug}/${unitId}`;
+
+          // 1. Registrar na tabela knowledge_units com status 'pending'
+          const newUnit = await addKnowledgeUnit({
+            organizationId: orgId!,
+            technicalAreaId: techAreaId || undefined,
+            unitType: 'document',
+            subtype: documentType,
+            title: name,
+            description: description || undefined,
+            revision,
+            documentCode: documentCode || undefined,
+            referenceNorm: undefined,
+            status: 'active',
+            storageFolder,
+            primaryFileUrl: fileUrl,
+            primaryFileName: fileName || undefined,
+            primaryMimeType: mainMimeType || undefined,
+            primaryFileSize: mainFileSize || undefined,
+            primaryFileHash: mainFileHash || undefined,
+            knowledgeStatus: 'pending',
+            secondaryFiles: [],
+            uploadedBy: user?.id,
+            publishedAt: publishedAt ? new Date(publishedAt).toISOString() : new Date().toISOString()
+          });
+
+          if (newUnit) {
+            // 2. Extração de texto e geração do knowledge.json (assíncrono)
+            generateAndUploadKnowledge({
+              unitId: newUnit.id,
+              organizationId: orgId!,
+              orgSlug,
+              pdfUrl: fileUrl,
+              title: name,
+              revision,
+              documentCode: documentCode || undefined
+            }).then(result => {
+              updateKnowledgeUnit(newUnit.id, {
+                knowledgeFileUrl: result.knowledgeFileUrl || undefined,
+                knowledgeStatus: result.status
+              });
+            }).catch(err => console.error('[Knowledge] Falha na geração:', err));
+
+            // 3. Thumbnail em paralelo — não bloqueia
+            generateAndUploadThumbnail({ pdfUrl: fileUrl, unitId: newUnit.id, orgSlug })
+              .then(thumbnailUrl => {
+                if (thumbnailUrl) updateKnowledgeUnit(newUnit.id, { thumbnailUrl });
+              });
+          }
+        }
       }
     } else if (moduleType === 'standards') {
       const stdData = {
@@ -453,6 +513,59 @@ export default function ModuleContentManager() {
         updateStandard(editingId, stdData);
       } else {
         addStandard(stdData);
+
+        // KNOWLEDGE BASE — dupla gravação para novos documentos técnicos com PDF
+        if (fileUrl && org) {
+          const unitId = crypto.randomUUID();
+          const orgSlug = org.slug;
+          const storageFolder = `${orgSlug}/${unitId}`;
+
+          const newUnit = await addKnowledgeUnit({
+            organizationId: orgId!,
+            technicalAreaId: techAreaId || undefined,
+            unitType: 'standard',
+            subtype: standardType,
+            title: name,
+            description: description || undefined,
+            revision,
+            documentCode: documentCode || undefined,
+            referenceNorm: referenceDocument || undefined,
+            status: 'active',
+            storageFolder,
+            primaryFileUrl: fileUrl,
+            primaryFileName: fileName || undefined,
+            primaryMimeType: mainMimeType || undefined,
+            primaryFileSize: mainFileSize || undefined,
+            primaryFileHash: mainFileHash || undefined,
+            knowledgeStatus: 'pending',
+            secondaryFiles: [],
+            uploadedBy: user?.id,
+            publishedAt: publishedAt ? new Date(publishedAt).toISOString() : new Date().toISOString()
+          });
+
+          if (newUnit) {
+            generateAndUploadKnowledge({
+              unitId: newUnit.id,
+              organizationId: orgId!,
+              orgSlug,
+              pdfUrl: fileUrl,
+              title: name,
+              revision,
+              documentCode: documentCode || undefined,
+              referenceNorm: referenceDocument || undefined
+            }).then(result => {
+              updateKnowledgeUnit(newUnit.id, {
+                knowledgeFileUrl: result.knowledgeFileUrl || undefined,
+                knowledgeStatus: result.status
+              });
+            }).catch(err => console.error('[Knowledge] Falha na geração:', err));
+
+            generateAndUploadThumbnail({ pdfUrl: fileUrl, unitId: newUnit.id, orgSlug })
+              .then(thumbnailUrl => {
+                if (thumbnailUrl) updateKnowledgeUnit(newUnit.id, { thumbnailUrl });
+              });
+          }
+        }
       }
     } else if (moduleType === 'checklists') {
       const chkData = {

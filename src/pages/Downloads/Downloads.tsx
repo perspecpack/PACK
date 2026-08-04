@@ -184,7 +184,8 @@ function Downloads() {
     logPageAccess,
     logUpload,
     user,
-    profile
+    profile,
+    knowledgeUnits
   } = useApp();
 
   // Selection states (declared early to prevent TDZ ReferenceErrors)
@@ -2127,10 +2128,39 @@ function Downloads() {
                         >
                           <div className="space-y-2">
                             <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                              <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
-                                <FileText className="w-5 h-5 text-teal-600" />
-                              </div>
-                              <div className="absolute top-1.5 right-1.5">
+                              {(() => {
+                                const ku = knowledgeUnits.find(k => k.primaryFileHash === doc.primaryFileHash && k.organizationId === doc.organizationId && k.thumbnailUrl);
+                                return ku?.thumbnailUrl ? (
+                                  <img
+                                    src={ku.thumbnailUrl}
+                                    alt={`Pré-visualização: ${doc.title}`}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                                    <FileText className="w-5 h-5 text-teal-600" />
+                                  </div>
+                                );
+                              })()}
+                              <div className="absolute top-1.5 right-1.5 flex gap-1">
+                                {(() => {
+                                  const ku = knowledgeUnits.find(k => k.primaryFileHash === doc.primaryFileHash && k.organizationId === doc.organizationId);
+                                  if (!ku) return null;
+                                  const statusMap = {
+                                    ready:      { label: '✦ Indexado', cls: 'bg-teal-600/80 text-white' },
+                                    pending:    { label: '⏳ Aguardando', cls: 'bg-amber-500/80 text-white' },
+                                    processing: { label: '⏳ Indexando', cls: 'bg-blue-500/80 text-white' },
+                                    skipped:    { label: 'PDF escaneado', cls: 'bg-slate-500/70 text-white' },
+                                    failed:     { label: '⚠ Falhou', cls: 'bg-red-500/70 text-white' },
+                                  };
+                                  const s = statusMap[ku.knowledgeStatus];
+                                  return s ? (
+                                    <span className={`backdrop-blur-sm font-mono text-[7.5px] font-extrabold px-1.5 py-0.5 rounded ${s.cls}`}>
+                                      {s.label}
+                                    </span>
+                                  ) : null;
+                                })()}
                                 <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[8px] font-extrabold px-1.5 py-0.5 rounded">
                                   REV {doc.revision}
                                 </span>

@@ -370,4 +370,55 @@ export interface DocumentTag {
   createdAt: string;
 }
 
+// ============================================================
+// KNOWLEDGE BASE — Interfaces de Unidade de Conhecimento
+// Adicionadas em: 2026-08 (Fase Q3)
+// ============================================================
 
+export type KnowledgeUnitType = 'document' | 'standard' | 'component' | 'project';
+
+export type KnowledgeStatus = 'pending' | 'processing' | 'ready' | 'failed' | 'skipped';
+
+export interface KnowledgeSecondaryFile {
+  role: 'step' | 'dwg' | 'dxf' | 'image' | 'annex' | 'pdf';
+  url: string;
+  name: string;
+  size: number;
+  mime: string;
+  hash: string;
+}
+
+export interface KnowledgeUnit {
+  id: string;
+  organizationId: string;
+  technicalAreaId?: string;
+
+  unitType: KnowledgeUnitType;
+  subtype?: string;
+
+  title: string;
+  description?: string;
+  revision: string;
+  documentCode?: string;
+  referenceNorm?: string;
+  status: 'active' | 'inactive';
+
+  storageFolder?: string;
+  primaryFileUrl?: string;
+  primaryFileName?: string;
+  primaryMimeType?: string;
+  primaryFileSize?: number;
+  primaryFileHash?: string;
+
+  knowledgeFileUrl?: string;
+  knowledgeStatus: KnowledgeStatus;
+
+  thumbnailUrl?: string;
+  secondaryFiles: KnowledgeSecondaryFile[];
+
+  uploadedBy?: string;
+  publishedAt?: string;
+
+  createdAt: string;
+  updatedAt: string;
+}

@@ -22,7 +22,9 @@ import {
   SupportRequest,
   TechnicalArea,
   DocumentCategory,
-  DocumentTag
+  DocumentTag,
+  KnowledgeUnit,
+  KnowledgeStatus
 } from '../types';
 
 export type {
@@ -47,7 +49,9 @@ export type {
   SupportRequest,
   TechnicalArea,
   DocumentCategory,
-  DocumentTag
+  DocumentTag,
+  KnowledgeUnit,
+  KnowledgeStatus
 };
 
 export type OEM = Organization;
@@ -91,6 +95,12 @@ interface AppContextType {
   documentTags: DocumentTag[];
   refreshCategories: () => Promise<void>;
   refreshTags: () => Promise<void>;
+
+  // Knowledge Base
+  knowledgeUnits: KnowledgeUnit[];
+  addKnowledgeUnit: (unit: Omit<KnowledgeUnit, 'id' | 'createdAt' | 'updatedAt'>) => Promise<KnowledgeUnit | null>;
+  updateKnowledgeUnit: (id: string, partial: Partial<KnowledgeUnit>) => Promise<void>;
+  deleteKnowledgeUnit: (id: string) => Promise<void>;
   
   downloadsLog: DownloadLog[];
   uploadsLog: UploadLog[];
@@ -946,6 +956,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>([]);
   const [documentTags, setDocumentTags] = useState<DocumentTag[]>([]);
+  const [knowledgeUnits, setKnowledgeUnits] = useState<KnowledgeUnit[]>([]);
 
   const [files, setFiles] = useState<FileEntry[]>(() => {
     const saved = localStorage.getItem('pp_files_v2');
@@ -1343,6 +1354,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Fetch Categories & Tags
         await refreshCategories();
         await refreshTags();
+
+        // Fetch Knowledge Units
+        const { data: kuData, error: kuErr } = await supabase
+          .from('knowledge_units')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!kuErr && kuData) {
+          setKnowledgeUnits(kuData.map((k: any): KnowledgeUnit => ({
+            id: k.id,
+            organizationId: k.organization_id,
+            technicalAreaId: k.technical_area_id || undefined,
+            unitType: k.unit_type,
+            subtype: k.subtype || undefined,
+            title: k.title,
+            description: k.description || undefined,
+            revision: k.revision,
+            documentCode: k.document_code || undefined,
+            referenceNorm: k.reference_norm || undefined,
+            status: k.status,
+            storageFolder: k.storage_folder || undefined,
+            primaryFileUrl: k.primary_file_url || undefined,
+            primaryFileName: k.primary_file_name || undefined,
+            primaryMimeType: k.primary_mime_type || undefined,
+            primaryFileSize: k.primary_file_size ? Number(k.primary_file_size) : undefined,
+            primaryFileHash: k.primary_file_hash || undefined,
+            knowledgeFileUrl: k.knowledge_file_url || undefined,
+            knowledgeStatus: k.knowledge_status as KnowledgeStatus,
+            thumbnailUrl: k.thumbnail_url || undefined,
+            secondaryFiles: k.secondary_files || [],
+            uploadedBy: k.uploaded_by || undefined,
+            publishedAt: k.published_at || undefined,
+            createdAt: k.created_at,
+            updatedAt: k.updated_at
+          })));
+        }
 
         console.log('[Supabase Sync] Fetched successfully from Supabase!');
       } catch (err: any) {
@@ -2782,6 +2828,93 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         documentTags,
         refreshCategories,
         refreshTags,
+
+        knowledgeUnits,
+        addKnowledgeUnit: async (unit) => {
+          if (!supabase) return null;
+          const { data, error } = await supabase
+            .from('knowledge_units')
+            .insert([{
+              organization_id: unit.organizationId,
+              technical_area_id: unit.technicalAreaId || null,
+              unit_type: unit.unitType,
+              subtype: unit.subtype || null,
+              title: unit.title,
+              description: unit.description || null,
+              revision: unit.revision,
+              document_code: unit.documentCode || null,
+              reference_norm: unit.referenceNorm || null,
+              status: unit.status,
+              storage_folder: unit.storageFolder || null,
+              primary_file_url: unit.primaryFileUrl || null,
+              primary_file_name: unit.primaryFileName || null,
+              primary_mime_type: unit.primaryMimeType || null,
+              primary_file_size: unit.primaryFileSize || null,
+              primary_file_hash: unit.primaryFileHash || null,
+              knowledge_file_url: unit.knowledgeFileUrl || null,
+              knowledge_status: unit.knowledgeStatus,
+              thumbnail_url: unit.thumbnailUrl || null,
+              secondary_files: unit.secondaryFiles || [],
+              uploaded_by: unit.uploadedBy || null,
+              published_at: unit.publishedAt || null
+            }])
+            .select()
+            .single();
+          if (error || !data) { console.error('[KU] Insert error:', error); return null; }
+          const ku: KnowledgeUnit = {
+            id: data.id, organizationId: data.organization_id,
+            technicalAreaId: data.technical_area_id || undefined,
+            unitType: data.unit_type, subtype: data.subtype || undefined,
+            title: data.title, description: data.description || undefined,
+            revision: data.revision, documentCode: data.document_code || undefined,
+            referenceNorm: data.reference_norm || undefined, status: data.status,
+            storageFolder: data.storage_folder || undefined,
+            primaryFileUrl: data.primary_file_url || undefined,
+            primaryFileName: data.primary_file_name || undefined,
+            primaryMimeType: data.primary_mime_type || undefined,
+            primaryFileSize: data.primary_file_size ? Number(data.primary_file_size) : undefined,
+            primaryFileHash: data.primary_file_hash || undefined,
+            knowledgeFileUrl: data.knowledge_file_url || undefined,
+            knowledgeStatus: data.knowledge_status as KnowledgeStatus,
+            thumbnailUrl: data.thumbnail_url || undefined,
+            secondaryFiles: data.secondary_files || [],
+            uploadedBy: data.uploaded_by || undefined,
+            publishedAt: data.published_at || undefined,
+            createdAt: data.created_at, updatedAt: data.updated_at
+          };
+          setKnowledgeUnits(prev => [ku, ...prev]);
+          return ku;
+        },
+        updateKnowledgeUnit: async (id, partial) => {
+          if (!supabase) return;
+          const db: any = { updated_at: new Date().toISOString() };
+          if (partial.knowledgeFileUrl !== undefined) db.knowledge_file_url = partial.knowledgeFileUrl;
+          if (partial.knowledgeStatus !== undefined) db.knowledge_status = partial.knowledgeStatus;
+          if (partial.thumbnailUrl !== undefined) db.thumbnail_url = partial.thumbnailUrl;
+          if (partial.primaryFileUrl !== undefined) db.primary_file_url = partial.primaryFileUrl;
+          if (partial.status !== undefined) db.status = partial.status;
+          await supabase.from('knowledge_units').update(db).eq('id', id);
+          setKnowledgeUnits(prev => prev.map(u => u.id === id ? { ...u, ...partial } : u));
+        },
+        deleteKnowledgeUnit: async (id) => {
+          if (!supabase) return;
+          const unit = knowledgeUnits.find(u => u.id === id);
+          if (unit?.storageFolder) {
+            const buckets = ['knowledge-primary', 'knowledge-assets', 'knowledge-thumbnails'];
+            for (const bucket of buckets) {
+              try {
+                const { data: files } = await supabase.storage.from(bucket).list(unit.storageFolder);
+                if (files?.length) {
+                  await supabase.storage.from(bucket).remove(
+                    files.map((f: any) => `${unit.storageFolder}/${f.name}`)
+                  );
+                }
+              } catch { /* Ignora erros de bucket vazio */ }
+            }
+          }
+          await supabase.from('knowledge_units').delete().eq('id', id);
+          setKnowledgeUnits(prev => prev.filter(u => u.id !== id));
+        },
         
         downloadsLog,
         uploadsLog,
