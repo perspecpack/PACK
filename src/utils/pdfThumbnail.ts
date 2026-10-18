@@ -5,6 +5,7 @@
 // ============================================================
 
 import { supabase } from '@/lib/supabase';
+import type { KnowledgeUnit } from '@/src/types';
 
 /**
  * Renderiza a primeira página do PDF em um canvas HTML,
@@ -81,3 +82,52 @@ export async function generateAndUploadThumbnail(params: {
     return null;
   }
 }
+
+/**
+ * Localiza a URL da miniatura de um documento ou norma na base de conhecimento (knowledgeUnits)
+ * utilizando correspondência por hash, URL, nome de arquivo ou metadados (título e revisão).
+ */
+export function findKnowledgeThumbnail(
+  item: any,
+  knowledgeUnits?: KnowledgeUnit[]
+): string | undefined {
+  if (item?.thumbnailUrl) return item.thumbnailUrl;
+  if (!item || !knowledgeUnits?.length) return undefined;
+
+  // 1. Match por hash do arquivo principal
+  if (item.fileHash) {
+    const match = knowledgeUnits.find(
+      k => k.organizationId === item.organizationId && k.primaryFileHash === item.fileHash
+    );
+    if (match?.thumbnailUrl) return match.thumbnailUrl;
+  }
+
+  // 2. Match por URL do arquivo principal
+  if (item.fileUrl) {
+    const match = knowledgeUnits.find(
+      k => k.primaryFileUrl === item.fileUrl
+    );
+    if (match?.thumbnailUrl) return match.thumbnailUrl;
+  }
+
+  // 3. Match por nome do arquivo
+  if (item.fileName) {
+    const match = knowledgeUnits.find(
+      k => k.organizationId === item.organizationId && k.primaryFileName === item.fileName
+    );
+    if (match?.thumbnailUrl) return match.thumbnailUrl;
+  }
+
+  // 4. Match por título, revisão e organização
+  if (item.title && item.organizationId) {
+    const match = knowledgeUnits.find(
+      k => k.organizationId === item.organizationId &&
+           k.title.trim().toLowerCase() === item.title.trim().toLowerCase() &&
+           String(k.revision) === String(item.revision)
+    );
+    if (match?.thumbnailUrl) return match.thumbnailUrl;
+  }
+
+  return undefined;
+}
+

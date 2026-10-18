@@ -16,6 +16,7 @@ import DownloadsHistory from './pages/Downloads/DownloadsHistory';
 import Help from './pages/Downloads/Help';
 import PolicyDocument from './pages/Downloads/PolicyDocument';
 import ProvisionalPage from './pages/ProvisionalPage';
+import VisaoGeral from './pages/VisaoGeral/VisaoGeral';
 
 // Processos Pages
 import ProcessosList from './pages/Processos/ProcessosList';
@@ -148,7 +149,7 @@ function AppRoutes() {
           }
         >
           <Route index element={<Navigate to="/app/visao-geral" replace />} />
-          <Route path="visao-geral" element={<ProvisionalPage title="Visão Geral" />} />
+          <Route path="visao-geral" element={<VisaoGeral />} />
           <Route path="projetos" element={<Navigate to="/app/aprovacoes" replace />} />
           
           {/* New Clean Routes */}

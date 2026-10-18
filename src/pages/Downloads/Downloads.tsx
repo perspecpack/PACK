@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useOutletContext, Link, useNavigate } from 'react-router-dom';
+import { useOutletContext, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Box, 
   Building2,
@@ -40,6 +40,7 @@ import { ThreeDViewer } from '@/components/ui/ThreeDViewer';
 import { ModuleType, ChecklistTemplate, ComponentEntry, DocumentEntry, StandardEntry, KnowledgeUnit } from '@/src/types';
 import { jsPDF } from 'jspdf';
 import { supabase, uploadFileToStorage } from '@/lib/supabase';
+import { findKnowledgeThumbnail } from '@/src/utils/pdfThumbnail';
 import perspecpackLogo from '@/PERSPECPACK.png';
 
 const loadImage = (src: string): Promise<HTMLImageElement> => {
@@ -205,6 +206,25 @@ function Downloads() {
   }, [selectedModule, selectedTechnicalArea, selectedOEM]);
 
   const { searchQuery, setSearchQuery, resetTrigger } = useOutletContext<{ searchQuery: string; setSearchQuery: (q: string) => void; resetTrigger: number }>();
+  const location = useLocation();
+
+  // Sync incoming navigation state from Visão Geral or other modules
+  useEffect(() => {
+    if (location.state?.selectedOrgId) {
+      setSelectedOEM(location.state.selectedOrgId);
+      setStep('tech_area_selection');
+    }
+    if (location.state?.initialSearch) {
+      setLocalSearch(location.state.initialSearch);
+    }
+  }, [location.state]);
+
+  // Sync navbar search query into local search filter
+  useEffect(() => {
+    if (searchQuery) {
+      setLocalSearch(searchQuery);
+    }
+  }, [searchQuery]);
 
   // Steps: 'org_selection' | 'tech_area_selection' | 'module_selection' | 'content_view' | 'checklist_execution'
   const [step, setStep] = useState<'org_selection' | 'tech_area_selection' | 'module_selection' | 'content_view' | 'checklist_execution'>('org_selection');
@@ -435,9 +455,7 @@ function Downloads() {
   };
 
   const getItemThumbnail = (item: any): string | undefined => {
-    if (item?.thumbnailUrl) return item.thumbnailUrl;
-    const ku = getItemKnowledgeUnit(item);
-    return ku?.thumbnailUrl || undefined;
+    return findKnowledgeThumbnail(item, knowledgeUnits);
   };
 
   // Log page access on component mount
