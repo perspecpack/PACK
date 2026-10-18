@@ -37,7 +37,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/src/context/AppContext';
 import { ThreeDViewer } from '@/components/ui/ThreeDViewer';
-import { ModuleType, ChecklistTemplate, ComponentEntry, DocumentEntry, StandardEntry } from '@/src/types';
+import { ModuleType, ChecklistTemplate, ComponentEntry, DocumentEntry, StandardEntry, KnowledgeUnit } from '@/src/types';
 import { jsPDF } from 'jspdf';
 import { supabase, uploadFileToStorage } from '@/lib/supabase';
 import perspecpackLogo from '@/PERSPECPACK.png';
@@ -393,7 +393,52 @@ function Downloads() {
     }
   };
 
+  // Helper to find associated KnowledgeUnit for a document or standard
+  const getItemKnowledgeUnit = (item: any): KnowledgeUnit | undefined => {
+    if (!item || !knowledgeUnits?.length) return undefined;
 
+    // 1. Match by fileHash
+    if (item.fileHash) {
+      const matchByHash = knowledgeUnits.find(
+        k => k.organizationId === item.organizationId && k.primaryFileHash === item.fileHash
+      );
+      if (matchByHash) return matchByHash;
+    }
+
+    // 2. Match by primaryFileUrl / fileUrl
+    if (item.fileUrl) {
+      const matchByUrl = knowledgeUnits.find(
+        k => k.primaryFileUrl === item.fileUrl
+      );
+      if (matchByUrl) return matchByUrl;
+    }
+
+    // 3. Match by fileName
+    if (item.fileName) {
+      const matchByName = knowledgeUnits.find(
+        k => k.organizationId === item.organizationId && k.primaryFileName === item.fileName
+      );
+      if (matchByName) return matchByName;
+    }
+
+    // 4. Match by title, revision and organization
+    if (item.title && item.organizationId) {
+      const matchByMeta = knowledgeUnits.find(
+        k => k.organizationId === item.organizationId &&
+             k.title.trim().toLowerCase() === item.title.trim().toLowerCase() &&
+             String(k.revision) === String(item.revision)
+      );
+      if (matchByMeta) return matchByMeta;
+    }
+
+    return undefined;
+  };
+
+  const getItemThumbnail = (item: any): string | undefined => {
+    if (item?.thumbnailUrl) return item.thumbnailUrl;
+    const ku = getItemKnowledgeUnit(item);
+    return ku?.thumbnailUrl || undefined;
+  };
 
   // Log page access on component mount
   useEffect(() => {
@@ -2120,7 +2165,10 @@ function Downloads() {
                 if (viewMode === 'grid') {
                   return (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-in fade-in duration-200">
-                      {filteredList.map(doc => (
+                      {filteredList.map(doc => {
+                        const ku = getItemKnowledgeUnit(doc);
+                        const thumbnailUrl = ku?.thumbnailUrl || doc.thumbnailUrl;
+                        return (
                         <div 
                           key={doc.id}
                           onClick={() => setSelectedItemForModal({ type: 'document', data: doc })}
@@ -2128,24 +2176,30 @@ function Downloads() {
                         >
                           <div className="space-y-2">
                             <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                              {(() => {
-                                const ku = knowledgeUnits.find(k => k.primaryFileHash === doc.primaryFileHash && k.organizationId === doc.organizationId && k.thumbnailUrl);
-                                return ku?.thumbnailUrl ? (
+                              {thumbnailUrl ? (
+                                <>
                                   <img
-                                    src={ku.thumbnailUrl}
+                                    src={thumbnailUrl}
                                     alt={`Pré-visualização: ${doc.title}`}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                    loading="lazy"
+                                    className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                      const fb = e.currentTarget.parentElement?.querySelector('.doc-card-fallback') as HTMLElement | null;
+                                      if (fb) fb.style.display = 'flex';
+                                    }}
                                   />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                                  <div className="doc-card-fallback hidden w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
                                     <FileText className="w-5 h-5 text-teal-600" />
                                   </div>
-                                );
-                              })()}
+                                </>
+                              ) : (
+                                <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                                  <FileText className="w-5 h-5 text-teal-600" />
+                                </div>
+                              )}
                               <div className="absolute top-1.5 right-1.5 flex gap-1">
                                 {(() => {
-                                  const ku = knowledgeUnits.find(k => k.primaryFileHash === doc.primaryFileHash && k.organizationId === doc.organizationId);
                                   if (!ku) return null;
                                   const statusMap = {
                                     ready:      { label: '✦ Indexado', cls: 'bg-teal-600/80 text-white' },
@@ -2187,7 +2241,7 @@ function Downloads() {
                             </span>
                           </div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   );
                 } else {
@@ -2212,9 +2266,18 @@ function Downloads() {
                               className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
                             >
                               <TableCell className="align-middle py-2 text-center">
-                                <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center mx-auto">
-                                  <FileText className="w-4 h-4 text-teal-650" />
-                                </div>
+                                {(() => {
+                                  const thumb = getItemThumbnail(doc);
+                                  return thumb ? (
+                                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center mx-auto shadow-sm">
+                                      <img src={thumb} alt="" className="w-full h-full object-contain" loading="lazy" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center mx-auto">
+                                      <FileText className="w-4 h-4 text-teal-650" />
+                                    </div>
+                                  );
+                                })()}
                               </TableCell>
                               <TableCell className="align-middle font-bold text-[13px] text-slate-900">{doc.title}</TableCell>
                               <TableCell className="align-middle text-[12px] text-slate-500 max-w-xs truncate">{doc.description || '-'}</TableCell>
@@ -2267,7 +2330,10 @@ function Downloads() {
                 if (viewMode === 'grid') {
                   return (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-in fade-in duration-200">
-                      {filteredList.map(std => (
+                      {filteredList.map(std => {
+                        const ku = getItemKnowledgeUnit(std);
+                        const thumbnailUrl = ku?.thumbnailUrl || std.thumbnailUrl;
+                        return (
                         <div 
                           key={std.id}
                           onClick={() => setSelectedItemForModal({ type: 'standard', data: std })}
@@ -2275,10 +2341,45 @@ function Downloads() {
                         >
                           <div className="space-y-2">
                             <div className="aspect-video w-full bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                              <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
-                                <ShieldCheck className="w-5 h-5 text-purple-600" />
-                              </div>
-                              <div className="absolute top-1.5 right-1.5">
+                              {thumbnailUrl ? (
+                                <>
+                                  <img
+                                    src={thumbnailUrl}
+                                    alt={`Miniatura: ${std.title}`}
+                                    loading="lazy"
+                                    className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                      const fb = e.currentTarget.parentElement?.querySelector('.std-card-fallback') as HTMLElement | null;
+                                      if (fb) fb.style.display = 'flex';
+                                    }}
+                                  />
+                                  <div className="std-card-fallback hidden w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                                    <ShieldCheck className="w-5 h-5 text-purple-600" />
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                                  <ShieldCheck className="w-5 h-5 text-purple-600" />
+                                </div>
+                              )}
+                              <div className="absolute top-1.5 right-1.5 flex gap-1">
+                                {(() => {
+                                  if (!ku) return null;
+                                  const statusMap = {
+                                    ready:      { label: '✦ Indexado', cls: 'bg-purple-600/80 text-white' },
+                                    pending:    { label: '⏳ Aguardando', cls: 'bg-amber-500/80 text-white' },
+                                    processing: { label: '⏳ Indexando', cls: 'bg-blue-500/80 text-white' },
+                                    skipped:    { label: 'PDF escaneado', cls: 'bg-slate-500/70 text-white' },
+                                    failed:     { label: '⚠ Falhou', cls: 'bg-red-500/70 text-white' },
+                                  };
+                                  const s = statusMap[ku.knowledgeStatus];
+                                  return s ? (
+                                    <span className={`backdrop-blur-sm font-mono text-[7.5px] font-extrabold px-1.5 py-0.5 rounded ${s.cls}`}>
+                                      {s.label}
+                                    </span>
+                                  ) : null;
+                                })()}
                                 <span className="bg-slate-900/60 backdrop-blur-sm text-white font-mono text-[8px] font-extrabold px-1.5 py-0.5 rounded">
                                   REV {std.revision}
                                 </span>
@@ -2305,7 +2406,7 @@ function Downloads() {
                             </span>
                           </div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   );
                 } else {
@@ -2330,9 +2431,18 @@ function Downloads() {
                               className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
                             >
                               <TableCell className="align-middle py-2 text-center">
-                                <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center mx-auto">
-                                  <ShieldCheck className="w-4 h-4 text-purple-600" />
-                                </div>
+                                {(() => {
+                                  const thumb = getItemThumbnail(std);
+                                  return thumb ? (
+                                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center mx-auto shadow-sm">
+                                      <img src={thumb} alt="" className="w-full h-full object-contain" loading="lazy" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center mx-auto">
+                                      <ShieldCheck className="w-4 h-4 text-purple-600" />
+                                    </div>
+                                  );
+                                })()}
                               </TableCell>
                               <TableCell className="align-middle font-bold text-[13px] text-slate-900">{std.title}</TableCell>
                               <TableCell className="align-middle text-[12px] text-slate-500 max-w-xs truncate">{std.description || '-'}</TableCell>
@@ -3017,23 +3127,83 @@ function Downloads() {
                   </div>
                 )
               ) : selectedItemForModal.type === 'document' ? (
-                <div className="flex flex-col items-center justify-center gap-4 text-teal-600">
-                  <div className="w-24 h-24 rounded-3xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner">
-                    <FileText className="w-12 h-12 text-teal-600 animate-pulse" />
-                  </div>
-                  <span className="text-xs font-bold text-slate-555 uppercase tracking-widest bg-teal-50 border border-teal-100 px-3 py-1 rounded-full">
-                    {selectedItemForModal.data.documentType}
-                  </span>
-                </div>
+                (() => {
+                  const docThumb = getItemThumbnail(selectedItemForModal.data);
+                  return (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-teal-600">
+                      {docThumb ? (
+                        <div className="flex flex-col items-center justify-center gap-3 w-full">
+                          <img
+                            src={docThumb}
+                            alt={`Miniatura: ${selectedItemForModal.data.title}`}
+                            className="max-w-full max-h-[350px] object-contain rounded-2xl shadow-md border border-slate-200 bg-white p-1"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fb = e.currentTarget.parentElement?.querySelector('.doc-modal-fallback') as HTMLElement | null;
+                              if (fb) fb.style.display = 'flex';
+                            }}
+                          />
+                          <div className="doc-modal-fallback hidden flex-col items-center justify-center gap-4">
+                            <div className="w-24 h-24 rounded-3xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner">
+                              <FileText className="w-12 h-12 text-teal-600 animate-pulse" />
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-slate-555 uppercase tracking-widest bg-teal-50 border border-teal-100 px-3 py-1 rounded-full">
+                            {selectedItemForModal.data.documentType}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-4">
+                          <div className="w-24 h-24 rounded-3xl bg-teal-50 border border-teal-100 flex items-center justify-center shadow-inner">
+                            <FileText className="w-12 h-12 text-teal-600 animate-pulse" />
+                          </div>
+                          <span className="text-xs font-bold text-slate-555 uppercase tracking-widest bg-teal-50 border border-teal-100 px-3 py-1 rounded-full">
+                            {selectedItemForModal.data.documentType}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               ) : (
-                <div className="flex flex-col items-center justify-center gap-4 text-purple-600">
-                  <div className="w-24 h-24 rounded-3xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner">
-                    <ShieldCheck className="w-12 h-12 text-purple-600 animate-pulse" />
-                  </div>
-                  <span className="text-xs font-bold text-slate-555 uppercase tracking-widest bg-purple-50 border border-purple-100 px-3 py-1 rounded-full">
-                    {selectedItemForModal.data.standardType || 'Norma'}
-                  </span>
-                </div>
+                (() => {
+                  const stdThumb = getItemThumbnail(selectedItemForModal.data);
+                  return (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-purple-600">
+                      {stdThumb ? (
+                        <div className="flex flex-col items-center justify-center gap-3 w-full">
+                          <img
+                            src={stdThumb}
+                            alt={`Miniatura: ${selectedItemForModal.data.title}`}
+                            className="max-w-full max-h-[350px] object-contain rounded-2xl shadow-md border border-slate-200 bg-white p-1"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fb = e.currentTarget.parentElement?.querySelector('.std-modal-fallback') as HTMLElement | null;
+                              if (fb) fb.style.display = 'flex';
+                            }}
+                          />
+                          <div className="std-modal-fallback hidden flex-col items-center justify-center gap-4">
+                            <div className="w-24 h-24 rounded-3xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner">
+                              <ShieldCheck className="w-12 h-12 text-purple-600 animate-pulse" />
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-slate-555 uppercase tracking-widest bg-purple-50 border border-purple-100 px-3 py-1 rounded-full">
+                            {selectedItemForModal.data.standardType || 'Norma'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-4">
+                          <div className="w-24 h-24 rounded-3xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-inner">
+                            <ShieldCheck className="w-12 h-12 text-purple-600 animate-pulse" />
+                          </div>
+                          <span className="text-xs font-bold text-slate-555 uppercase tracking-widest bg-purple-50 border border-purple-100 px-3 py-1 rounded-full">
+                            {selectedItemForModal.data.standardType || 'Norma'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               )}
             </div>
 

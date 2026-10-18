@@ -32,24 +32,27 @@ export async function generateAndUploadThumbnail(params: {
 
     const page = await pdf.getPage(1);
 
-    // Escala para uma miniatura proporcional (largura ~400px)
-    const viewport = page.getViewport({ scale: 0.8 });
+    // Escala para largura aproximada de 360px (faixa de 300px a 400px recomendada)
+    const unscaledViewport = page.getViewport({ scale: 1.0 });
+    const targetWidth = 360;
+    const scale = unscaledViewport.width > 0 ? targetWidth / unscaledViewport.width : 0.8;
+    const viewport = page.getViewport({ scale });
 
     const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
     await page.render({ canvasContext: ctx, viewport, canvas }).promise;
 
-    // Exportar como WebP (menor que PNG, qualidade visual suficiente)
+    // Exportar como WebP otimizado (~20KB-30KB)
     const blob: Blob = await new Promise((resolve, reject) => {
       canvas.toBlob(
         (b) => (b ? resolve(b) : reject(new Error('toBlob retornou null'))),
         'image/webp',
-        0.82
+        0.80
       );
     });
 
