@@ -1278,16 +1278,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setReferenceProjects((projsData || []).map(mapProjFromDb));
 
         // Fetch Checklist Templates with Sections and Criteria
-        const { data: chksData, error: chksErr } = await supabase
-          .from('checklist_template_v3_structured_fix_mock') // Fallback reference or select public template
-          .select('*, sections:checklist_sections(*, criteria:checklist_criteria(*))');
-        
-        // Wait, if it fails because of table mock naming or table does not exist yet (or let's select direct tables)
-        const selectQuery = supabase
+        const { data: realChks, error: realChksErr } = await supabase
           .from('checklist_templates')
           .select('*, sections:checklist_sections(*, criteria:checklist_criteria(*))');
-        
-        const { data: realChks, error: realChksErr } = await selectQuery;
         if (realChksErr) throw realChksErr;
 
         const tsChecklists = (realChks || []).map((chk: any) => {

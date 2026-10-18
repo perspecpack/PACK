@@ -136,10 +136,19 @@ export default function AprovacoesList() {
       const { data: tplData, error: tplError } = await supabase
         .from('processes')
         .select('*')
-        .order('createdAt', { ascending: false });
+        .order('created_at', { ascending: false });
       
       if (tplError) throw tplError;
-      setTemplates(tplData || []);
+      setTemplates((tplData || []).map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description || '',
+        category: t.category,
+        organization: t.organization,
+        createdAt: t.created_at,
+        blocks: Array.isArray(t.blocks) ? t.blocks : [],
+        user_id: t.user_id
+      })));
 
     } catch (e) {
       console.error(e);

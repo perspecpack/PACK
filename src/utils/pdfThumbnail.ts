@@ -42,7 +42,7 @@ export async function generateAndUploadThumbnail(params: {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ canvasContext: ctx, viewport, canvas }).promise;
 
     // Exportar como WebP (menor que PNG, qualidade visual suficiente)
     const blob: Blob = await new Promise((resolve, reject) => {
