@@ -19,11 +19,22 @@ import {
   Loader2, 
   FileText, 
   UserCheck, 
-  History
+  History,
+  Ellipsis,
+  XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
@@ -512,44 +523,81 @@ export default function Aprovacoes() {
                       )}
                     </td>
                     <td className="p-4 pr-6 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* View Action */}
-                        <button
-                          onClick={() => setSelectedPub(pub)}
-                          className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-[#0d857a] rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                          title="Visualizar Detalhes"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-
-                        {pub.status === 'awaiting_validation' && (
-                          <button
-                            onClick={() => handleRevoke(pub.id)}
-                            className="p-1.5 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                            title="Revogar Link"
+                      <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-8.5 w-8.5 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shadow-xs shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0d857a]/20"
+                            aria-label="Mais ações"
+                            title="Mais ações"
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                            <Ellipsis className="w-4 h-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            sideOffset={6}
+                            className="w-56 min-w-[200px] bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-50 text-xs text-left"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <DropdownMenuGroup>
+                              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider font-bold text-slate-400 px-2 py-1">
+                                Consulta
+                              </DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => setSelectedPub(pub)}
+                                className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-slate-500" />
+                                <span>Visualizar detalhes</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuGroup>
 
-                        {pub.status === 'validated' && (
-                          <>
-                            <button
-                              onClick={() => handleDownloadPDFReport(pub)}
-                              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-red-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                              title="Exportar PDF"
-                            >
-                              <FileDown className="w-4 h-4 text-[#0d857a]" />
-                            </button>
-                            <button
-                              onClick={() => handleDownloadTXTReport(pub)}
-                              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                              title="Exportar TXT"
-                            >
-                              <FileText className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
+                            {pub.status === 'validated' && (
+                              <>
+                                <DropdownMenuSeparator className="my-1 border-slate-100" />
+                                <DropdownMenuGroup>
+                                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider font-bold text-slate-400 px-2 py-1">
+                                    Exportação
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuItem
+                                    onClick={() => handleDownloadPDFReport(pub)}
+                                    className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                                  >
+                                    <FileDown className="w-3.5 h-3.5 text-[#0d857a]" />
+                                    <span>Exportar PDF</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleDownloadTXTReport(pub)}
+                                    className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-slate-500" />
+                                    <span>Exportar TXT</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </>
+                            )}
+
+                            {pub.status === 'awaiting_validation' && (
+                              <>
+                                <DropdownMenuSeparator className="my-1 border-slate-100" />
+                                <DropdownMenuGroup>
+                                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider font-bold text-slate-400 px-2 py-1">
+                                    Ações Restritas
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onClick={() => handleRevoke(pub.id)}
+                                    className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5 text-red-500" />
+                                    <span>Revogar link</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   </tr>
