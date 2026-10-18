@@ -243,9 +243,30 @@ export default function AprovacoesList() {
     e.stopPropagation();
     const link = `${window.location.origin}/validar/${token}`;
     navigator.clipboard.writeText(link).then(() => {
-      toast.success('Link de validação copiado!');
+      toast.success('Link de validação copiado com sucesso!');
     }).catch(() => {
       toast.info(`Link: ${link}`);
+    });
+  };
+
+  const handleCopyEmail = (req: Solicitacao, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!req.public_token) {
+      toast.error('Link público não disponível.');
+      return;
+    }
+    const url = `${window.location.origin}/validar/${req.public_token}`;
+    const emailBody = generateEmailMessage(
+      req.title || req.template_name || 'Processo de Validação',
+      req.client || '',
+      req.publication_code || req.code || '',
+      req.version || 1,
+      url
+    );
+    navigator.clipboard.writeText(emailBody).then(() => {
+      toast.success('Mensagem de e-mail copiada!');
+    }).catch(() => {
+      toast.error('Erro ao copiar e-mail para a área de transferência.');
     });
   };
 
@@ -738,7 +759,7 @@ export default function AprovacoesList() {
                     </Button>
                   )}
 
-                  {/* Copiar Link button */}
+                  {/* Published actions */}
                   {req.status === 'published' && req.public_token && (
                     <>
                       <Button
@@ -748,7 +769,7 @@ export default function AprovacoesList() {
                           setSelectedRequestForManual(req);
                           setIsManualModalOpen(true);
                         }}
-                        className="bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
+                        className="bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
                         title="Registrar Validação Manual por E-mail"
                       >
                         <Mail className="w-3.5 h-3.5" />
@@ -757,20 +778,29 @@ export default function AprovacoesList() {
                       <Button
                         type="button"
                         onClick={(e) => handleCopyLink(req.public_token!, e)}
-                        className="bg-emerald-55 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-250/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
-                        title="Copiar Link de Validação"
+                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        title="Copiar link público de validação"
                       >
                         <Copy className="w-3.5 h-3.5" />
                         Copiar Link
                       </Button>
                       <Button
                         type="button"
-                        onClick={(e) => handleCopyEmailHtml(req, e)}
-                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
-                        title="Copiar formulário em HTML rico para e-mail"
+                        onClick={(e) => handleCopyEmail(req, e)}
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        title="Copiar mensagem de e-mail com link"
                       >
-                        <ClipboardCopy className="w-3.5 h-3.5 text-slate-550" />
+                        <Mail className="w-3.5 h-3.5 text-slate-500" />
                         Copiar E-mail
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={(e) => handleCopyEmailHtml(req, e)}
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        title="Copiar formulário em HTML rico para envio por e-mail"
+                      >
+                        <ClipboardCopy className="w-3.5 h-3.5 text-slate-500" />
+                        Copiar Form. para E-mail
                       </Button>
                     </>
                   )}

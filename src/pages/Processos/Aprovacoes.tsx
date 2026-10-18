@@ -6,23 +6,20 @@ import {
   Search, 
   Filter, 
   ExternalLink, 
-  Copy, 
-  Mail, 
   FileDown, 
   Trash2, 
   Eye, 
   AlertCircle, 
   CheckCircle2, 
   Clock, 
-  Building2,
-  FolderOpen,
-  Calendar,
-  X,
-  Loader2,
-  FileText,
-  UserCheck,
-  History,
-  ClipboardCopy
+  Building2, 
+  FolderOpen, 
+  Calendar, 
+  X, 
+  Loader2, 
+  FileText, 
+  UserCheck, 
+  History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
-import { generateEmailMessage, exportTXTFile, generateTXTComprovante, generatePDFReport, generateEmailHtml, buildApprovalReportData, copyApprovalEmailToClipboard } from '@/src/utils/exportUtils';
+import { exportTXTFile, generateTXTComprovante, generatePDFReport, buildApprovalReportData } from '@/src/utils/exportUtils';
 import ApprovalDocumentRenderer from '@/src/components/processos/ApprovalDocumentRenderer';
 
 interface Publication {
@@ -182,28 +179,6 @@ export default function Aprovacoes() {
   }, [user]);
 
   // Actions
-  const handleCopyLink = (token: string) => {
-    const url = `${window.location.origin}/validar/${token}`;
-    navigator.clipboard.writeText(url);
-    toast.success('Link de validação copiado para a área de transferência!');
-  };
-
-  const handleCopyEmail = (pub: Publication) => {
-    const url = `${window.location.origin}/validar/${pub.public_token}`;
-    const emailBody = generateEmailMessage(
-      pub.snapshot?.name || 'Processo de Aprovação',
-      pub.organization || '',
-      pub.publication_code,
-      pub.version,
-      url
-    );
-    navigator.clipboard.writeText(emailBody);
-    toast.success('Mensagem de e-mail copiada!');
-  };
-
-  const handleCopyEmailHtml = async (pub: Publication) => {
-    await copyApprovalEmailToClipboard(pub.id);
-  };
 
   const handleRevoke = async (pubId: string) => {
     const confirm = window.confirm('Deseja realmente revogar este link de validação? O cliente não poderá mais enviar respostas.');
@@ -548,36 +523,13 @@ export default function Aprovacoes() {
                         </button>
 
                         {pub.status === 'awaiting_validation' && (
-                          <>
-                            <button
-                              onClick={() => handleCopyLink(pub.public_token)}
-                              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-[#0d857a] rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                              title="Copiar Link"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleCopyEmail(pub)}
-                              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-[#0d857a] rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                              title="Copiar E-mail"
-                            >
-                              <Mail className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleCopyEmailHtml(pub)}
-                              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-[#0d857a] rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                              title="Copiar Form. para E-mail"
-                            >
-                              <ClipboardCopy className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleRevoke(pub.id)}
-                              className="p-1.5 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                              title="Revogar Link"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleRevoke(pub.id)}
+                            className="p-1.5 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                            title="Revogar Link"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
 
                         {pub.status === 'validated' && (
@@ -719,29 +671,13 @@ export default function Aprovacoes() {
               {/* Drawer Footer Actions */}
               <div className="p-4.5 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0 bg-slate-50">
                 {selectedPub.status === 'awaiting_validation' && (
-                  <>
-                    <Button
-                      onClick={() => handleRevoke(selectedPub.id)}
-                      variant="destructive"
-                      className="font-bold h-9 px-4 rounded-xl cursor-pointer shadow-xs text-xs"
-                    >
-                      Revogar Link
-                    </Button>
-                    <Button
-                      onClick={() => handleCopyLink(selectedPub.public_token)}
-                      className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold h-9 px-4 rounded-xl cursor-pointer border-0 text-xs shadow-xs"
-                    >
-                      Copiar Link
-                    </Button>
-                    <Button
-                      onClick={() => handleCopyEmailHtml(selectedPub)}
-                      variant="outline"
-                      className="border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer h-9 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5"
-                    >
-                      <ClipboardCopy className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Copiar Form. p/ E-mail</span>
-                    </Button>
-                  </>
+                  <Button
+                    onClick={() => handleRevoke(selectedPub.id)}
+                    variant="destructive"
+                    className="font-bold h-9 px-4 rounded-xl cursor-pointer shadow-xs text-xs"
+                  >
+                    Revogar Link
+                  </Button>
                 )}
 
                 {selectedPub.status === 'validated' && (
