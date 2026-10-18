@@ -23,11 +23,21 @@ import {
   ArrowRight,
   ClipboardCheck,
   ClipboardCopy,
-  Mail
+  Mail,
+  Ellipsis
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/src/context/AppContext';
@@ -690,9 +700,10 @@ export default function AprovacoesList() {
               <div
                 key={req.id}
                 onClick={() => navigate(`/app/aprovacoes/solicitacao/${req.id}`)}
-                className="group flex flex-col md:flex-row md:items-center justify-between p-5 hover:bg-slate-50/30 cursor-pointer transition-colors"
+                className="group flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 hover:bg-slate-50/40 cursor-pointer transition-colors"
               >
-                <div className="flex items-start gap-4 flex-1 min-w-0">
+                {/* Área A — Informações do formulário */}
+                <div className="flex items-start gap-4 flex-1 min-w-0 pr-0 md:pr-4">
                   <div className={`h-10 w-10 rounded-xl border flex items-center justify-center shrink-0 transition-all ${
                     req.status === 'validated' 
                       ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
@@ -705,162 +716,220 @@ export default function AprovacoesList() {
 
                   <div className="space-y-1.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 flex-wrap">
-                      <h3 className="font-semibold text-sm text-slate-800 tracking-tight truncate group-hover:text-[#0d857a]">
+                      <h3 className="font-bold text-sm text-slate-900 tracking-tight group-hover:text-[#0d857a] transition-colors break-words">
                         {req.title}
                       </h3>
                       {getStatusBadge(req.status)}
                     </div>
 
-                    <div className="flex items-center gap-3 flex-wrap text-slate-500 text-xs font-medium">
+                    <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap text-slate-600 text-xs font-medium">
                       {req.client && (
-                        <span className="flex items-center gap-1">
-                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                          {req.client}
+                        <span className="inline-flex items-center gap-1.5 shrink-0" title={`Cliente: ${req.client}`}>
+                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-slate-700 font-medium">{req.client}</span>
                         </span>
                       )}
-                      {req.project && (
-                        <span className="flex items-center gap-1">
-                          <Folder className="w-3.5 h-3.5 text-slate-400" />
-                          {req.project} {req.revision ? `(Rev ${req.revision})` : ''}
+                      {(req.project || req.code) && (
+                        <span className="inline-flex items-center gap-1.5" title={`Projeto: ${req.project || req.code}`}>
+                          <Folder className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-slate-700 font-medium">
+                            {req.project || req.code}
+                            {req.revision ? ` (Rev ${req.revision})` : ''}
+                          </span>
                         </span>
                       )}
                       {req.responsible_internal && (
-                        <span className="flex items-center gap-1">
-                          <User className="w-3.5 h-3.5 text-slate-400" />
-                          {req.responsible_internal}
+                        <span className="inline-flex items-center gap-1.5 shrink-0" title={`Responsável: ${req.responsible_internal}`}>
+                          <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-slate-600">{req.responsible_internal}</span>
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-4 text-slate-400 text-[10px] pt-1 font-medium">
-                      <span>Modelo: <strong className="text-slate-500">{req.template_name}</strong></span>
-                      <span>•</span>
-                      <span>Última atualização: {new Date(req.updated_at).toLocaleDateString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}</span>
+                    <div className="flex items-center gap-3 text-slate-400 text-[11px] pt-0.5 font-medium flex-wrap">
+                      {req.template_name && (
+                        <span>
+                          Modelo: <strong className="text-slate-600 font-medium">{req.template_name}</strong>
+                        </span>
+                      )}
+                      {req.template_name && <span>•</span>}
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span>
+                          Última atualização: {new Date(req.updated_at).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mt-4 md:mt-0 pl-14 md:pl-0 flex-wrap">
-                  {/* Publicar button */}
-                  {req.status === 'ready' && (
+                {/* Área B — Ações */}
+                <div 
+                  className="flex items-center gap-2 mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0 self-end md:self-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* 1. Registrar Validação Manual — exclusivo para solicitações publicadas */}
+                  {req.status === 'published' && req.public_token && (
                     <Button
-                      onClick={(e) => handlePublishRequest(req, e)}
-                      className="bg-indigo-55 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
-                      title="Publicar e gerar link"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedRequestForManual(req);
+                        setIsManualModalOpen(true);
+                      }}
+                      className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-3 py-1.5 h-8.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0 transition-colors"
+                      title="Registrar Validação Manual por E-mail"
                     >
-                      <Send className="w-3.5 h-3.5" />
-                      Publicar
+                      <Mail className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Registrar Validação Manual</span>
+                      <span className="sm:hidden">Validação Manual</span>
                     </Button>
                   )}
 
-                  {/* Published actions */}
-                  {req.status === 'published' && req.public_token && (
-                    <>
-                      <Button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedRequestForManual(req);
-                          setIsManualModalOpen(true);
-                        }}
-                        className="bg-slate-900 hover:bg-slate-800 text-white border border-slate-950 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
-                        title="Registrar Validação Manual por E-mail"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        Registrar Validação Manual
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={(e) => handleCopyLink(req.public_token!, e)}
-                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/50 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
-                        title="Copiar link público de validação"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        Copiar Link
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={(e) => handleCopyEmail(req, e)}
-                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
-                        title="Copiar mensagem de e-mail com link"
-                      >
-                        <Mail className="w-3.5 h-3.5 text-slate-500" />
-                        Copiar E-mail
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={(e) => handleCopyEmailHtml(req, e)}
-                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
-                        title="Copiar formulário em HTML rico para envio por e-mail"
-                      >
-                        <ClipboardCopy className="w-3.5 h-3.5 text-slate-500" />
-                        Copiar Form. para E-mail
-                      </Button>
-                    </>
-                  )}
-
-                  {/* Visualizar como cliente (Public link) */}
-                  {req.status === 'published' && req.public_token && (
-                    <a
-                      href={`/validar/${req.public_token}`}
-                      target="_blank"
-                      rel="noreferrer"
+                  {/* 2. Menu de três pontos (⋯) contendo as demais operações */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      type="button"
                       onClick={(e) => e.stopPropagation()}
-                      className="p-1.5 bg-slate-50 text-slate-500 hover:text-[#0d857a] hover:bg-teal-50 border border-slate-200 rounded-lg flex items-center justify-center transition-colors"
-                      title="Visualizar como Cliente"
+                      className="h-8.5 w-8.5 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shadow-xs shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0d857a]/20"
+                      aria-label="Mais ações"
+                      title="Mais ações"
                     >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  )}
-
-                  {/* Revogar button */}
-                  {req.status === 'published' && (
-                    <button
-                      onClick={(e) => handleRevokeRequest(req.id, e)}
-                      className="p-1.5 bg-red-50 text-red-650 hover:bg-red-105 hover:text-red-700 border border-red-200/60 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
-                      title="Revogar Link"
+                      <Ellipsis className="w-4 h-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      sideOffset={6}
+                      className="w-56 min-w-[220px] bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-50 text-xs"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <XCircle className="w-4 h-4" />
-                    </button>
-                  )}
+                      {/* COMPARTILHAMENTO (apenas quando publicado com link público) */}
+                      {req.status === 'published' && req.public_token && (
+                        <>
+                          <DropdownMenuGroup>
+                            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider font-bold text-slate-400 px-2 py-1">
+                              Compartilhamento
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={(e) => handleCopyLink(req.public_token!, e)}
+                              className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Copiar link</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => handleCopyEmail(req, e)}
+                              className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                              <Mail className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Copiar e-mail</span>
+                            </DropdownMenuItem>
+                            {req.publication_id && (
+                              <DropdownMenuItem
+                                onClick={(e) => handleCopyEmailHtml(req, e)}
+                                className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                              >
+                                <ClipboardCopy className="w-3.5 h-3.5 text-slate-500" />
+                                <span>Copiar Form. para e-mail</span>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuGroup>
+                          <DropdownMenuSeparator className="my-1 border-slate-100" />
+                        </>
+                      )}
 
-                  <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
+                      {/* GERENCIAMENTO */}
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider font-bold text-slate-400 px-2 py-1">
+                          Gerenciamento
+                        </DropdownMenuLabel>
 
-                  {/* Actions */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/app/aprovacoes/solicitacao/${req.id}`);
-                    }}
-                    className="p-2 text-slate-455 hover:text-[#0d857a] hover:bg-slate-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                    title={isEditable ? 'Editar Solicitação' : 'Visualizar Solicitação'}
-                  >
-                    {isEditable ? <Edit2 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                        {/* Visualizar ou editar solicitação, conforme estado */}
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/app/aprovacoes/solicitacao/${req.id}`);
+                          }}
+                          className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                        >
+                          {isEditable ? (
+                            <>
+                              <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Editar solicitação</span>
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Visualizar solicitação</span>
+                            </>
+                          )}
+                        </DropdownMenuItem>
 
-                  <button
-                    onClick={(e) => handleDuplicateRequest(req, e)}
-                    className="p-2 text-slate-455 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                    title={req.status === 'published' ? 'Criar Nova Versão' : 'Duplicar Solicitação'}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
+                        {/* Visualizar como cliente (apenas quando publicado) */}
+                        {req.status === 'published' && req.public_token && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`/validar/${req.public_token}`, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Visualizar como cliente</span>
+                          </DropdownMenuItem>
+                        )}
 
-                  <button
-                    onClick={(e) => handleDeleteRequest(req.id, e)}
-                    className="p-2 text-slate-455 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-                    title="Excluir Solicitação"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                  
-                  <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-[#0d857a] group-hover:translate-x-1 transition-all" />
+                        {/* Publicar solicitação (apenas quando status === 'ready') */}
+                        {req.status === 'ready' && (
+                          <DropdownMenuItem
+                            onClick={(e) => handlePublishRequest(req, e)}
+                            className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-indigo-700 font-medium hover:bg-indigo-50 hover:text-indigo-800 rounded-lg transition-colors"
+                          >
+                            <Send className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Publicar</span>
+                          </DropdownMenuItem>
+                        )}
+
+                        {/* Duplicar solicitação ou criar nova versão */}
+                        <DropdownMenuItem
+                          onClick={(e) => handleDuplicateRequest(req, e)}
+                          className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-slate-500" />
+                          <span>{req.status === 'published' ? 'Criar nova versão' : 'Duplicar solicitação'}</span>
+                        </DropdownMenuItem>
+
+                        {/* Revogar link, quando aplicável */}
+                        {req.status === 'published' && (
+                          <DropdownMenuItem
+                            onClick={(e) => handleRevokeRequest(req.id, e)}
+                            className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors"
+                          >
+                            <XCircle className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Revogar link</span>
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuGroup>
+
+                      {/* Excluir solicitação, quando permitido */}
+                      <DropdownMenuSeparator className="my-1 border-slate-100" />
+
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={(e) => handleDeleteRequest(req.id, e)}
+                        className="cursor-pointer flex items-center gap-2 px-2 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        <span>Excluir solicitação</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             );
