@@ -12,10 +12,44 @@ export interface Organization {
   logoUrl?: string;
   description?: string;
   status: 'active' | 'inactive';
+  plan?: 'free' | 'premium';
   createdAt: string;
   updatedAt: string;
   // Legacy aliases
   oemId?: string;
+}
+
+export type OrganizationPlanType = 'free' | 'premium';
+export type OrganizationSubscriptionStatus = 'active' | 'pending' | 'expired' | 'canceled';
+
+export interface OrganizationSubscription {
+  id: string;
+  organizationId: string;
+  plan: OrganizationPlanType;
+  status: OrganizationSubscriptionStatus;
+  monthlyLimit: number;
+  enforceLimit: boolean;
+  isGrandfathered?: boolean;
+  startedAt: string;
+  expiresAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface OrganizationEmissionUsage {
+  organizationId: string;
+  plan: OrganizationPlanType;
+  status: OrganizationSubscriptionStatus;
+  periodKey: string;
+  periodStart: string;
+  periodEnd: string;
+  currentUsage: number;
+  monthlyLimit: number;
+  remaining: number;
+  isUnlimited: boolean;
+  limitReached: boolean;
+  enforceLimit: boolean;
+  isGrandfathered?: boolean;
 }
 
 export type ModuleType =
@@ -64,6 +98,7 @@ export interface ComponentEntry {
   dwgFileUrl?: string;
   imageUrl?: string;
   threeDModelUrl?: string;
+  premiumDownloadRequired?: boolean;
   createdAt: string;
   updatedAt: string;
   

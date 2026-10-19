@@ -186,6 +186,7 @@ function Downloads() {
     logUpload,
     user,
     profile,
+    organizationUsage,
     knowledgeUnits
   } = useApp();
 
@@ -230,8 +231,10 @@ function Downloads() {
   const [step, setStep] = useState<'org_selection' | 'tech_area_selection' | 'module_selection' | 'content_view' | 'checklist_execution'>('org_selection');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
+  const isOrgPremium = user?.role === 'master' || profile?.planType === 'premium' || organizationUsage?.plan === 'premium';
+
   const handlePremiumDownload = (e: React.MouseEvent) => {
-    if (user?.role === 'master' || profile?.planType === 'premium') {
+    if (isOrgPremium) {
       return;
     }
     e.preventDefault();
@@ -465,7 +468,7 @@ function Downloads() {
 
   // Initialize checklist answers when entering checklist execution
   const startChecklistExecution = (checklist: ChecklistTemplate) => {
-    if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+    if (!isOrgPremium) {
       setShowUpgradeModal(true);
       return;
     }
@@ -1433,7 +1436,7 @@ function Downloads() {
                                 href={comp.stepFileUrl}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                                  if (!isOrgPremium) {
                                     e.preventDefault();
                                     setShowUpgradeModal(true);
                                   } else {
@@ -1450,7 +1453,7 @@ function Downloads() {
                                 href={comp.pdfFileUrl}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                                  if (!isOrgPremium) {
                                     e.preventDefault();
                                     setShowUpgradeModal(true);
                                   } else {
@@ -3414,7 +3417,7 @@ function Downloads() {
                       <a 
                         href={selectedItemForModal.data.stepFileUrl}
                         onClick={(e) => {
-                          if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                          if (!isOrgPremium) {
                             e.preventDefault();
                             setShowUpgradeModal(true);
                           } else {
@@ -3439,7 +3442,7 @@ function Downloads() {
                       <a 
                         href={selectedItemForModal.data.pdfFileUrl}
                         onClick={(e) => {
-                          if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                          if (!isOrgPremium) {
                             e.preventDefault();
                             setShowUpgradeModal(true);
                           } else {
@@ -3464,7 +3467,7 @@ function Downloads() {
                       <a 
                         href={selectedItemForModal.data.dwgFileUrl}
                         onClick={(e) => {
-                          if (!(user?.role === 'master' || profile?.planType === 'premium')) {
+                          if (!isOrgPremium) {
                             e.preventDefault();
                             setShowUpgradeModal(true);
                           } else {

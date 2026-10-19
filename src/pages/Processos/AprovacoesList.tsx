@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 import { useApp } from '@/src/context/AppContext';
 import { validateProcess } from '@/src/components/processos/BlockFactory';
 import { generateEmailMessage, generateEmailHtml, generatePDFReportBlobAndHash, copyApprovalEmailToClipboard } from '@/src/utils/exportUtils';
@@ -81,7 +82,7 @@ interface TemplateModel {
 
 export default function AprovacoesList() {
   const navigate = useNavigate();
-  const { user, profile } = useApp();
+  const { user, profile, organizationUsage, refreshOrganizationUsage } = useApp();
   const [requests, setRequests] = useState<Solicitacao[]>([]);
   const [templates, setTemplates] = useState<TemplateModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,8 +205,17 @@ export default function AprovacoesList() {
           p_request_id: req.id,
           p_revoke_previous: true
         });
-        if (error) throw error;
+        if (error) {
+          if (error.message?.includes('PLAN_LIMIT_REACHED')) {
+            toast.error('Você utilizou as 20 emissões gratuitas deste mês. Novas publicações estarão disponíveis no próximo período ou com a ativação do Premium.', {
+              duration: 8000
+            });
+            return;
+          }
+          throw error;
+        }
         toast.success('Solicitação publicada com sucesso!');
+        await refreshOrganizationUsage();
         
         const link = `${window.location.origin}/validar/${data.public_token}`;
         navigator.clipboard.writeText(link).then(() => {
@@ -216,9 +226,15 @@ export default function AprovacoesList() {
 
         fetchData();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error('Erro ao publicar solicitação');
+      if (err.message?.includes('PLAN_LIMIT_REACHED')) {
+        toast.error('Você utilizou as 20 emissões gratuitas deste mês. Novas publicações estarão disponíveis no próximo período ou com a ativação do Premium.', {
+          duration: 8000
+        });
+      } else {
+        toast.error('Erro ao publicar solicitação');
+      }
     }
   };
 
@@ -635,13 +651,39 @@ export default function AprovacoesList() {
           </p>
         </div>
 
-        <Button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow transition-all duration-200 flex items-center gap-2 self-start sm:self-center cursor-pointer border-0 text-xs"
-        >
-          <Plus className="w-4 h-4 text-slate-900 stroke-[3px]" />
-          Nova Aprovação
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {organizationUsage && (
+            <div className="flex flex-col items-end text-right">
+              {organizationUsage.plan === 'premium' ? (
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Plano Premium — Emissões ilimitadas
+                </span>
+              ) : (
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/90 px-3 py-1.5 rounded-xl text-xs">
+                  <span className="text-slate-500 font-medium">Emissões no mês:</span>
+                  <span className="font-extrabold text-slate-800">{organizationUsage.currentUsage} / {organizationUsage.monthlyLimit}</span>
+                  {organizationUsage.currentUsage >= 16 && (
+                    <span className={cn(
+                      "text-[10px] font-extrabold px-1.5 py-0.5 rounded",
+                      organizationUsage.currentUsage >= 20 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"
+                    )}>
+                      {organizationUsage.currentUsage >= 20 ? 'Limite Atingido' : 'Restam ' + organizationUsage.remaining}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-[#00F59B] hover:bg-[#00D485] text-slate-900 font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow transition-all duration-200 flex items-center gap-2 self-start sm:self-center cursor-pointer border-0 text-xs"
+          >
+            <Plus className="w-4 h-4 text-slate-900 stroke-[3px]" />
+            Nova Aprovação
+          </Button>
+        </div>
       </div>
 
       {/* Search & Filters */}

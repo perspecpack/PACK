@@ -24,7 +24,10 @@ import {
   DocumentCategory,
   DocumentTag,
   KnowledgeUnit,
-  KnowledgeStatus
+  KnowledgeStatus,
+  OrganizationPlanType,
+  OrganizationSubscription,
+  OrganizationEmissionUsage
 } from '../types';
 
 export type {
@@ -51,7 +54,10 @@ export type {
   DocumentCategory,
   DocumentTag,
   KnowledgeUnit,
-  KnowledgeStatus
+  KnowledgeStatus,
+  OrganizationPlanType,
+  OrganizationSubscription,
+  OrganizationEmissionUsage
 };
 
 export type OEM = Organization;
@@ -131,6 +137,11 @@ interface AppContextType {
   signUpWithEmail: (emailInput: string, passwordInput: string) => Promise<any>;
   addSupportRequest: (req: Omit<SupportRequest, 'id' | 'created_at' | 'updated_at' | 'status'>) => Promise<void>;
   updateSupportRequest: (id: string, updatedFields: Partial<SupportRequest>) => Promise<void>;
+
+  // Commercial Plans & Emission Accounting
+  organizationUsage: OrganizationEmissionUsage | null;
+  refreshOrganizationUsage: (orgId?: string) => Promise<OrganizationEmissionUsage | null>;
+  updateOrganizationCommercialPlan: (orgId: string, plan: 'free' | 'premium', monthlyLimit?: number, enforceLimit?: boolean) => Promise<boolean>;
 
   // Logging actions
   logDownload: (orgId: string, contentType: string, contentId: string, fileName: string) => Promise<void>;
@@ -990,6 +1001,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [organizationUsage, setOrganizationUsage] = useState<OrganizationEmissionUsage | null>(null);
 
   // Mode to simulate public view
   const [viewingAsUser, setViewingAsUser] = useState<boolean>(() => {
@@ -2029,6 +2041,118 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // --- Commercial Plans & Emission Ledger Accounting ---
+  const refreshOrganizationUsage = useCallback(async (orgId?: string): Promise<OrganizationEmissionUsage | null> => {
+    if (!supabase) return null;
+    try {
+      const targetOrg = orgId || profile?.companyName || 'PERSPECPACK';
+
+      // 1. Tenta RPC transacional get_organization_emission_usage
+      const { data, error } = await supabase.rpc('get_organization_emission_usage', {
+        p_organization_id: targetOrg
+      });
+
+      if (!error && data) {
+        const usage: OrganizationEmissionUsage = {
+          organizationId: data.organization_id || targetOrg,
+          plan: data.plan || 'free',
+          status: data.status || 'active',
+          periodKey: data.period_key,
+          periodStart: data.period_start,
+          periodEnd: data.period_end,
+          currentUsage: Number(data.current_usage) || 0,
+          monthlyLimit: Number(data.monthly_limit) ?? 20,
+          remaining: Number(data.remaining) ?? 20,
+          isUnlimited: !!data.is_unlimited,
+          limitReached: !!data.limit_reached,
+          enforceLimit: !!data.enforce_limit,
+          isGrandfathered: !!data.is_grandfathered
+        };
+        setOrganizationUsage(usage);
+        return usage;
+      }
+
+      // 2. Fallback lógico seguro enquanto migration não estiver aplicada
+      const now = new Date();
+      const spMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const spMonthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1, 3, 0, 0));
+      const nextMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 1, 3, 0, 0));
+
+      const { count } = await supabase
+        .from('process_publications')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', spMonthStart.toISOString())
+        .lt('created_at', nextMonth.toISOString());
+
+      const isPremium = profile?.planType === 'premium';
+      const currentUsage = count || 0;
+      const monthlyLimit = isPremium ? -1 : 20;
+      const remaining = isPremium ? -1 : Math.max(0, 20 - currentUsage);
+
+      const fallbackUsage: OrganizationEmissionUsage = {
+        organizationId: targetOrg,
+        plan: isPremium ? 'premium' : 'free',
+        status: 'active',
+        periodKey: spMonthStr,
+        periodStart: spMonthStart.toISOString(),
+        periodEnd: nextMonth.toISOString(),
+        currentUsage,
+        monthlyLimit,
+        remaining,
+        isUnlimited: isPremium,
+        limitReached: !isPremium && currentUsage >= 20,
+        enforceLimit: false,
+        isGrandfathered: true
+      };
+      setOrganizationUsage(fallbackUsage);
+      return fallbackUsage;
+    } catch (err) {
+      console.error('Error fetching organization emission usage:', err);
+      return null;
+    }
+  }, [profile?.companyName, profile?.planType]);
+
+  const updateOrganizationCommercialPlan = async (
+    orgId: string, 
+    plan: 'free' | 'premium', 
+    monthlyLimit: number = 20, 
+    enforceLimit: boolean = false
+  ): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.rpc('set_organization_plan', {
+        p_organization_id: orgId,
+        p_plan: plan,
+        p_monthly_limit: monthlyLimit,
+        p_enforce_limit: enforceLimit
+      });
+      if (error) {
+        const { error: upsertErr } = await supabase
+          .from('organization_subscriptions')
+          .upsert({
+            organization_id: orgId,
+            plan,
+            monthly_limit: monthlyLimit,
+            enforce_limit: enforceLimit,
+            status: 'active',
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'organization_id' });
+        if (upsertErr) throw upsertErr;
+      }
+      await refreshOrganizationUsage(orgId);
+      return true;
+    } catch (err) {
+      console.error('Error updating organization plan:', err);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      refreshOrganizationUsage();
+    }
+  }, [user?.id, profile?.companyName, profile?.planType, refreshOrganizationUsage]);
+
   // Compatibility aliases for OEM
   const addOEM = (org: any) => {
     // Default modules enabled
@@ -2935,6 +3059,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logDownload,
         logUpload,
         logPageAccess,
+
+        organizationUsage,
+        refreshOrganizationUsage,
+        updateOrganizationCommercialPlan,
 
         addOrganization,
         updateOrganization,

@@ -51,7 +51,7 @@ interface Material {
 export default function SolicitacaoForm() {
   const { templateId, id } = useParams();
   const navigate = useNavigate();
-  const { user, profile } = useApp();
+  const { user, profile, refreshOrganizationUsage } = useApp();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [requestStatus, setRequestStatus] = useState<'draft' | 'ready' | 'published' | 'validated' | 'revoked'>('draft');
@@ -715,9 +715,18 @@ export default function SolicitacaoForm() {
           p_request_id: reqId,
           p_revoke_previous: true
         });
-        if (error) throw error;
+        if (error) {
+          if (error.message?.includes('PLAN_LIMIT_REACHED')) {
+            toast.error('Você utilizou as 20 emissões gratuitas deste mês. Novas publicações estarão disponíveis no próximo período ou com a ativação do Premium.', {
+              duration: 8000
+            });
+            return;
+          }
+          throw error;
+        }
 
         toast.success('Solicitação publicada com sucesso!');
+        await refreshOrganizationUsage();
         
         const link = `${window.location.origin}/validar/${data.public_token}`;
         navigator.clipboard.writeText(link).then(() => {
@@ -726,9 +735,15 @@ export default function SolicitacaoForm() {
 
         navigate('/app/aprovacoes');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error('Erro ao publicar solicitação');
+      if (err.message?.includes('PLAN_LIMIT_REACHED')) {
+        toast.error('Você utilizou as 20 emissões gratuitas deste mês. Novas publicações estarão disponíveis no próximo período ou com a ativação do Premium.', {
+          duration: 8000
+        });
+      } else {
+        toast.error('Erro ao publicar solicitação');
+      }
     } finally {
       setSaving(false);
     }

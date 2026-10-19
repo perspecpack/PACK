@@ -72,12 +72,14 @@ export default function VisaoGeral() {
   const { 
     user, 
     profile, 
+    organizationUsage,
+    refreshOrganizationUsage,
     organizations, 
     technicalAreas, 
     documents, 
     standards, 
     components, 
-    knowledgeUnits,
+    knowledgeUnits, 
     logPageAccess 
   } = useApp();
 
@@ -475,9 +477,131 @@ export default function VisaoGeral() {
           </div>
 
           {/* Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
-            {/* 4.1 Indicador — Aguardando acompanhamento (> 7 dias) */}
+            {/* 4.0 Indicador — Emissões no Mês (Plano Comercial da Organização) */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:border-teal-300 transition-all flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1 w-full">
+                  <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider block">
+                    {organizationUsage?.plan === 'premium' ? 'Plano Comercial' : 'Emissões neste mês'}
+                  </span>
+                  
+                  {organizationUsage?.plan === 'premium' ? (
+                    <div>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-2xl font-black text-emerald-700">PREMIUM</span>
+                      </div>
+                      <p className="text-xs font-semibold text-emerald-800 mt-0.5">
+                        Emissões ilimitadas
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-3xl font-black text-slate-800">
+                          {organizationUsage?.currentUsage ?? 0}
+                        </span>
+                        <span className="text-sm font-bold text-slate-400">
+                          / {organizationUsage?.monthlyLimit ?? 20}
+                        </span>
+                      </div>
+                      {/* Barra de progresso */}
+                      <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden border border-slate-200/60">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            (organizationUsage?.currentUsage ?? 0) >= 20 
+                              ? 'bg-red-500' 
+                              : (organizationUsage?.currentUsage ?? 0) >= 16 
+                              ? 'bg-amber-500' 
+                              : 'bg-teal-600'
+                          }`}
+                          style={{
+                            width: `${Math.min(100, Math.round(((organizationUsage?.currentUsage ?? 0) / (organizationUsage?.monthlyLimit ?? 20)) * 100))}%`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  organizationUsage?.plan === 'premium'
+                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-600'
+                    : 'bg-teal-50 border border-teal-200 text-teal-600'
+                }`}>
+                  {organizationUsage?.plan === 'premium' ? (
+                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                  ) : (
+                    <Sparkles className="w-5 h-5 text-teal-600" />
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-1">
+                {organizationUsage?.plan === 'premium' ? (
+                  <>
+                    <p className="text-xs font-semibold text-slate-650">
+                      Franquia corporativa liberada.
+                    </p>
+                    <span className="text-[10px] text-slate-400 leading-tight">
+                      Emissões ilimitadas sob política de uso justo.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <p className={`text-xs font-semibold ${
+                      (organizationUsage?.currentUsage ?? 0) >= 20 
+                        ? 'text-red-600' 
+                        : (organizationUsage?.currentUsage ?? 0) >= 16 
+                        ? 'text-amber-700' 
+                        : 'text-slate-650'
+                    }`}>
+                      {(organizationUsage?.currentUsage ?? 0) >= 20
+                        ? 'Limite gratuito atingido neste mês.'
+                        : `Restam ${organizationUsage?.remaining ?? 20} emissões gratuitas neste mês.`}
+                    </p>
+                    <span className="text-[10px] text-slate-400 leading-tight">
+                      Renovação em 1º do próximo mês (fuso de Brasília).
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* 4.1 Total Aguardando */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider block">
+                    Total em validação
+                  </span>
+                  <div className="flex items-baseline gap-2">
+                    {loadingValidations ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-1" />
+                    ) : (
+                      <span className="text-3xl font-black text-slate-800">
+                        {totalAwaitingCount}
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-400 font-medium">ativas</span>
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
+                  <Send className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-1">
+                <p className="text-xs font-semibold text-slate-650">
+                  Solicitações publicadas atualmente.
+                </p>
+                <span className="text-[10px] text-slate-400 leading-tight">
+                  Disponíveis para conferência e assinatura de clientes.
+                </span>
+              </div>
+            </div>
+
+            {/* 4.2 Indicador — Aguardando acompanhamento (> 7 dias) */}
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:border-amber-300 transition-all flex flex-col justify-between">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
@@ -509,7 +633,7 @@ export default function VisaoGeral() {
               </div>
             </div>
 
-            {/* 4.2 Indicador — Tempo médio de resposta */}
+            {/* 4.3 Indicador — Tempo médio de resposta */}
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:border-teal-300 transition-all flex flex-col justify-between">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
@@ -543,38 +667,6 @@ export default function VisaoGeral() {
                 </p>
                 <span className="text-[10px] text-slate-400 leading-tight">
                   Média calculada sobre retornos formalmente concluídos.
-                </span>
-              </div>
-            </div>
-
-            {/* Total Aguardando */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between sm:col-span-2 lg:col-span-1">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider block">
-                    Total em validação
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    {loadingValidations ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-slate-400 mt-1" />
-                    ) : (
-                      <span className="text-3xl font-black text-slate-800">
-                        {totalAwaitingCount}
-                      </span>
-                    )}
-                    <span className="text-xs text-slate-400 font-medium">ativas</span>
-                  </div>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
-                  <Send className="w-5 h-5" />
-                </div>
-              </div>
-              <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-1">
-                <p className="text-xs font-semibold text-slate-650">
-                  Solicitações publicadas atualmente.
-                </p>
-                <span className="text-[10px] text-slate-400 leading-tight">
-                  Disponíveis para conferência e assinatura de clientes.
                 </span>
               </div>
             </div>

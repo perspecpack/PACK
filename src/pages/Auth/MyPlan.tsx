@@ -19,7 +19,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function MyPlan() {
   const navigate = useNavigate();
-  const { user, profile, logPageAccess } = useApp();
+  const { user, profile, organizationUsage, logPageAccess } = useApp();
   
   // Modal states
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -90,7 +90,6 @@ export default function MyPlan() {
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return 'N/A';
     try {
-      // Split YYYY-MM-DD
       const parts = dateStr.split('-');
       if (parts.length === 3) {
         return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -102,7 +101,8 @@ export default function MyPlan() {
     }
   };
 
-  const isPremium = profile?.planType === 'premium';
+  const isPremium = (organizationUsage?.plan === 'premium') || (profile?.planType === 'premium');
+  const orgName = organizationUsage?.organizationId || profile?.companyName || user?.companyName || 'PERSPECPACK';
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12 font-sans animate-in fade-in duration-200">
@@ -120,7 +120,7 @@ export default function MyPlan() {
       <div className="space-y-1">
         <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight">Meu Plano</h2>
         <p className="text-slate-500 text-sm">
-          Gerencie e visualize os detalhes da sua assinatura e permissões na plataforma PERSPECPACK.
+          Gerencie e visualize os detalhes da assinatura corporativa e limites de emissão da sua organização.
         </p>
       </div>
 
@@ -150,7 +150,12 @@ export default function MyPlan() {
         {/* Left Side - Current Status Details */}
         <div className="md:col-span-5 bg-white border border-slate-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between space-y-6">
           <div className="space-y-5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Status Atual</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Status da Organização</span>
+              <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg truncate max-w-[170px]">
+                {orgName}
+              </span>
+            </div>
             
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -160,10 +165,10 @@ export default function MyPlan() {
                     ? "bg-amber-50 border-amber-200 text-amber-600" 
                     : "bg-slate-100 border-slate-200 text-slate-600"
                 )}>
-                  <CreditCard className="w-6 h-6" />
+                  {isPremium ? <ShieldCheck className="w-6 h-6 text-amber-600" /> : <CreditCard className="w-6 h-6" />}
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase leading-none">Plano Atual</h3>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase leading-none">Plano Vigente</h3>
                   <p className={cn(
                     "text-2xl font-black mt-1",
                     isPremium ? "text-amber-600" : "text-slate-700"
@@ -174,18 +179,59 @@ export default function MyPlan() {
               </div>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 space-y-2 text-xs">
-              <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="font-semibold text-slate-550">Status da Conta:</span>
+            {/* Seção Plano e Consumo */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-3 text-xs">
+              <div className="flex justify-between border-b border-slate-200/80 pb-2">
+                <span className="font-semibold text-slate-550">Status Comercial:</span>
                 <span className="font-bold text-emerald-650 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                   ATIVO
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="font-semibold text-slate-550">Período de Validade:</span>
+
+              <div className="flex justify-between border-b border-slate-200/80 pb-2">
+                <span className="font-semibold text-slate-550">Emissões no Mês:</span>
                 <span className="font-bold text-slate-800">
-                  {isPremium ? `Até ${formatDate(profile?.premiumUntil)}` : 'Vitalício (Gratuito)'}
+                  {isPremium ? 'Ilimitadas' : `${organizationUsage?.currentUsage ?? 0} de ${organizationUsage?.monthlyLimit ?? 20}`}
+                </span>
+              </div>
+
+              {!isPremium && (
+                <>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-400">Consumo da franquia</span>
+                      <span className="font-extrabold text-slate-700">
+                        {Math.min(100, Math.round(((organizationUsage?.currentUsage ?? 0) / (organizationUsage?.monthlyLimit ?? 20)) * 100))}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200/70 rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className={cn(
+                          "h-full rounded-full transition-all duration-300",
+                          (organizationUsage?.currentUsage ?? 0) >= 20 ? "bg-red-500" : (organizationUsage?.currentUsage ?? 0) >= 16 ? "bg-amber-500" : "bg-teal-600"
+                        )}
+                        style={{ width: `${Math.min(100, Math.round(((organizationUsage?.currentUsage ?? 0) / (organizationUsage?.monthlyLimit ?? 20)) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between border-b border-slate-200/80 pb-2">
+                    <span className="font-semibold text-slate-550">Emissões Restantes:</span>
+                    <span className={cn(
+                      "font-bold",
+                      (organizationUsage?.currentUsage ?? 0) >= 20 ? "text-red-600" : "text-slate-800"
+                    )}>
+                      {organizationUsage?.remaining ?? 20}
+                    </span>
+                  </div>
+                </>
+              )}
+
+              <div className="flex justify-between">
+                <span className="font-semibold text-slate-550">Renovação Mensal:</span>
+                <span className="font-bold text-slate-800">
+                  Dia 1º às 00:00 (Brasília)
                 </span>
               </div>
             </div>
@@ -196,7 +242,7 @@ export default function MyPlan() {
               <div className="bg-amber-500/5 border border-amber-500/10 p-3.5 rounded-xl text-left flex gap-2">
                 <AlertTriangle className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
                 <p className="text-[11px] text-amber-800 leading-normal font-medium">
-                  Você está navegando no plano básico. Componentes 3D e checklists requerem upgrade.
+                  Organizações no plano Free compartilham 20 emissões/mês entre todos os usuários autorizados.
                 </p>
               </div>
               <Button 
@@ -213,7 +259,7 @@ export default function MyPlan() {
               <div>
                 <h4 className="text-xs font-bold text-amber-900 leading-tight">Assinatura Premium Ativa</h4>
                 <p className="text-[11px] text-amber-800 mt-1 leading-normal">
-                  Sua licença corporativa está active. Aproveite o acesso completo à biblioteca e exportações de relatórios.
+                  Sua organização possui licença corporativa ativa com emissões ilimitadas e download de arquivos 3D homologados autorizados.
                 </p>
               </div>
             </div>

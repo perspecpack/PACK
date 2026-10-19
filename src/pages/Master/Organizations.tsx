@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp, OEM, OrganizationType } from '@/src/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit2, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, AlertTriangle, ShieldCheck, Sparkles } from 'lucide-react';
 import { ModuleType } from '@/src/types';
 import { FileUploadField } from '@/components/ui/FileUploadField';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 const ORG_TYPE_OPTIONS: { value: OrganizationType; label: string }[] = [
   { value: 'oem', label: 'Montadora' },
@@ -35,12 +37,18 @@ const DEFAULT_TECH_AREAS = [
 ];
 
 export default function Organizations() {
-  const { oems, addOrganization, updateOrganization, deleteOrganization, organizationModules } = useApp();
+  const { oems, addOrganization, updateOrganization, deleteOrganization, organizationModules, updateOrganizationCommercialPlan } = useApp();
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOEM, setEditingOEM] = useState<OEM | null>(null);
   
+  // Commercial Plan states
+  const [plan, setPlan] = useState<'free' | 'premium'>('free');
+  const [monthlyLimit, setMonthlyLimit] = useState<number>(20);
+  const [enforceLimit, setEnforceLimit] = useState<boolean>(false);
+  const [orgSubs, setOrgSubs] = useState<Record<string, { plan: string; monthlyLimit: number; enforceLimit: boolean }>>({});
+
   // Form states
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -69,6 +77,30 @@ export default function Organizations() {
   // Delete confirm state
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const fetchSubscriptions = async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase.from('organization_subscriptions').select('*');
+      if (!error && data) {
+        const map: Record<string, any> = {};
+        data.forEach((s: any) => {
+          map[s.organization_id] = {
+            plan: s.plan,
+            monthlyLimit: s.monthly_limit,
+            enforceLimit: s.enforce_limit
+          };
+        });
+        setOrgSubs(map);
+      }
+    } catch (err) {
+      console.error('Error fetching org subscriptions:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubscriptions();
+  }, [isModalOpen]);
+
   const openAddModal = () => {
     setEditingOEM(null);
     setName('');
@@ -92,6 +124,9 @@ export default function Organizations() {
     setCustomAreaDesc('');
     setCustomAreaIcon('📂');
     setCustomAreaSortOrder(10);
+    setPlan('free');
+    setMonthlyLimit(20);
+    setEnforceLimit(false);
     setIsModalOpen(true);
   };
 
@@ -104,6 +139,12 @@ export default function Organizations() {
     setDescription(oem.description || '');
     setStatus(oem.status);
     
+    // Load commercial subscription
+    const sub = orgSubs[oem.name] || orgSubs[oem.id];
+    setPlan((sub?.plan as any) || 'free');
+    setMonthlyLimit(sub?.monthlyLimit ?? 20);
+    setEnforceLimit(!!sub?.enforceLimit);
+
     // Load modules
     const orgMods = organizationModules.filter(m => m.organizationId === oem.id);
     const modMap: Record<ModuleType, boolean> = {
@@ -150,6 +191,9 @@ export default function Organizations() {
 
     if (editingOEM) {
       updateOrganization(editingOEM.id, oemData, modules);
+      if (updateOrganizationCommercialPlan) {
+        updateOrganizationCommercialPlan(name, plan, monthlyLimit, enforceLimit);
+      }
     } else {
       const initialAreas: any[] = [];
       
@@ -215,11 +259,12 @@ export default function Organizations() {
           <TableHeader className="bg-slate-50 border-b border-slate-200">
             <TableRow>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[110px]">Logo</TableHead>
-              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[350px] min-w-[280px]">Nome</TableHead>
+              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[300px] min-w-[240px]">Nome</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12">Tipo</TableHead>
+              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[130px]">Plano Comercial</TableHead>
               <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 hidden md:table-cell">Descrição</TableHead>
-              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[120px]">Status</TableHead>
-              <TableHead className="text-right text-[12px] font-semibold text-slate-600 uppercase h-12 pr-6 w-[150px]">Ações</TableHead>
+              <TableHead className="text-[12px] font-semibold text-slate-600 uppercase h-12 w-[110px]">Status</TableHead>
+              <TableHead className="text-right text-[12px] font-semibold text-slate-600 uppercase h-12 pr-6 w-[130px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -247,6 +292,23 @@ export default function Organizations() {
                   <TableCell className="align-middle">
                     <span className="text-[12px] font-semibold text-slate-600 bg-slate-100 border border-slate-200/60 px-2.5 py-0.5 rounded-full">
                       {ORG_TYPE_LABELS[oem.organizationType] || oem.organizationType}
+                    </span>
+                  </TableCell>
+                  <TableCell className="align-middle">
+                    <span className={cn(
+                      "text-[11px] font-bold px-2.5 py-1 rounded-full border inline-flex items-center gap-1",
+                      (orgSubs[oem.name]?.plan === 'premium' || orgSubs[oem.id]?.plan === 'premium')
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-slate-100 text-slate-700 border-slate-200"
+                    )}>
+                      {(orgSubs[oem.name]?.plan === 'premium' || orgSubs[oem.id]?.plan === 'premium') ? (
+                        <>
+                          <ShieldCheck className="w-3 h-3 text-amber-600" />
+                          PREMIUM
+                        </>
+                      ) : (
+                        'FREE'
+                      )}
                     </span>
                   </TableCell>
                   <TableCell className="align-middle hidden md:table-cell max-w-[400px] truncate text-[13px] text-slate-600">
@@ -359,6 +421,60 @@ export default function Organizations() {
                   <option value="active">Ativa</option>
                   <option value="inactive">Inativa</option>
                 </select>
+              </div>
+
+              {/* Seção Plano Comercial */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-slate-800">Plano Comercial</Label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setPlan('free'); setMonthlyLimit(20); }}
+                      className={cn(
+                        "px-3 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer",
+                        plan === 'free' 
+                          ? "bg-teal-600 text-white border-teal-600 shadow-xs" 
+                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                      )}
+                    >
+                      FREE
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPlan('premium'); setMonthlyLimit(-1); }}
+                      className={cn(
+                        "px-3 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer",
+                        plan === 'premium' 
+                          ? "bg-amber-600 text-white border-amber-600 shadow-xs" 
+                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                      )}
+                    >
+                      PREMIUM
+                    </button>
+                  </div>
+                </div>
+
+                {plan === 'free' ? (
+                  <div className="text-[11px] text-slate-500 space-y-1.5 pt-1">
+                    <p>Franquia: <strong>20 emissões/mês</strong> compartilhadas entre todos os usuários da empresa.</p>
+                    <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={enforceLimit}
+                        onChange={(e) => setEnforceLimit(e.target.checked)}
+                        className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-3.5 h-3.5"
+                      />
+                      <span className="text-[11px] font-semibold text-slate-700">
+                        Ativar trava estrita de limite (bloquear 21ª emissão no backend)
+                      </span>
+                    </label>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-amber-800 font-medium pt-1">
+                    Emissões ilimitadas e download de arquivos 3D homologados autorizados liberados.
+                  </p>
+                )}
               </div>
 
               {!editingOEM && (
