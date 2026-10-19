@@ -6,6 +6,7 @@ import {
   Send, 
   CheckCircle2, 
   AlertCircle, 
+  AlertTriangle,
   ArrowRight, 
   Search, 
   FileText, 
@@ -31,6 +32,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { useApp } from '@/src/context/AppContext';
 import { supabase } from '@/lib/supabase';
 import { findKnowledgeThumbnail } from '@/src/utils/pdfThumbnail';
@@ -104,6 +106,38 @@ export default function VisaoGeral() {
     }
     return profile?.tradeName || profile?.companyName || user?.companyName || 'Minha Organização';
   }, [user, profile]);
+
+  // Commercial plan & emission usage calculations
+  const isPremium = (organizationUsage?.plan === 'premium') || (profile?.planType === 'premium');
+  const currentUsage = organizationUsage?.currentUsage ?? 0;
+  const monthlyLimit = organizationUsage?.monthlyLimit ?? 20;
+  const remaining = organizationUsage?.remaining ?? Math.max(0, monthlyLimit - currentUsage);
+  const usagePercent = monthlyLimit > 0 ? Math.min(100, Math.round((currentUsage / monthlyLimit) * 100)) : 0;
+
+  // Faixas de consumo do Plano Free
+  const isLimitReached = !isPremium && (organizationUsage?.limitReached || currentUsage >= monthlyLimit);
+  const isNearLimit = !isPremium && !isLimitReached && currentUsage >= 16;
+
+  // Data de renovação mensal (1º dia do próximo mês no horário de Brasília)
+  const renewalDateFormatted = useMemo(() => {
+    if (organizationUsage?.periodEnd) {
+      try {
+        const d = new Date(organizationUsage.periodEnd);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('pt-BR', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            timeZone: 'America/Sao_Paulo' 
+          });
+        }
+      } catch {
+        // fallback
+      }
+    }
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return nextMonth.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  }, [organizationUsage?.periodEnd]);
 
   // Fetch real validation data
   useEffect(() => {
@@ -476,98 +510,239 @@ export default function VisaoGeral() {
             </Button>
           </div>
 
-          {/* Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            {/* 4.0 Indicador — Emissões no Mês (Plano Comercial da Organização) */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:border-teal-300 transition-all flex flex-col justify-between">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1 w-full">
-                  <span className="text-[11px] font-bold text-slate-450 uppercase tracking-wider block">
-                    {organizationUsage?.plan === 'premium' ? 'Plano Comercial' : 'Emissões neste mês'}
-                  </span>
+          {/* ============================================================ */}
+          {/* BLOCO COMERCIAL-INFORMATIVO DE DESTAQUE — PLANO & CONSUMO     */}
+          {/* ============================================================ */}
+          {!isPremium ? (
+            <div 
+              className={cn(
+                "w-full rounded-2xl sm:rounded-3xl border p-5 sm:p-6 transition-all shadow-xs relative overflow-hidden",
+                isLimitReached 
+                  ? "bg-gradient-to-br from-red-50/80 via-white to-red-50/30 border-red-200/90 hover:border-red-300" 
+                  : isNearLimit 
+                  ? "bg-gradient-to-br from-amber-50/80 via-white to-amber-50/30 border-amber-200/90 hover:border-amber-300" 
+                  : "bg-gradient-to-br from-slate-50/80 via-white to-teal-50/40 border-slate-200/90 hover:border-teal-300/80"
+              )}
+            >
+              {/* Sutil brilho decorativo de fundo */}
+              <div 
+                className={cn(
+                  "absolute -top-16 -right-16 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-40",
+                  isLimitReached ? "bg-red-200" : isNearLimit ? "bg-amber-200" : "bg-teal-200"
+                )} 
+              />
+
+              <div className="relative z-10 flex flex-col gap-5">
+                {/* Cabeçalho do Bloco: Badge do Plano + Título + Ações */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100/90">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <Badge 
+                      variant="outline"
+                      className={cn(
+                        "px-2.5 py-1 text-xs font-black tracking-wide uppercase rounded-lg border shadow-2xs",
+                        isLimitReached
+                          ? "bg-red-100 text-red-800 border-red-300"
+                          : isNearLimit
+                          ? "bg-amber-100 text-amber-900 border-amber-300"
+                          : "bg-teal-50 text-teal-800 border-teal-200"
+                      )}
+                    >
+                      Plano Free
+                    </Badge>
+                    <span className="text-slate-300 hidden sm:inline">•</span>
+                    <h3 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
+                      <span>Emissões neste mês</span>
+                      <span className="text-xs font-medium text-slate-400">
+                        (Limite de 20 por mês)
+                      </span>
+                    </h3>
+                  </div>
+
+                  {/* Ações discretas e elegantes */}
+                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                    <Button
+                      onClick={() => navigate('/app/meu-plano')}
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs font-bold text-slate-600 hover:text-teal-700 hover:bg-white/90 border border-slate-200/80 px-3 py-1.5 rounded-xl h-8 gap-1.5 transition-all shadow-2xs"
+                    >
+                      <span>Ver detalhes do plano</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+
+                    <Button
+                      onClick={() => navigate('/app/meu-plano')}
+                      size="sm"
+                      className={cn(
+                        "text-xs font-bold px-3.5 py-1.5 rounded-xl h-8 gap-1.5 transition-all shadow-xs",
+                        isLimitReached
+                          ? "bg-red-600 hover:bg-red-700 text-white"
+                          : isNearLimit
+                          ? "bg-amber-600 hover:bg-amber-700 text-white"
+                          : "bg-teal-600 hover:bg-teal-700 text-white"
+                      )}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{isLimitReached ? 'Ativar Premium' : 'Conhecer Premium'}</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Conteúdo Central: Indicador numérico em destaque + Barra de progresso */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
                   
-                  {organizationUsage?.plan === 'premium' ? (
-                    <div>
-                      <div className="flex items-baseline gap-2 mt-1">
-                        <span className="text-2xl font-black text-emerald-700">PREMIUM</span>
+                  {/* Lado Esquerdo (6 colunas): Métrica Principal e Mensagem Contextual */}
+                  <div className="lg:col-span-6 space-y-2">
+                    <div className="flex items-baseline gap-2.5 flex-wrap">
+                      <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                        {currentUsage} de {monthlyLimit}
+                      </span>
+                      <span className="text-base sm:text-lg font-bold text-slate-500">
+                        emissões utilizadas
+                      </span>
+                      <span 
+                        className={cn(
+                          "text-xs font-extrabold px-2 py-0.5 rounded-md border",
+                          isLimitReached
+                            ? "bg-red-100 text-red-800 border-red-200"
+                            : isNearLimit
+                            ? "bg-amber-100 text-amber-900 border-amber-200"
+                            : "bg-teal-50 text-teal-800 border-teal-200"
+                        )}
+                      >
+                        {usagePercent}%
+                      </span>
+                    </div>
+
+                    {/* Mensagem educativa e sem tom agressivo */}
+                    {isLimitReached ? (
+                      <div className="flex items-start gap-2 pt-1 text-xs sm:text-sm text-red-700 font-semibold leading-relaxed">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
+                        <span>
+                          Você utilizou as 20 emissões gratuitas deste mês. Novas publicações estarão disponíveis no próximo período ou com a ativação do Premium.
+                        </span>
                       </div>
-                      <p className="text-xs font-semibold text-emerald-800 mt-0.5">
-                        Emissões ilimitadas
+                    ) : isNearLimit ? (
+                      <div className="flex items-start gap-2 pt-1 text-xs sm:text-sm text-amber-800 font-semibold leading-relaxed">
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                        <span>
+                          Atenção: sua organização está próxima do limite mensal. Restam apenas <strong>{remaining} {remaining === 1 ? 'emissão' : 'emissões'}</strong> neste mês.
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                        Sua organização pode publicar até <strong className="text-slate-800 font-bold">20 formulários por mês</strong> no Plano Free.
+                        {' '}Você já utilizou <strong className="text-slate-800 font-bold">{currentUsage} de {monthlyLimit} emissões</strong> neste período.
+                        {' '}Restam <strong className="text-teal-700 font-bold">{remaining} {remaining === 1 ? 'emissão' : 'emissões'}</strong> até a renovação no próximo mês.
                       </p>
+                    )}
+                  </div>
+
+                  {/* Lado Direito (6 colunas): Barra de Progresso + Metadados de Renovação */}
+                  <div className="lg:col-span-6 space-y-3 bg-white/80 border border-slate-200/80 rounded-xl p-4 sm:p-4.5 shadow-2xs backdrop-blur-2xs">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-500">Consumo da Franquia Mensal</span>
+                      <span 
+                        className={cn(
+                          "font-extrabold",
+                          isLimitReached ? "text-red-600" : isNearLimit ? "text-amber-700" : "text-teal-700"
+                        )}
+                      >
+                        {currentUsage} / {monthlyLimit} ({usagePercent}%)
+                      </span>
                     </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-baseline gap-2 mt-1">
-                        <span className="text-3xl font-black text-slate-800">
-                          {organizationUsage?.currentUsage ?? 0}
-                        </span>
-                        <span className="text-sm font-bold text-slate-400">
-                          / {organizationUsage?.monthlyLimit ?? 20}
-                        </span>
-                      </div>
-                      {/* Barra de progresso */}
-                      <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden border border-slate-200/60">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            (organizationUsage?.currentUsage ?? 0) >= 20 
-                              ? 'bg-red-500' 
-                              : (organizationUsage?.currentUsage ?? 0) >= 16 
-                              ? 'bg-amber-500' 
-                              : 'bg-teal-600'
-                          }`}
-                          style={{
-                            width: `${Math.min(100, Math.round(((organizationUsage?.currentUsage ?? 0) / (organizationUsage?.monthlyLimit ?? 20)) * 100))}%`
-                          }}
+
+                    {/* Barra de Progresso */}
+                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200/80 p-0.5">
+                      <div 
+                        className={cn(
+                          "h-full rounded-full transition-all duration-700 shadow-2xs",
+                          isLimitReached 
+                            ? "bg-red-500" 
+                            : isNearLimit 
+                            ? "bg-amber-500" 
+                            : "bg-teal-600"
+                        )}
+                        style={{ width: `${usagePercent}%` }}
+                      />
+                    </div>
+
+                    {/* Metadados Complementares: Restante e Data de Renovação */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 text-[11px] font-medium text-slate-500">
+                      <span className="flex items-center gap-1.5">
+                        <span 
+                          className={cn(
+                            "w-2 h-2 rounded-full",
+                            isLimitReached ? "bg-red-500" : isNearLimit ? "bg-amber-500" : "bg-teal-500"
+                          )} 
                         />
-                      </div>
+                        {isLimitReached ? (
+                          <strong className="text-red-700 font-bold">0 emissões restantes</strong>
+                        ) : (
+                          <>Restam <strong className="text-slate-800 font-bold">{remaining} {remaining === 1 ? 'emissão' : 'emissões'}</strong> neste mês</>
+                        )}
+                      </span>
+
+                      <span className="flex items-center gap-1 text-slate-500">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        Renovação em {renewalDateFormatted}, horário de Brasília
+                      </span>
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  organizationUsage?.plan === 'premium'
-                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-600'
-                    : 'bg-teal-50 border border-teal-200 text-teal-600'
-                }`}>
-                  {organizationUsage?.plan === 'premium' ? (
-                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                  ) : (
-                    <Sparkles className="w-5 h-5 text-teal-600" />
-                  )}
                 </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-1">
-                {organizationUsage?.plan === 'premium' ? (
-                  <>
-                    <p className="text-xs font-semibold text-slate-650">
-                      Franquia corporativa liberada.
-                    </p>
-                    <span className="text-[10px] text-slate-400 leading-tight">
-                      Emissões ilimitadas sob política de uso justo.
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <p className={`text-xs font-semibold ${
-                      (organizationUsage?.currentUsage ?? 0) >= 20 
-                        ? 'text-red-600' 
-                        : (organizationUsage?.currentUsage ?? 0) >= 16 
-                        ? 'text-amber-700' 
-                        : 'text-slate-650'
-                    }`}>
-                      {(organizationUsage?.currentUsage ?? 0) >= 20
-                        ? 'Limite gratuito atingido neste mês.'
-                        : `Restam ${organizationUsage?.remaining ?? 20} emissões gratuitas neste mês.`}
-                    </p>
-                    <span className="text-[10px] text-slate-400 leading-tight">
-                      Renovação em 1º do próximo mês (fuso de Brasília).
-                    </span>
-                  </>
-                )}
               </div>
             </div>
+          ) : (
+            /* ============================================================ */
+            /* BLOCO DO PLANO PREMIUM — SIMPLIFICADO E ELEGANTE             */
+            /* ============================================================ */
+            <div className="w-full rounded-2xl sm:rounded-3xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/30 p-5 sm:p-6 shadow-xs relative overflow-hidden">
+              <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-40 bg-emerald-200" />
+              
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100/80 border border-emerald-300 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs">
+                    <ShieldCheck className="w-6 h-6 text-emerald-700" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline"
+                        className="bg-emerald-100 text-emerald-900 border-emerald-300 px-2.5 py-0.5 text-xs font-black tracking-wide uppercase rounded-lg shadow-2xs"
+                      >
+                        Plano Premium
+                      </Badge>
+                      <span className="text-xs font-bold text-slate-400">• Emissões neste mês</span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl sm:text-3xl font-black text-emerald-800 tracking-tight">
+                        Emissões ilimitadas
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-600">
+                      Sua organização possui plano Premium ativo. Franquia corporativa liberada para publicação contínua de formulários.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="self-start sm:self-auto shrink-0">
+                  <Button
+                    onClick={() => navigate('/app/meu-plano')}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs font-bold text-emerald-800 hover:text-emerald-900 bg-white hover:bg-emerald-50/60 border-emerald-300 px-3.5 py-2 rounded-xl h-9 gap-1.5 shadow-2xs transition-all"
+                  >
+                    <span>Ver detalhes do plano</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-emerald-700" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Metric Cards (Operacionais — 3 Colunas) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
             {/* 4.1 Total Aguardando */}
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between">
